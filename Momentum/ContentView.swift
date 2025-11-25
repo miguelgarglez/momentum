@@ -229,6 +229,7 @@ struct DashboardMetricsView: View {
 
 struct ProjectDetailView: View {
     @Bindable var project: Project
+    @State private var usageWindow: UsageWindow = .hour
 
     init(project: Project) {
         self._project = Bindable(project)
@@ -241,7 +242,8 @@ struct ProjectDetailView: View {
                 metricGrid
                 WeeklySummaryChartView(project: project)
                 assignmentsSection
-                activitySection
+                usageSummarySection
+                lastUsedSection
             }
             .padding()
             .navigationTitle(project.name)
@@ -302,17 +304,40 @@ struct ProjectDetailView: View {
         }
     }
 
-    private var activitySection: some View {
+    private var usageSummarySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Actividad reciente")
-                .font(.headline)
-            if project.sessions.isEmpty {
-                Text("Aún no hay sesiones para este proyecto.")
+            HStack {
+                Text("Uso por contexto")
+                    .font(.headline)
+                Spacer()
+                Picker("Intervalo", selection: $usageWindow) {
+                    ForEach(UsageWindow.allCases) { window in
+                        Text(window.title).tag(window)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 240)
+            }
+
+            let summaries = project.contextUsageSummaries(for: usageWindow.interval, limit: 6)
+            if summaries.isEmpty {
+                Text("Aún no hay registros para este intervalo.")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(project.sessions.sorted(by: { $0.startDate > $1.startDate }).prefix(10)) { session in
-                    SessionRow(session: session)
-                }
+                ContextUsageList(summaries: summaries)
+            }
+        }
+    }
+
+    private var lastUsedSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Último usado")
+                .font(.headline)
+            if let session = project.sessions.sorted(by: { $0.endDate > $1.endDate }).first {
+                LastUsedCard(session: session)
+            } else {
+                Text("Aún no hay sesiones para este proyecto.")
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -340,21 +365,106 @@ struct MetricCard: View {
     }
 }
 
-struct SessionRow: View {
-    let session: TrackingSession
+struct ContextUsageList: View {
+    let summaries: [ContextUsageSummary]
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(session.appName)
-                    .font(.headline)
-                Text(session.startDate.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        let maxSeconds = summaries.map { $0.seconds }.max() ?? 1
+        VStack(spacing: 12) {
+            ForEach(summaries) { summary in
+                ContextUsageRow(summary: summary, maxSeconds: maxSeconds)
             }
-            Spacer()
-            Text(session.duration.hoursAndMinutesString)
-                .font(.body.bold())
+        }
+    }
+}
+
+struct ContextUsageRow: View {
+    @EnvironmentObject private var appCatalog: AppCatalog
+    let summary: ContextUsageSummary
+    let maxSeconds: TimeInterval
+
+    private var icon: Image {
+        if let bundle = summary.bundleIdentifier,
+           let app = appCatalog.app(for: bundle) {
+            return app.icon
+        }
+        return Image(systemName: summary.domain == nil ? "app" : "globe")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                icon
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(summary.title)
+                        .font(.subheadline.weight(.semibold))
+                    if let subtitle = summary.subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Text(summary.seconds.hoursAndMinutesString)
+                    .font(.subheadline.bold())
+            }
+
+            ProgressView(value: summary.seconds, total: maxSeconds)
+                .progressViewStyle(.linear)
+        }
+        .padding()
+        .background(Color(nsColor: .windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+struct LastUsedCard: View {
+    @EnvironmentObject private var appCatalog: AppCatalog
+    let session: TrackingSession
+
+    private var title: String { session.primaryContextLabel }
+    private var subtitle: String? { session.secondaryContextLabel }
+
+    private var icon: Image {
+        if let bundle = session.bundleIdentifier,
+           let app = appCatalog.app(for: bundle) {
+            return app.icon
+        }
+        return Image(systemName: session.domain == nil ? "app" : "globe")
+    }
+
+    private var relativeTime: String {
+        let formatter = RelativeDateTimeFormatter()
+        return formatter.localizedString(for: session.endDate, relativeTo: .now)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                icon
+                    .resizable()
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.title3.bold())
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Text(session.duration.hoursAndMinutesString)
+                    .font(.headline)
+            }
+
+            Text("Último registro: \(relativeTime)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding()
         .background(Color(nsColor: .windowBackgroundColor))
@@ -375,6 +485,38 @@ struct WrappingChips: View {
                     .background(Color.secondary.opacity(0.15))
                     .clipShape(Capsule())
             }
+        }
+    }
+}
+
+enum UsageWindow: String, CaseIterable, Identifiable {
+    case hour
+    case day
+    case week
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .hour: return "1h"
+        case .day: return "Hoy"
+        case .week: return "7 días"
+        }
+    }
+
+    var interval: DateInterval {
+        let now = Date()
+        let calendar = Calendar.current
+        switch self {
+        case .hour:
+            let start = now.addingTimeInterval(-3600)
+            return DateInterval(start: start, end: now)
+        case .day:
+            let start = calendar.startOfDay(for: now)
+            return DateInterval(start: start, end: now)
+        case .week:
+            let start = calendar.date(byAdding: .day, value: -7, to: now) ?? now
+            return DateInterval(start: start, end: now)
         }
     }
 }

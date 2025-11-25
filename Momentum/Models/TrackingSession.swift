@@ -49,4 +49,29 @@ extension TrackingSession {
         }
         return bundleIdentifier ?? appName
     }
+
+    var contextKey: String {
+        if let domain {
+            return "domain::\(domain.lowercased())"
+        }
+        if let bundleIdentifier {
+            return "bundle::\(bundleIdentifier)"
+        }
+        return "app::\(appName)"
+    }
+
+    var primaryContextLabel: String {
+        domain ?? appName
+    }
+
+    var secondaryContextLabel: String? {
+        domain == nil ? nil : appName
+    }
+
+    func duration(in interval: DateInterval) -> TimeInterval {
+        guard let overlap = self.interval.intersection(with: interval) else {
+            return 0
+        }
+        return overlap.duration
+    }
 }

@@ -154,6 +154,30 @@ extension Project {
         }
         return days.reversed()
     }
+
+    func contextUsageSummaries(for interval: DateInterval, limit: Int = 6) -> [ContextUsageSummary] {
+        guard interval.duration > 0 else { return [] }
+        var totals: [String: (title: String, subtitle: String?, seconds: TimeInterval, bundleIdentifier: String?, domain: String?)] = [:]
+        for session in sessions {
+            let duration = session.duration(in: interval)
+            guard duration > 0 else { continue }
+            let key = session.contextKey
+            let info = totals[key] ?? (session.primaryContextLabel, session.secondaryContextLabel, 0, session.bundleIdentifier, session.domain)
+            totals[key] = (info.title, info.subtitle, info.seconds + duration, session.bundleIdentifier, session.domain)
+        }
+        let summaries = totals.map { key, value in
+            ContextUsageSummary(
+                id: key,
+                title: value.title,
+                subtitle: value.subtitle,
+                seconds: value.seconds,
+                bundleIdentifier: value.bundleIdentifier,
+                domain: value.domain
+            )
+        }
+        return Array(summaries.sorted { $0.seconds > $1.seconds }.prefix(limit))
+    }
+
 }
 
 enum ProjectIcon: String, CaseIterable {
@@ -195,4 +219,13 @@ enum ProjectPalette {
     ]
 
     static var defaultColor: ProjectColor { colors[0] }
+}
+
+struct ContextUsageSummary: Identifiable {
+    let id: String
+    let title: String
+    let subtitle: String?
+    let seconds: TimeInterval
+    let bundleIdentifier: String?
+    let domain: String?
 }

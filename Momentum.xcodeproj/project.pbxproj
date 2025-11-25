@@ -29,9 +29,22 @@
 		A63FF1052ED3B689002F9FA7 /* MomentumUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MomentumUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A6EFF55D2ED657EC00A298CD /* Exceptions for "Momentum" folder in "Momentum" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A63FF0EA2ED3B686002F9FA7 /* Momentum */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A63FF0ED2ED3B686002F9FA7 /* Momentum */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A6EFF55D2ED657EC00A298CD /* Exceptions for "Momentum" folder in "Momentum" target */,
+			);
 			path = Momentum;
 			sourceTree = "<group>";
 		};
@@ -401,8 +414,8 @@
 				DEVELOPMENT_TEAM = 5V7PA2543K;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Momentum/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -429,8 +442,8 @@
 				DEVELOPMENT_TEAM = 5V7PA2543K;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Momentum/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

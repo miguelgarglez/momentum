@@ -9,6 +9,11 @@ import Foundation
 
 extension TimeInterval {
     var hoursAndMinutesString: String {
+        if self < 60 {
+            let seconds = max(0, Int(self.rounded()))
+            return "\(seconds)s"
+        }
+
         let totalMinutes = Int(self / 60)
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
