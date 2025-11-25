@@ -10,22 +10,31 @@ import SwiftData
 
 @main
 struct MomentumApp: App {
-    var sharedModelContainer: ModelContainer = {
+    let sharedModelContainer: ModelContainer
+    @StateObject private var tracker: ActivityTracker
+    @StateObject private var appCatalog = AppCatalog()
+
+    init() {
         let schema = Schema([
-            Item.self,
+            Project.self,
+            TrackingSession.self
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            let container = try ModelContainer(for: schema, configurations: [configuration])
+            sharedModelContainer = container
+            _tracker = StateObject(wrappedValue: ActivityTracker(modelContainer: container))
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
-    }()
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(tracker)
+                .environmentObject(appCatalog)
         }
         .modelContainer(sharedModelContainer)
     }
