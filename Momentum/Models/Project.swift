@@ -118,6 +118,14 @@ extension Project {
     func matches(domain: String) -> Bool {
         assignedDomains.contains { domain.lowercased().contains($0) }
     }
+
+    func apply(draft: ProjectFormDraft) {
+        name = draft.name
+        colorHex = draft.colorHex
+        iconName = draft.iconName
+        assignedApps = draft.assignedApps
+        assignedDomains = draft.assignedDomains
+    }
 }
 
 private extension Project {

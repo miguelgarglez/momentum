@@ -14,16 +14,18 @@ struct ContentView: View {
     @Query(sort: \Project.createdAt, order: .forward) private var projects: [Project]
 
     @State private var selectedProjectID: PersistentIdentifier?
-    @State private var isShowingProjectForm = false
+    @State private var activeProjectSheet: ProjectSheet?
+    @State private var toast: ToastMessage?
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selectedProjectID) {
-                if !projects.isEmpty {
-                    Section {
-                        DashboardHeaderView(projects: projects)
-                            .listRowInsets(.init(top: 12, leading: 12, bottom: 12, trailing: 12))
-                            .listRowBackground(Color.clear)
+        ZStack(alignment: .bottom) {
+            NavigationSplitView {
+                List(selection: $selectedProjectID) {
+                    if !projects.isEmpty {
+                        Section {
+                            DashboardHeaderView(projects: projects)
+                                .listRowInsets(.init(top: 12, leading: 12, bottom: 12, trailing: 12))
+                                .listRowBackground(Color.clear)
                     }
                 }
 
@@ -38,40 +40,59 @@ struct ContentView: View {
                         .onDelete(perform: deleteProjects)
                     }
                 }
-            }
-            .navigationTitle("Momentum")
-            .toolbar {
-                ToolbarItem {
-                    Button {
-                        tracker.toggleTracking()
-                    } label: {
-                        Label(
-                            trackerStatusLabel,
-                            systemImage: tracker.isTrackingEnabled ? "pause.circle" : "play.circle"
-                        )
-                    }
-                    .help("Activa o pausa el tracking automático")
                 }
+                .navigationTitle("Momentum")
+                .toolbar {
+                    ToolbarItem {
+                        Button {
+                            tracker.toggleTracking()
+                        } label: {
+                            Label(
+                                trackerStatusLabel,
+                                systemImage: tracker.isTrackingEnabled ? "pause.circle" : "play.circle"
+                            )
+                        }
+                        .help("Activa o pausa el tracking automático")
+                    }
 
-                ToolbarItem {
-                    Button {
-                        isShowingProjectForm = true
-                    } label: {
-                        Label("Nuevo proyecto", systemImage: "plus")
+                    ToolbarItem {
+                        Button {
+                            activeProjectSheet = .create
+                        } label: {
+                            Label("Nuevo proyecto", systemImage: "plus")
+                        }
                     }
                 }
+            } detail: {
+                if let selected = selectedProject {
+                    ProjectDetailView(
+                        project: selected,
+                        onEdit: { activeProjectSheet = .edit($0) },
+                        onDelete: { deleteProject($0) }
+                    )
+                } else {
+                    WelcomeView()
+                }
             }
-        } detail: {
-            if let selected = selectedProject {
-                ProjectDetailView(project: selected)
-            } else {
-                WelcomeView()
+            .onAppear {
+                selectedProjectID = projects.first?.persistentModelID
+            }
+            .sheet(item: $activeProjectSheet, content: sheetContent)
+
+            if let toast {
+                ToastView(message: toast.message, style: toast.style)
+                    .padding(.bottom, 24)
+                    .padding(.horizontal)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .onAppear {
-            selectedProjectID = projects.first?.persistentModelID
-        }
-        .sheet(isPresented: $isShowingProjectForm) {
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: toast)
+    }
+
+    @ViewBuilder
+    private func sheetContent(for sheet: ProjectSheet) -> some View {
+        switch sheet {
+        case .create:
             ProjectFormView { draft in
                 let project = Project(
                     name: draft.name,
@@ -81,8 +102,23 @@ struct ContentView: View {
                     assignedDomains: draft.assignedDomains
                 )
                 modelContext.insert(project)
-                try? modelContext.save()
-                selectedProjectID = project.persistentModelID
+                do {
+                    try modelContext.save()
+                    selectedProjectID = project.persistentModelID
+                    showToast("Proyecto creado", style: .success)
+                } catch {
+                    showToast("No pudimos crear el proyecto", style: .error)
+                }
+            }
+        case .edit(let project):
+            ProjectFormView(project: project) { draft in
+                project.apply(draft: draft)
+                do {
+                    try modelContext.save()
+                    showToast("Proyecto actualizado", style: .success)
+                } catch {
+                    showToast("No pudimos guardar los cambios", style: .error)
+                }
             }
         }
     }
@@ -92,14 +128,55 @@ struct ContentView: View {
     }
 
     private func deleteProjects(at offsets: IndexSet) {
-        offsets.map { projects[$0] }.forEach(modelContext.delete)
-        try? modelContext.save()
-        selectedProjectID = projects.first?.persistentModelID
+        let targets = offsets.map { projects[$0] }
+        targets.forEach(modelContext.delete)
+        do {
+            try modelContext.save()
+            selectedProjectID = projects.first?.persistentModelID
+            showToast("Proyecto eliminado", style: .success)
+        } catch {
+            showToast("No pudimos eliminar el proyecto", style: .error)
+        }
+    }
+
+    private func deleteProject(_ project: Project) {
+        modelContext.delete(project)
+        do {
+            try modelContext.save()
+            selectedProjectID = projects.first?.persistentModelID
+            showToast("Proyecto eliminado", style: .success)
+        } catch {
+            showToast("No pudimos eliminar el proyecto", style: .error)
+        }
+    }
+
+    private func showToast(_ message: String, style: ToastMessage.Style = .success) {
+        let newToast = ToastMessage(message: message, style: style)
+        toast = newToast
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            if toast?.id == newToast.id {
+                toast = nil
+            }
+        }
     }
 
     private var selectedProject: Project? {
         guard let selectedProjectID else { return projects.first }
         return projects.first(where: { $0.persistentModelID == selectedProjectID })
+    }
+}
+
+private enum ProjectSheet: Identifiable {
+    case create
+    case edit(Project)
+
+    var id: String {
+        switch self {
+        case .create:
+            return "create"
+        case .edit(let project):
+            return String(project.persistentModelID.hashValue)
+        }
     }
 }
 
@@ -168,6 +245,51 @@ struct ProjectRowView: View {
     }
 }
 
+private struct ToastMessage: Identifiable, Equatable {
+    enum Style {
+        case success
+        case error
+    }
+
+    let id = UUID()
+    let message: String
+    let style: Style
+}
+
+private struct ToastView: View {
+    let message: String
+    let style: ToastMessage.Style
+
+    private var iconName: String {
+        switch style {
+        case .success: return "checkmark.circle.fill"
+        case .error: return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var tint: Color {
+        switch style {
+        case .success: return .green
+        case .error: return .orange
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: iconName)
+                .foregroundColor(tint)
+            Text(message)
+                .font(.callout)
+                .bold()
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .background(.thinMaterial)
+        .clipShape(Capsule())
+        .shadow(radius: 10, x: 0, y: 4)
+    }
+}
+
 struct DashboardHeaderView: View {
     let projects: [Project]
 
@@ -230,9 +352,13 @@ struct DashboardMetricsView: View {
 struct ProjectDetailView: View {
     @Bindable var project: Project
     @State private var usageWindow: UsageWindow = .hour
+    let onEdit: (Project) -> Void
+    let onDelete: (Project) -> Void
 
-    init(project: Project) {
+    init(project: Project, onEdit: @escaping (Project) -> Void = { _ in }, onDelete: @escaping (Project) -> Void = { _ in }) {
         self._project = Bindable(project)
+        self.onEdit = onEdit
+        self.onDelete = onDelete
     }
 
     var body: some View {
@@ -247,6 +373,20 @@ struct ProjectDetailView: View {
             }
             .padding()
             .navigationTitle(project.name)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button("Editar") { onEdit(project) }
+                        Button(role: .destructive) {
+                            onDelete(project)
+                        } label: {
+                            Text("Eliminar")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
         }
     }
 
@@ -559,12 +699,30 @@ struct WeeklySummaryChartView: View {
 }
 
 struct ProjectFormDraft {
-    var name = ""
-    var colorHex = ProjectPalette.defaultColor.hex
-    var iconName = ProjectIcon.spark.systemName
-    var selectedAppIDs: Set<String> = []
-    var manualApps = ""
-    var domains = ""
+    var name: String
+    var colorHex: String
+    var iconName: String
+    var selectedAppIDs: Set<String>
+    var manualApps: String
+    var domains: String
+
+    init(project: Project? = nil) {
+        if let project {
+            name = project.name
+            colorHex = project.colorHex
+            iconName = project.iconName
+            selectedAppIDs = Set(project.assignedApps)
+            manualApps = ""
+            domains = project.assignedDomains.joined(separator: ", ")
+        } else {
+            name = ""
+            colorHex = ProjectPalette.defaultColor.hex
+            iconName = ProjectIcon.spark.systemName
+            selectedAppIDs = []
+            manualApps = ""
+            domains = ""
+        }
+    }
 
     var assignedApps: [String] {
         let manual = manualApps
@@ -586,9 +744,16 @@ struct ProjectFormDraft {
 struct ProjectFormView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appCatalog: AppCatalog
-    @State private var draft = ProjectFormDraft()
+    @State private var draft: ProjectFormDraft
+    private let mode: FormMode
 
     let onSave: (ProjectFormDraft) -> Void
+
+    init(project: Project? = nil, onSave: @escaping (ProjectFormDraft) -> Void) {
+        self.onSave = onSave
+        self.mode = project == nil ? .create : .edit
+        self._draft = State(initialValue: ProjectFormDraft(project: project))
+    }
 
     var body: some View {
         NavigationStack {
@@ -646,7 +811,7 @@ struct ProjectFormView: View {
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
             .background(Color(nsColor: .windowBackgroundColor))
-            .navigationTitle("Nuevo proyecto")
+            .navigationTitle(mode == .create ? "Nuevo proyecto" : "Editar proyecto")
             .frame(minWidth: 540, maxWidth: 640)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -656,7 +821,7 @@ struct ProjectFormView: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Guardar") {
+                    Button(mode == .create ? "Crear" : "Guardar") {
                         onSave(draft)
                         dismiss()
                     }
@@ -664,6 +829,11 @@ struct ProjectFormView: View {
                 }
             }
         }
+    }
+
+    private enum FormMode {
+        case create
+        case edit
     }
 }
 
