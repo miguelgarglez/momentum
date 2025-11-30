@@ -8,29 +8,56 @@
 import Foundation
 import SwiftData
 import OSLog
+import Combine
 
 #if os(macOS)
 import AppKit
+import IOKit
 
 @MainActor
 final class ActivityTracker: ObservableObject {
+    struct StatusSummary: Equatable {
+        enum State: Equatable {
+            case inactive
+            case tracking
+            case pausedManual
+            case pausedIdle
+        }
+
+        var state: State
+        var appName: String?
+        var domain: String?
+        var projectName: String?
+        var projectID: PersistentIdentifier?
+    }
+
     @Published private(set) var isTrackingEnabled = true
+    @Published private(set) var statusSummary = StatusSummary(state: .inactive)
 
     private let modelContainer: ModelContainer
+    private let settings: TrackerSettings
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Momentum", category: "ActivityTracker")
     private let domainResolver = BrowserDomainResolver()
+    /// Interval for periodic session flushing even when the active app does not change.
     private let heartbeatInterval: TimeInterval = 60
-    private let domainPollingInterval: TimeInterval = 5
+    /// Sessions shorter than this are discarded to avoid noisy data.
     private let minimumSessionDuration: TimeInterval = 10
+    /// Frequency for checking the system idle timer (seconds).
+    private let idleCheckInterval: TimeInterval = 5
 
     private var currentContext: AppSessionContext?
     private var observer: NSObjectProtocol?
     private var heartbeatTimer: Timer?
     private var domainTimer: Timer?
+    private var idleTimer: Timer?
     private var isResolvingDomain = false
+    private var isUserIdle = false
+    private var idleBeganAt: Date?
+    private var cancellables: Set<AnyCancellable> = []
 
-    init(modelContainer: ModelContainer) {
+    init(modelContainer: ModelContainer, settings: TrackerSettings) {
         self.modelContainer = modelContainer
+        self.settings = settings
         observer = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
@@ -44,11 +71,14 @@ final class ActivityTracker: ObservableObject {
         handleAppChange(NSWorkspace.shared.frontmostApplication)
         startHeartbeat()
         startDomainPolling()
+        startIdleMonitoring()
+        observeSettings()
+        refreshStatusSummary()
     }
 
     deinit {
         MainActor.assumeIsolated {
-            self.tearDown()
+            tearDown()
         }
     }
 
@@ -56,28 +86,37 @@ final class ActivityTracker: ObservableObject {
         isTrackingEnabled.toggle()
         logger.info("Tracking toggled. Enabled: \(self.isTrackingEnabled, privacy: .public)")
         if isTrackingEnabled {
+            restartTimersIfNeeded()
             handleAppChange(NSWorkspace.shared.frontmostApplication)
         } else {
             _ = flushCurrentSession()
+            pauseTimers()
         }
+        refreshStatusSummary()
     }
 
     private func handleAppChange(_ application: NSRunningApplication?) {
         _ = flushCurrentSession()
         guard isTrackingEnabled, let application else {
-            currentContext = nil
+            setCurrentContext(nil)
             logger.debug("Tracking paused or no active app.")
             return
         }
         let identifier = application.bundleIdentifier ?? application.localizedName ?? "unknown"
         logger.debug("Active app is now \(identifier, privacy: .public)")
-        currentContext = AppSessionContext(
+        var context = AppSessionContext(
             appName: application.localizedName ?? "App",
             bundleIdentifier: application.bundleIdentifier,
             domain: nil,
-            startDate: .now
+            startDate: .now,
+            projectID: nil,
+            projectName: nil
         )
-        triggerDomainResolution()
+        updateProjectAssociation(for: &context)
+        setCurrentContext(context)
+        if settings.isDomainTrackingEnabled {
+            triggerDomainResolution()
+        }
     }
 
     @discardableResult
@@ -86,13 +125,13 @@ final class ActivityTracker: ObservableObject {
         let endDate = Date()
         if endDate.timeIntervalSince(context.startDate) < minimumSessionDuration {
             context.startDate = endDate
-            currentContext = context
+            setCurrentContext(context)
             return nil
         }
         let identifier = context.bundleIdentifier ?? context.appName
         logger.debug("Closing session for \(identifier, privacy: .public)")
         persistSession(context: context, endDate: endDate)
-        currentContext = nil
+        setCurrentContext(nil)
         return (context, endDate)
     }
 
@@ -116,7 +155,12 @@ final class ActivityTracker: ObservableObject {
     }
 
     private func resolveProject(for bundleIdentifier: String?, domain: String?) -> Project? {
-        let descriptor = FetchDescriptor<Project>()
+        let descriptor = FetchDescriptor<Project>(
+            sortBy: [
+                SortDescriptor(\Project.priority, order: .reverse),
+                SortDescriptor(\Project.createdAt, order: .forward)
+            ]
+        )
         guard let projects = try? modelContainer.mainContext.fetch(descriptor) else {
             return nil
         }
@@ -135,29 +179,41 @@ final class ActivityTracker: ObservableObject {
     }
 
     private func startHeartbeat() {
+        heartbeatTimer?.invalidate()
+        guard isTrackingEnabled else { return }
         heartbeatTimer = Timer.scheduledTimer(withTimeInterval: heartbeatInterval, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            self.logger.debug("Heartbeat flush triggered")
-            guard let (context, endDate) = self.flushCurrentSession() else { return }
-            self.currentContext = AppSessionContext(
-                appName: context.appName,
-                bundleIdentifier: context.bundleIdentifier,
-                domain: context.domain,
-                startDate: endDate
-            )
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.logger.debug("Heartbeat flush triggered")
+                guard let (context, endDate) = self.flushCurrentSession() else { return }
+                self.setCurrentContext(AppSessionContext(
+                    appName: context.appName,
+                    bundleIdentifier: context.bundleIdentifier,
+                    domain: context.domain,
+                    startDate: endDate,
+                    projectID: context.projectID,
+                    projectName: context.projectName
+                ))
+            }
         }
     }
 
     private func startDomainPolling() {
-        domainTimer = Timer.scheduledTimer(withTimeInterval: domainPollingInterval, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            self.triggerDomainResolution()
+        domainTimer?.invalidate()
+        guard isTrackingEnabled, settings.isDomainTrackingEnabled else { return }
+        let interval = max(TrackerSettings.minDetectionInterval, settings.detectionInterval)
+        domainTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.triggerDomainResolution()
+            }
         }
     }
 
     private func triggerDomainResolution() {
         guard !isResolvingDomain else { return }
         guard isTrackingEnabled,
+              settings.isDomainTrackingEnabled,
               let context = currentContext,
               domainResolver.supports(bundleIdentifier: context.bundleIdentifier) else { return }
         guard let application = NSWorkspace.shared.frontmostApplication,
@@ -173,6 +229,41 @@ final class ActivityTracker: ObservableObject {
             self.applyResolvedDomain(resolvedDomain, for: application)
         }
     }
+    
+    private func observeSettings() {
+        settings.$detectionInterval
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.startDomainPolling()
+            }
+            .store(in: &cancellables)
+
+        settings.$isDomainTrackingEnabled
+            .receive(on: RunLoop.main)
+            .sink { [weak self] isEnabled in
+                guard let self else { return }
+                if isEnabled {
+                    self.startDomainPolling()
+                    self.triggerDomainResolution()
+                } else {
+                    self.domainTimer?.invalidate()
+                    self.domainTimer = nil
+                    if var context = self.currentContext {
+                        context.domain = nil
+                        self.updateProjectAssociation(for: &context)
+                        self.setCurrentContext(context)
+                    }
+                }
+            }
+            .store(in: &cancellables)
+
+        settings.$idleThreshold
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.evaluateIdleState()
+            }
+            .store(in: &cancellables)
+    }
 
     private func applyResolvedDomain(_ domain: String?, for application: NSRunningApplication) {
         guard isTrackingEnabled,
@@ -182,7 +273,8 @@ final class ActivityTracker: ObservableObject {
 
         if context.domain == nil {
             context.domain = domain
-            currentContext = context
+            updateProjectAssociation(for: &context)
+            setCurrentContext(context)
             logger.debug("Detected domain for \(context.appName, privacy: .public): \(domain, privacy: .public)")
             return
         }
@@ -191,15 +283,18 @@ final class ActivityTracker: ObservableObject {
 
         logger.debug("Detected domain change for \(context.appName, privacy: .public) -> \(domain, privacy: .public)")
         if let (previousContext, endDate) = flushCurrentSession() {
-            currentContext = AppSessionContext(
+            setCurrentContext(AppSessionContext(
                 appName: previousContext.appName,
                 bundleIdentifier: previousContext.bundleIdentifier,
                 domain: domain,
-                startDate: endDate
-            )
+                startDate: endDate,
+                projectID: previousContext.projectID,
+                projectName: previousContext.projectName
+            ))
         } else if var current = currentContext {
             current.domain = domain
-            currentContext = current
+            updateProjectAssociation(for: &current)
+            setCurrentContext(current)
         }
     }
 
@@ -207,10 +302,128 @@ final class ActivityTracker: ObservableObject {
         if let observer {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
         }
+        pauseTimers()
+    }
+
+    private func startIdleMonitoring() {
+        idleTimer?.invalidate()
+        evaluateIdleState()
+        guard isTrackingEnabled else { return }
+        idleTimer = Timer.scheduledTimer(withTimeInterval: idleCheckInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.evaluateIdleState()
+            }
+        }
+    }
+
+    private func evaluateIdleState() {
+        guard isTrackingEnabled else {
+            if isUserIdle {
+                logger.debug("Idle monitoring reset because tracking paused")
+            }
+            isUserIdle = false
+            idleBeganAt = nil
+            refreshStatusSummary()
+            return
+        }
+        guard let idleSeconds = systemIdleTime(), idleSeconds.isFinite else { return }
+        let threshold = settings.idleThreshold
+        let hasReachedIdle = idleSeconds >= threshold
+
+        if hasReachedIdle && !isUserIdle {
+            isUserIdle = true
+            idleBeganAt = Date()
+            logger.notice("User became idle after \(idleSeconds, privacy: .public)s (threshold \(threshold, privacy: .public)s)")
+            _ = flushCurrentSession()
+            setCurrentContext(nil)
+            refreshStatusSummary()
+            return
+        }
+
+        if !hasReachedIdle && isUserIdle {
+            let idleDuration = idleBeganAt.map { Date().timeIntervalSince($0) } ?? 0
+            isUserIdle = false
+            idleBeganAt = nil
+            logger.notice("User activity resumed after \(idleDuration, privacy: .public)s idle")
+            handleAppChange(NSWorkspace.shared.frontmostApplication)
+            refreshStatusSummary()
+        }
+    }
+
+    private func systemIdleTime() -> TimeInterval? {
+        guard let matcher = IOServiceMatching("IOHIDSystem") else { return nil }
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, matcher)
+        guard service != 0 else { return nil }
+        defer { IOObjectRelease(service) }
+
+        guard let unmanagedIdle = IORegistryEntryCreateCFProperty(
+            service,
+            "HIDIdleTime" as CFString,
+            kCFAllocatorDefault,
+            0
+        ) else {
+            return nil
+        }
+
+        let idleNumber = unmanagedIdle.takeRetainedValue() as? NSNumber
+        guard let idleNanoseconds = idleNumber?.uint64Value else { return nil }
+        return TimeInterval(idleNanoseconds) / 1_000_000_000
+    }
+
+    private func refreshStatusSummary() {
+        if !isTrackingEnabled {
+            statusSummary = StatusSummary(state: .pausedManual)
+            return
+        }
+        if isUserIdle {
+            statusSummary = StatusSummary(state: .pausedIdle)
+            return
+        }
+        guard let context = currentContext else {
+            statusSummary = StatusSummary(state: .inactive)
+            return
+        }
+        statusSummary = StatusSummary(
+            state: .tracking,
+            appName: context.appName,
+            domain: context.domain,
+            projectName: context.projectName,
+            projectID: context.projectID
+        )
+    }
+
+    private func setCurrentContext(_ context: AppSessionContext?) {
+        currentContext = context
+        refreshStatusSummary()
+    }
+
+    private func updateProjectAssociation(for context: inout AppSessionContext) {
+        let info = resolveProjectInfo(for: context.bundleIdentifier, domain: context.domain)
+        context.projectID = info.id
+        context.projectName = info.name
+    }
+
+    private func resolveProjectInfo(for bundleIdentifier: String?, domain: String?) -> (id: PersistentIdentifier?, name: String?) {
+        guard let project = resolveProject(for: bundleIdentifier, domain: domain) else {
+            return (nil, nil)
+        }
+        return (project.persistentModelID, project.name)
+    }
+
+    private func pauseTimers() {
         heartbeatTimer?.invalidate()
         heartbeatTimer = nil
         domainTimer?.invalidate()
         domainTimer = nil
+        idleTimer?.invalidate()
+        idleTimer = nil
+    }
+
+    private func restartTimersIfNeeded() {
+        guard isTrackingEnabled else { return }
+        startHeartbeat()
+        startDomainPolling()
+        startIdleMonitoring()
     }
 }
 
@@ -219,6 +432,8 @@ private struct AppSessionContext {
     var bundleIdentifier: String?
     var domain: String?
     var startDate: Date
+    var projectID: PersistentIdentifier?
+    var projectName: String?
 }
 
 private final class BrowserDomainResolver {

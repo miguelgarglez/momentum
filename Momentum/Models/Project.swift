@@ -14,6 +14,7 @@ final class Project {
     var name: String
     var colorHex: String
     var iconName: String
+    var priority: Int = 0
     var assignedAppsRaw: String = "[]"
     var assignedDomainsRaw: String = "[]"
     var createdAt: Date
@@ -25,12 +26,14 @@ final class Project {
         name: String,
         colorHex: String = ProjectPalette.defaultColor.hex,
         iconName: String = ProjectIcon.spark.rawValue,
+        priority: Int = 0,
         assignedApps: [String] = [],
         assignedDomains: [String] = []
     ) {
         self.name = name
         self.colorHex = colorHex
         self.iconName = iconName
+        self.priority = priority
         self.assignedAppsRaw = Project.encode(strings: assignedApps)
         self.assignedDomainsRaw = Project.encode(strings: assignedDomains.map { $0.lowercased() })
         self.createdAt = Date()
@@ -123,6 +126,7 @@ extension Project {
         name = draft.name
         colorHex = draft.colorHex
         iconName = draft.iconName
+        priority = draft.priority
         assignedApps = draft.assignedApps
         assignedDomains = draft.assignedDomains
     }

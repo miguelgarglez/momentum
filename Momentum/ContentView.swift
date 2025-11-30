@@ -7,11 +7,20 @@
 
 import SwiftUI
 import SwiftData
+import Combine
+#if os(macOS)
+import AppKit
+#endif
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var tracker: ActivityTracker
-    @Query(sort: \Project.createdAt, order: .forward) private var projects: [Project]
+    @Query(
+        sort: [
+            SortDescriptor(\Project.priority, order: .reverse),
+            SortDescriptor(\Project.createdAt, order: .forward)
+        ]
+    ) private var projects: [Project]
 
     @State private var selectedProjectID: PersistentIdentifier?
     @State private var activeProjectSheet: ProjectSheet?
@@ -19,65 +28,57 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            NavigationSplitView {
-                List(selection: $selectedProjectID) {
-                    if !projects.isEmpty {
-                        Section {
-                            DashboardHeaderView(projects: projects)
-                                .listRowInsets(.init(top: 12, leading: 12, bottom: 12, trailing: 12))
-                                .listRowBackground(Color.clear)
-                    }
-                }
+            HStack(spacing: 0) {
+                ActionPanelView(
+                    summary: tracker.statusSummary,
+                    isTrackingEnabled: tracker.isTrackingEnabled,
+                    onToggleTracking: { tracker.toggleTracking() },
+                    onCreateProject: { activeProjectSheet = .create },
+                    settingsControl: settingsControlView
+                )
 
-                Section("Tus proyectos") {
-                    if projects.isEmpty {
-                        EmptyProjectsView()
-                    } else {
-                        ForEach(projects) { project in
-                            ProjectRowView(project: project)
-                                .tag(project.persistentModelID)
+                Divider()
+
+                NavigationSplitView {
+                    List(selection: $selectedProjectID) {
+                        if !projects.isEmpty {
+                            Section {
+                                DashboardHeaderView(projects: projects)
+                                    .listRowInsets(.init(top: 12, leading: 12, bottom: 12, trailing: 12))
+                                    .listRowBackground(Color.clear)
+                            }
                         }
-                        .onDelete(perform: deleteProjects)
+
+                        Section("Tus proyectos") {
+                            if projects.isEmpty {
+                                EmptyProjectsView()
+                            } else {
+                                ForEach(projects) { project in
+                                    ProjectRowView(project: project)
+                                        .tag(project.persistentModelID)
+                                }
+                                .onDelete(perform: deleteProjects)
+                            }
+                        }
                     }
-                }
+                } detail: {
+                    if let selected = selectedProject {
+                        ProjectDetailView(
+                            project: selected,
+                            onEdit: { activeProjectSheet = .edit($0) },
+                            onDelete: { deleteProject($0) },
+                            onClearActivity: { clearActivity(for: $0) }
+                        )
+                    } else {
+                        WelcomeView()
+                    }
                 }
                 .navigationTitle("Momentum")
-                .toolbar {
-                    ToolbarItem {
-                        Button {
-                            tracker.toggleTracking()
-                        } label: {
-                            Label(
-                                trackerStatusLabel,
-                                systemImage: tracker.isTrackingEnabled ? "pause.circle" : "play.circle"
-                            )
-                        }
-                        .help("Activa o pausa el tracking automático")
-                    }
-
-                    ToolbarItem {
-                        Button {
-                            activeProjectSheet = .create
-                        } label: {
-                            Label("Nuevo proyecto", systemImage: "plus")
-                        }
-                    }
+                .onAppear {
+                    selectedProjectID = projects.first?.persistentModelID
                 }
-            } detail: {
-                if let selected = selectedProject {
-                    ProjectDetailView(
-                        project: selected,
-                        onEdit: { activeProjectSheet = .edit($0) },
-                        onDelete: { deleteProject($0) }
-                    )
-                } else {
-                    WelcomeView()
-                }
+                .sheet(item: $activeProjectSheet, content: sheetContent)
             }
-            .onAppear {
-                selectedProjectID = projects.first?.persistentModelID
-            }
-            .sheet(item: $activeProjectSheet, content: sheetContent)
 
             if let toast {
                 ToastView(message: toast.message, style: toast.style)
@@ -87,7 +88,14 @@ struct ContentView: View {
             }
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: toast)
+#if os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: .statusItemOpenProject)) { notification in
+            guard let identifier = notification.userInfo?[StatusItemUserInfoKey.projectID] as? PersistentIdentifier else { return }
+            selectedProjectID = identifier
+        }
+#endif
     }
+
 
     @ViewBuilder
     private func sheetContent(for sheet: ProjectSheet) -> some View {
@@ -98,6 +106,7 @@ struct ContentView: View {
                     name: draft.name,
                     colorHex: draft.colorHex,
                     iconName: draft.iconName,
+                    priority: draft.priority,
                     assignedApps: draft.assignedApps,
                     assignedDomains: draft.assignedDomains
                 )
@@ -123,10 +132,6 @@ struct ContentView: View {
         }
     }
 
-    private var trackerStatusLabel: String {
-        tracker.isTrackingEnabled ? "Tracking activo" : "Tracking pausado"
-    }
-
     private func deleteProjects(at offsets: IndexSet) {
         let targets = offsets.map { projects[$0] }
         targets.forEach(modelContext.delete)
@@ -150,6 +155,19 @@ struct ContentView: View {
         }
     }
 
+    private func clearActivity(for project: Project) {
+        let sessions = project.sessions
+        sessions.forEach { session in
+            modelContext.delete(session)
+        }
+        do {
+            try modelContext.save()
+            showToast("Actividad limpiada", style: .success)
+        } catch {
+            showToast("No pudimos limpiar la actividad", style: .error)
+        }
+    }
+
     private func showToast(_ message: String, style: ToastMessage.Style = .success) {
         let newToast = ToastMessage(message: message, style: style)
         toast = newToast
@@ -158,6 +176,44 @@ struct ContentView: View {
                 toast = nil
             }
         }
+    }
+
+#if os(macOS)
+    private func openSettingsWindow() {
+        NSApplication.shared.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    }
+#else
+    private func openSettingsWindow() {}
+#endif
+
+    private var settingsControlView: AnyView {
+#if os(macOS)
+        if #available(macOS 14.0, *) {
+            return AnyView(
+                SettingsLink {
+                    ActionPanelIcon(systemName: "gearshape", tint: .primary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Ajustes")
+            )
+        } else {
+            return AnyView(
+                Button(action: openSettingsWindow) {
+                    ActionPanelIcon(systemName: "gearshape", tint: .primary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Ajustes")
+            )
+        }
+#else
+        return AnyView(
+            Button(action: openSettingsWindow) {
+                ActionPanelIcon(systemName: "gearshape", tint: .primary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Ajustes")
+        )
+#endif
     }
 
     private var selectedProject: Project? {
@@ -242,6 +298,104 @@ struct ProjectRowView: View {
             }
         }
         .padding(.vertical, 6)
+    }
+}
+
+private struct ActionPanelView: View {
+    let summary: ActivityTracker.StatusSummary
+    let isTrackingEnabled: Bool
+    let onToggleTracking: () -> Void
+    let onCreateProject: () -> Void
+    let settingsControl: AnyView
+
+    private var toggleLabel: String {
+        isTrackingEnabled ? "Pausar tracking" : "Reanudar tracking"
+    }
+
+    private var toggleIcon: String {
+        isTrackingEnabled ? "pause.circle.fill" : "play.circle.fill"
+    }
+
+    private var trackingBadgeColor: Color {
+        switch summary.state {
+        case .tracking:
+            return .accentColor
+        case .pausedManual:
+            return .orange
+        case .pausedIdle:
+            return .yellow
+        case .inactive:
+            return .secondary
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Spacer(minLength: 0)
+
+            VStack(alignment: .leading, spacing: 10) {
+                ActionPanelIconButton(
+                    systemName: toggleIcon,
+                    tint: trackingBadgeColor,
+                    accessibilityLabel: toggleLabel,
+                    action: onToggleTracking
+                )
+
+                ActionPanelIconButton(
+                    systemName: "plus",
+                    tint: .primary,
+                    accessibilityLabel: "Nuevo proyecto",
+                    action: onCreateProject
+                )
+
+                settingsControl
+            }
+
+        }
+        .padding(.vertical, 20)
+        .padding(.horizontal, 16)
+        .frame(maxHeight: .infinity, alignment: .bottomLeading)
+        .background(.regularMaterial)
+    }
+}
+
+private struct ActionPanelIconButton: View {
+    let systemName: String
+    let tint: Color
+    let accessibilityLabel: String
+    let action: () -> Void
+    var isActive: Bool = false
+
+    var body: some View {
+        Button(action: action) {
+            ActionPanelIcon(systemName: systemName, tint: tint, isActive: isActive)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+private struct ActionPanelIcon: View {
+    let systemName: String
+    let tint: Color
+    var isActive: Bool = false
+
+    var body: some View {
+        Image(systemName: systemName)
+            .symbolRenderingMode(.hierarchical)
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundStyle(isActive ? Color.accentColor : tint)
+            .frame(width: 36, height: 36)
+            .padding(6)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(isActive ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isActive ? Color.accentColor.opacity(0.6) : Color.primary.opacity(0.08))
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
@@ -354,11 +508,19 @@ struct ProjectDetailView: View {
     @State private var usageWindow: UsageWindow = .hour
     let onEdit: (Project) -> Void
     let onDelete: (Project) -> Void
+    let onClearActivity: (Project) -> Void
+    @State private var showClearActivityDialog = false
 
-    init(project: Project, onEdit: @escaping (Project) -> Void = { _ in }, onDelete: @escaping (Project) -> Void = { _ in }) {
+    init(
+        project: Project,
+        onEdit: @escaping (Project) -> Void = { _ in },
+        onDelete: @escaping (Project) -> Void = { _ in },
+        onClearActivity: @escaping (Project) -> Void = { _ in }
+    ) {
         self._project = Bindable(project)
         self.onEdit = onEdit
         self.onDelete = onDelete
+        self.onClearActivity = onClearActivity
     }
 
     var body: some View {
@@ -378,6 +540,11 @@ struct ProjectDetailView: View {
                     Menu {
                         Button("Editar") { onEdit(project) }
                         Button(role: .destructive) {
+                            showClearActivityDialog = true
+                        } label: {
+                            Text("Limpiar actividad")
+                        }
+                        Button(role: .destructive) {
                             onDelete(project)
                         } label: {
                             Text("Eliminar")
@@ -387,26 +554,51 @@ struct ProjectDetailView: View {
                     }
                 }
             }
+            .confirmationDialog(
+                "¿Quieres eliminar todas las sesiones de este proyecto?",
+                isPresented: $showClearActivityDialog,
+                titleVisibility: .visible
+            ) {
+                Button("Limpiar actividad", role: .destructive) {
+                    onClearActivity(project)
+                }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("Esta acción conserva el proyecto y borra su historial de tiempo.")
+            }
         }
     }
 
     private var header: some View {
         HStack(spacing: 16) {
-            Circle()
-                .fill(project.color.gradient)
-                .frame(width: 60, height: 60)
-                .overlay(
-                    Image(systemName: project.iconName)
-                        .font(.title2)
-                        .foregroundStyle(.white)
-                )
-            VStack(alignment: .leading, spacing: 6) {
-                Text(project.name)
-                    .font(.title2.bold())
-                Text(project.lastActivityText)
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 16) {
+                Circle()
+                    .fill(project.color.gradient)
+                    .frame(width: 60, height: 60)
+                    .overlay(
+                        Image(systemName: project.iconName)
+                            .font(.title2)
+                            .foregroundStyle(.white)
+                    )
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(project.name)
+                        .font(.title2.bold())
+                    Text(project.lastActivityText)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
+            Label {
+                Text("Prioridad \(project.priority)")
+            } icon: {
+                Image(systemName: "flag.fill")
+            }
+            .font(.caption)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(project.color.opacity(0.15))
+            .clipShape(Capsule())
+            .help("Momentum asigna el contexto al proyecto con la prioridad más alta cuando hay coincidencias")
         }
     }
 
@@ -432,7 +624,7 @@ struct ProjectDetailView: View {
                     if !project.assignedApps.isEmpty {
                         Label("Apps", systemImage: "macwindow")
                             .font(.subheadline.weight(.medium))
-                        WrappingChips(items: project.assignedApps)
+                        AssignedAppsChips(bundleIdentifiers: project.assignedApps)
                     }
                     if !project.assignedDomains.isEmpty {
                         Label("Dominios", systemImage: "globe")
@@ -612,11 +804,49 @@ struct LastUsedCard: View {
     }
 }
 
+struct AssignedAppsChips: View {
+    @EnvironmentObject private var appCatalog: AppCatalog
+    let bundleIdentifiers: [String]
+
+    var body: some View {
+        FlowLayout(spacing: 8) {
+            ForEach(bundleIdentifiers, id: \.self) { identifier in
+                chip(for: identifier)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func chip(for identifier: String) -> some View {
+        let app = appCatalog.app(for: identifier)
+        HStack(spacing: 8) {
+            appIcon(for: app)
+            Text(app?.name ?? identifier)
+                .font(.caption.weight(.medium))
+                .lineLimit(1)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .background(Color.secondary.opacity(0.15))
+        .clipShape(Capsule())
+        .help(app?.bundleIdentifier ?? identifier)
+    }
+
+    @ViewBuilder
+    private func appIcon(for app: InstalledApp?) -> some View {
+        (app?.icon ?? Image(systemName: "app"))
+            .resizable()
+            .scaledToFit()
+            .frame(width: 18, height: 18)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+    }
+}
+
 struct WrappingChips: View {
     let items: [String]
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], spacing: 8) {
+        FlowLayout(spacing: 8) {
             ForEach(items, id: \.self) { item in
                 Text(item)
                     .font(.caption)
@@ -625,6 +855,68 @@ struct WrappingChips: View {
                     .background(Color.secondary.opacity(0.15))
                     .clipShape(Capsule())
             }
+        }
+    }
+}
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+
+            if x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+        }
+
+        return CGSize(width: maxWidth.isFinite ? maxWidth : x, height: y + rowHeight)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) {
+        let maxWidth = bounds.width
+
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+
+            if x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+
+            subview.place(
+                at: CGPoint(x: bounds.minX + x, y: bounds.minY + y),
+                proposal: ProposedViewSize(width: size.width, height: size.height)
+            )
+
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
         }
     }
 }
@@ -702,6 +994,7 @@ struct ProjectFormDraft {
     var name: String
     var colorHex: String
     var iconName: String
+    var priority: Int
     var selectedAppIDs: Set<String>
     var manualApps: String
     var domains: String
@@ -711,6 +1004,7 @@ struct ProjectFormDraft {
             name = project.name
             colorHex = project.colorHex
             iconName = project.iconName
+            priority = project.priority
             selectedAppIDs = Set(project.assignedApps)
             manualApps = ""
             domains = project.assignedDomains.joined(separator: ", ")
@@ -718,6 +1012,7 @@ struct ProjectFormDraft {
             name = ""
             colorHex = ProjectPalette.defaultColor.hex
             iconName = ProjectIcon.spark.systemName
+            priority = 0
             selectedAppIDs = []
             manualApps = ""
             domains = ""
@@ -794,6 +1089,18 @@ struct ProjectFormView: View {
                             }
                         }
                         .padding(.vertical, 8)
+                    }
+                }
+
+                Section("Prioridad") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Stepper(value: $draft.priority, step: 1) {
+                            Text("Nivel \(draft.priority)")
+                                .font(.headline)
+                        }
+                        Text("Se aplica el proyecto con el nivel más alto si el contexto coincide en varios.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -1024,35 +1331,55 @@ struct AppSelectionRow: View {
     }
 }
 
-#Preview {
-    let container = try! ModelContainer(
-        for: Project.self,
-             TrackingSession.self,
-        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-    )
-    let previewProject = Project(name: "Certificación UX", colorHex: "#A78BFA", iconName: ProjectIcon.book.systemName)
-    previewProject.sessions = [
-        TrackingSession(
-            startDate: .now.addingTimeInterval(-3600),
-            endDate: .now.addingTimeInterval(-1800),
-            appName: "Xcode",
-            bundleIdentifier: "com.apple.dt.Xcode",
-            domain: nil,
-            project: previewProject
+private struct ContentViewPreviewWrapper: View {
+    let container: ModelContainer
+    let tracker: ActivityTracker
+    let settings: TrackerSettings
+    let catalog: AppCatalog
+
+    init() {
+        let schemaContainer = try! ModelContainer(
+            for: Project.self,
+                 TrackingSession.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
-    ]
-    container.mainContext.insert(previewProject)
+        let previewProject = Project(name: "Certificación UX", colorHex: "#A78BFA", iconName: ProjectIcon.book.systemName)
+        previewProject.sessions = [
+            TrackingSession(
+                startDate: .now.addingTimeInterval(-3600),
+                endDate: .now.addingTimeInterval(-1800),
+                appName: "Xcode",
+                bundleIdentifier: "com.apple.dt.Xcode",
+                domain: nil,
+                project: previewProject
+            )
+        ]
+        schemaContainer.mainContext.insert(previewProject)
 
-    let tracker = ActivityTracker(modelContainer: container)
-    let sampleApps = [
-        InstalledApp(bundleIdentifier: "com.apple.dt.Xcode", name: "Xcode", url: URL(fileURLWithPath: "/Applications/Xcode.app"), icon: nil),
-        InstalledApp(bundleIdentifier: "com.microsoft.VSCode", name: "Visual Studio Code", url: URL(fileURLWithPath: "/Applications/Visual Studio Code.app"), icon: nil),
-        InstalledApp(bundleIdentifier: "com.apple.Safari", name: "Safari", url: URL(fileURLWithPath: "/Applications/Safari.app"), icon: nil)
-    ]
-    let catalog = AppCatalog(searchPaths: [], initialApps: sampleApps)
+        let previewSettings = TrackerSettings()
+        let previewTracker = ActivityTracker(modelContainer: schemaContainer, settings: previewSettings)
+        let sampleApps = [
+            InstalledApp(bundleIdentifier: "com.apple.dt.Xcode", name: "Xcode", url: URL(fileURLWithPath: "/Applications/Xcode.app"), icon: nil),
+            InstalledApp(bundleIdentifier: "com.microsoft.VSCode", name: "Visual Studio Code", url: URL(fileURLWithPath: "/Applications/Visual Studio Code.app"), icon: nil),
+            InstalledApp(bundleIdentifier: "com.apple.Safari", name: "Safari", url: URL(fileURLWithPath: "/Applications/Safari.app"), icon: nil)
+        ]
+        let previewCatalog = AppCatalog(searchPaths: [], initialApps: sampleApps)
 
-    return ContentView()
-        .environmentObject(tracker)
-        .environmentObject(catalog)
-        .modelContainer(container)
+        self.container = schemaContainer
+        self.tracker = previewTracker
+        self.settings = previewSettings
+        self.catalog = previewCatalog
+    }
+
+    var body: some View {
+        ContentView()
+            .environmentObject(tracker)
+            .environmentObject(settings)
+            .environmentObject(catalog)
+            .modelContainer(container)
+    }
+}
+
+#Preview {
+    ContentViewPreviewWrapper()
 }
