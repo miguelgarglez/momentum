@@ -14,6 +14,17 @@ import Combine
 import AppKit
 import IOKit
 
+/// Central coordinator for activity tracking in Momentum.
+///
+/// `ActivityTracker` listens to workspace activation notifications, creates and
+/// flushes app sessions, resolves browser domains, and routes each session to
+/// the appropriate project. It also integrates with cross‑cutting concerns:
+/// - `PerformanceBudgetMonitoring` to measure and constrain the cost of tracking
+/// - `CrashRecoveryHandling` to snapshot and replay in‑flight sessions after a crash
+/// - `ProjectAssignmentResolving` to map bundle identifiers and domains to projects
+///
+/// The tracker is designed to be testable via dependency injection and debug‑only
+/// helpers, so its behavior can be validated in isolation from the UI and storage.
 @MainActor
 final class ActivityTracker: ObservableObject {
     struct StatusSummary: Equatable {
@@ -22,6 +33,8 @@ final class ActivityTracker: ObservableObject {
             case tracking
             case pausedManual
             case pausedIdle
+            case pausedScreenLocked
+            case pausedExcluded
         }
 
         var state: State
@@ -36,6 +49,9 @@ final class ActivityTracker: ObservableObject {
 
     private let modelContainer: ModelContainer
     private let settings: TrackerSettings
+    private let crashRecovery: CrashRecoveryHandling
+    private let performanceMonitor: PerformanceBudgetMonitoring
+    private let assignmentResolver: ProjectAssignmentResolving
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Momentum", category: "ActivityTracker")
     private let domainResolver = BrowserDomainResolver()
     /// Interval for periodic session flushing even when the active app does not change.
@@ -50,14 +66,26 @@ final class ActivityTracker: ObservableObject {
     private var heartbeatTimer: Timer?
     private var domainTimer: Timer?
     private var idleTimer: Timer?
+    private var screenLockObserver: NSObjectProtocol?
+    private var screenUnlockObserver: NSObjectProtocol?
     private var isResolvingDomain = false
     private var isUserIdle = false
+    private var isScreenLocked = false
     private var idleBeganAt: Date?
     private var cancellables: Set<AnyCancellable> = []
 
-    init(modelContainer: ModelContainer, settings: TrackerSettings) {
+    init(
+        modelContainer: ModelContainer,
+        settings: TrackerSettings,
+        crashRecovery: CrashRecoveryHandling? = nil,
+        performanceMonitor: PerformanceBudgetMonitoring? = nil,
+        assignmentResolver: ProjectAssignmentResolving? = nil
+    ) {
         self.modelContainer = modelContainer
         self.settings = settings
+        self.crashRecovery = crashRecovery ?? CrashRecoveryManager()
+        self.performanceMonitor = performanceMonitor ?? PerformanceBudgetMonitor()
+        self.assignmentResolver = assignmentResolver ?? ProjectAssignmentResolver(modelContainer: modelContainer)
         observer = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
@@ -72,14 +100,36 @@ final class ActivityTracker: ObservableObject {
         startHeartbeat()
         startDomainPolling()
         startIdleMonitoring()
+        startScreenLockMonitoring()
         observeSettings()
         refreshStatusSummary()
+        recoverLastSessionIfNeeded()
     }
 
     deinit {
         MainActor.assumeIsolated {
             tearDown()
         }
+    }
+
+    private func recoverLastSessionIfNeeded() {
+        guard let snapshot = crashRecovery.consumePendingSnapshot(),
+              !snapshot.isExcluded else { return }
+        var context = AppSessionContext(
+            appName: snapshot.appName,
+            bundleIdentifier: snapshot.bundleIdentifier,
+            domain: snapshot.domain,
+            startDate: snapshot.startDate,
+            projectID: nil,
+            projectName: snapshot.projectName,
+            isExcluded: snapshot.isExcluded
+        )
+        updateProjectAssociation(for: &context)
+        let endDate = Date()
+        performanceMonitor.measure("session.recover") {
+            persistSession(context: context, endDate: endDate)
+        }
+        logger.notice("Recovered session after crash. Duration: \(endDate.timeIntervalSince(context.startDate), privacy: .public)s")
     }
 
     func toggleTracking() {
@@ -104,17 +154,23 @@ final class ActivityTracker: ObservableObject {
         }
         let identifier = application.bundleIdentifier ?? application.localizedName ?? "unknown"
         logger.debug("Active app is now \(identifier, privacy: .public)")
+        let isExcludedApp = settings.isAppExcluded(application.bundleIdentifier)
         var context = AppSessionContext(
             appName: application.localizedName ?? "App",
             bundleIdentifier: application.bundleIdentifier,
             domain: nil,
             startDate: .now,
             projectID: nil,
-            projectName: nil
+            projectName: nil,
+            isExcluded: isExcludedApp
         )
-        updateProjectAssociation(for: &context)
+        if !isExcludedApp {
+            updateProjectAssociation(for: &context)
+        } else {
+            logger.debug("App \(identifier, privacy: .public) is excluded from tracking")
+        }
         setCurrentContext(context)
-        if settings.isDomainTrackingEnabled {
+        if settings.isDomainTrackingEnabled, !isExcludedApp {
             triggerDomainResolution()
         }
     }
@@ -123,6 +179,10 @@ final class ActivityTracker: ObservableObject {
     private func flushCurrentSession() -> (AppSessionContext, Date)? {
         guard var context = currentContext else { return nil }
         let endDate = Date()
+        if context.isExcluded {
+            setCurrentContext(nil)
+            return (context, endDate)
+        }
         if endDate.timeIntervalSince(context.startDate) < minimumSessionDuration {
             context.startDate = endDate
             setCurrentContext(context)
@@ -130,21 +190,35 @@ final class ActivityTracker: ObservableObject {
         }
         let identifier = context.bundleIdentifier ?? context.appName
         logger.debug("Closing session for \(identifier, privacy: .public)")
-        persistSession(context: context, endDate: endDate)
+        performanceMonitor.measure("session.persist") {
+            persistSession(context: context, endDate: endDate)
+        }
         setCurrentContext(nil)
         return (context, endDate)
     }
 
     private func persistSession(context: AppSessionContext, endDate: Date) {
+        guard endDate > context.startDate else { return }
+        guard let project = assignmentResolver.resolveProject(for: context.bundleIdentifier, domain: context.domain) else {
+            logger.debug("Skipping session for \(context.bundleIdentifier ?? context.appName, privacy: .public) - no project matches")
+            return
+        }
+        let interval = DateInterval(start: context.startDate, end: endDate)
+        let overlapResolver = SessionOverlapResolver(context: modelContainer.mainContext)
+        let removedSegments = overlapResolver.resolveOverlaps(with: interval)
         let session = TrackingSession(
             startDate: context.startDate,
             endDate: endDate,
             appName: context.appName,
             bundleIdentifier: context.bundleIdentifier,
             domain: context.domain,
-            project: resolveProject(for: context.bundleIdentifier, domain: context.domain)
+            project: project
         )
         modelContainer.mainContext.insert(session)
+        removedSegments.forEach { project, removedInterval in
+            updateDailySummaries(for: project, interval: removedInterval, sign: -1)
+        }
+        updateDailySummaries(for: project, interval: interval, sign: 1)
         do {
             try modelContainer.mainContext.save()
             let projectName = session.project?.name ?? "none"
@@ -154,28 +228,33 @@ final class ActivityTracker: ObservableObject {
         }
     }
 
-    private func resolveProject(for bundleIdentifier: String?, domain: String?) -> Project? {
-        let descriptor = FetchDescriptor<Project>(
-            sortBy: [
-                SortDescriptor(\Project.priority, order: .reverse),
-                SortDescriptor(\Project.createdAt, order: .forward)
-            ]
-        )
-        guard let projects = try? modelContainer.mainContext.fetch(descriptor) else {
-            return nil
+    private func updateDailySummaries(for project: Project?, interval: DateInterval, sign: Double) {
+        guard let project, interval.duration > 0, sign != 0 else { return }
+        var cursor = DailySummary.normalize(interval.start)
+        let calendar = Calendar.current
+        while cursor < interval.end {
+            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            let dayInterval = DateInterval(start: cursor, end: nextDay)
+            if let overlap = interval.intersection(with: dayInterval) {
+                applyDailySummaryDelta(project: project, day: cursor, deltaSeconds: overlap.duration * sign)
+            }
+            cursor = nextDay
         }
+    }
 
-        if let domain,
-           let match = projects.first(where: { $0.matches(domain: domain) }) {
-            return match
+    private func applyDailySummaryDelta(project: Project, day: Date, deltaSeconds: TimeInterval) {
+        guard deltaSeconds != 0 else { return }
+        let normalizedDay = DailySummary.normalize(day)
+        if let summary = project.dailySummaries.first(where: { $0.date == normalizedDay }) {
+            summary.apply(deltaSeconds: deltaSeconds)
+            if summary.seconds <= 0 {
+                modelContainer.mainContext.delete(summary)
+            }
+            return
         }
-
-        if let bundleIdentifier,
-           let match = projects.first(where: { $0.matches(appBundleIdentifier: bundleIdentifier) }) {
-            return match
-        }
-
-        return nil
+        guard deltaSeconds > 0 else { return }
+        let summary = DailySummary(date: normalizedDay, seconds: deltaSeconds, project: project)
+        modelContainer.mainContext.insert(summary)
     }
 
     private func startHeartbeat() {
@@ -192,7 +271,8 @@ final class ActivityTracker: ObservableObject {
                     domain: context.domain,
                     startDate: endDate,
                     projectID: context.projectID,
-                    projectName: context.projectName
+                    projectName: context.projectName,
+                    isExcluded: context.isExcluded
                 ))
             }
         }
@@ -215,6 +295,7 @@ final class ActivityTracker: ObservableObject {
         guard isTrackingEnabled,
               settings.isDomainTrackingEnabled,
               let context = currentContext,
+              !context.isExcluded,
               domainResolver.supports(bundleIdentifier: context.bundleIdentifier) else { return }
         guard let application = NSWorkspace.shared.frontmostApplication,
               !application.isTerminated,
@@ -250,7 +331,9 @@ final class ActivityTracker: ObservableObject {
                     self.domainTimer = nil
                     if var context = self.currentContext {
                         context.domain = nil
-                        self.updateProjectAssociation(for: &context)
+                        if !context.isExcluded {
+                            self.updateProjectAssociation(for: &context)
+                        }
                         self.setCurrentContext(context)
                     }
                 }
@@ -263,6 +346,20 @@ final class ActivityTracker: ObservableObject {
                 self?.evaluateIdleState()
             }
             .store(in: &cancellables)
+
+        settings.$excludedApps
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.enforceExclusionRules()
+            }
+            .store(in: &cancellables)
+
+        settings.$excludedDomains
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.enforceExclusionRules()
+            }
+            .store(in: &cancellables)
     }
 
     private func applyResolvedDomain(_ domain: String?, for application: NSRunningApplication) {
@@ -270,6 +367,79 @@ final class ActivityTracker: ObservableObject {
               let domain,
               var context = currentContext else { return }
         guard context.bundleIdentifier == application.bundleIdentifier else { return }
+
+        if settings.isDomainExcluded(domain) {
+            logger.debug("Domain \(domain, privacy: .public) marked as excluded. Suspending tracking.")
+            let source = context
+            if let (_, endDate) = flushCurrentSession() {
+                let excludedContext = AppSessionContext(
+                    appName: source.appName,
+                    bundleIdentifier: source.bundleIdentifier,
+                    domain: domain,
+                    startDate: endDate,
+                    projectID: nil,
+                    projectName: nil,
+                    isExcluded: true
+                )
+                setCurrentContext(excludedContext)
+            } else if var current = currentContext {
+                current.domain = domain
+                current.isExcluded = true
+                current.projectID = nil
+                current.projectName = nil
+                current.startDate = .now
+                setCurrentContext(current)
+            } else {
+                let excludedContext = AppSessionContext(
+                    appName: source.appName,
+                    bundleIdentifier: source.bundleIdentifier,
+                    domain: domain,
+                    startDate: .now,
+                    projectID: nil,
+                    projectName: nil,
+                    isExcluded: true
+                )
+                setCurrentContext(excludedContext)
+            }
+            return
+        }
+
+        if context.isExcluded {
+            logger.debug("Domain \(domain, privacy: .public) is allowed again. Resuming tracking.")
+            let source = context
+            if let (_, endDate) = flushCurrentSession() {
+                var resumed = AppSessionContext(
+                    appName: source.appName,
+                    bundleIdentifier: source.bundleIdentifier,
+                    domain: domain,
+                    startDate: endDate,
+                    projectID: nil,
+                    projectName: nil,
+                    isExcluded: false
+                )
+                updateProjectAssociation(for: &resumed)
+                setCurrentContext(resumed)
+            } else if var current = currentContext {
+                current.domain = domain
+                current.isExcluded = false
+                current.startDate = .now
+                updateProjectAssociation(for: &current)
+                setCurrentContext(current)
+            } else {
+                var resumed = AppSessionContext(
+                    appName: source.appName,
+                    bundleIdentifier: source.bundleIdentifier,
+                    domain: domain,
+                    startDate: .now,
+                    projectID: nil,
+                    projectName: nil,
+                    isExcluded: false
+                )
+                updateProjectAssociation(for: &resumed)
+                setCurrentContext(resumed)
+            }
+            return
+        }
 
         if context.domain == nil {
             context.domain = domain
@@ -289,12 +459,66 @@ final class ActivityTracker: ObservableObject {
                 domain: domain,
                 startDate: endDate,
                 projectID: previousContext.projectID,
-                projectName: previousContext.projectName
+                projectName: previousContext.projectName,
+                isExcluded: previousContext.isExcluded
             ))
         } else if var current = currentContext {
             current.domain = domain
-            updateProjectAssociation(for: &current)
+            if !current.isExcluded {
+                updateProjectAssociation(for: &current)
+            }
             setCurrentContext(current)
+        }
+    }
+
+    private func enforceExclusionRules() {
+        guard let context = currentContext else { return }
+        let shouldExclude = settings.isAppExcluded(context.bundleIdentifier) || settings.isDomainExcluded(context.domain)
+        if shouldExclude && !context.isExcluded {
+            logger.debug("Current context became excluded after settings update")
+            let source = context
+            if let (_, endDate) = flushCurrentSession() {
+                let excludedContext = AppSessionContext(
+                    appName: source.appName,
+                    bundleIdentifier: source.bundleIdentifier,
+                    domain: source.domain,
+                    startDate: endDate,
+                    projectID: nil,
+                    projectName: nil,
+                    isExcluded: true
+                )
+                setCurrentContext(excludedContext)
+            } else if var current = currentContext {
+                current.isExcluded = true
+                current.projectID = nil
+                current.projectName = nil
+                current.startDate = .now
+                setCurrentContext(current)
+            }
+            return
+        }
+
+        if !shouldExclude && context.isExcluded {
+            logger.debug("Context is no longer excluded; resuming tracking")
+            let source = context
+            if let (_, endDate) = flushCurrentSession() {
+                var resumed = AppSessionContext(
+                    appName: source.appName,
+                    bundleIdentifier: source.bundleIdentifier,
+                    domain: source.domain,
+                    startDate: endDate,
+                    projectID: nil,
+                    projectName: nil,
+                    isExcluded: false
+                )
+                updateProjectAssociation(for: &resumed)
+                setCurrentContext(resumed)
+            } else if var current = currentContext {
+                current.isExcluded = false
+                current.startDate = .now
+                updateProjectAssociation(for: &current)
+                setCurrentContext(current)
+            }
         }
     }
 
@@ -302,6 +526,7 @@ final class ActivityTracker: ObservableObject {
         if let observer {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
         }
+        stopScreenLockMonitoring()
         pauseTimers()
     }
 
@@ -313,6 +538,70 @@ final class ActivityTracker: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.evaluateIdleState()
             }
+        }
+    }
+
+    private func startScreenLockMonitoring() {
+        stopScreenLockMonitoring()
+        let center = DistributedNotificationCenter.default()
+        screenLockObserver = center.addObserver(
+            forName: NSNotification.Name("com.apple.screenIsLocked"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleScreenLockChange(isLocked: true)
+            }
+        }
+        screenUnlockObserver = center.addObserver(
+            forName: NSNotification.Name("com.apple.screenIsUnlocked"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleScreenLockChange(isLocked: false)
+            }
+        }
+    }
+
+    private func stopScreenLockMonitoring() {
+        let center = DistributedNotificationCenter.default()
+        if let screenLockObserver {
+            center.removeObserver(screenLockObserver)
+            self.screenLockObserver = nil
+        }
+        if let screenUnlockObserver {
+            center.removeObserver(screenUnlockObserver)
+            self.screenUnlockObserver = nil
+        }
+    }
+
+    private func handleScreenLockChange(isLocked: Bool) {
+        guard isScreenLocked != isLocked else { return }
+        isScreenLocked = isLocked
+        if isLocked {
+            logger.notice("Screen locked - pausing tracking")
+            isUserIdle = false
+            idleBeganAt = nil
+            guard isTrackingEnabled else {
+                refreshStatusSummary()
+                return
+            }
+            _ = flushCurrentSession()
+            setCurrentContext(nil)
+            pauseTimers()
+            refreshStatusSummary()
+        } else {
+            logger.notice("Screen unlocked - resuming tracking")
+            isUserIdle = false
+            idleBeganAt = nil
+            guard isTrackingEnabled else {
+                refreshStatusSummary()
+                return
+            }
+            restartTimersIfNeeded()
+            handleAppChange(NSWorkspace.shared.frontmostApplication)
+            refreshStatusSummary()
         }
     }
 
@@ -375,12 +664,26 @@ final class ActivityTracker: ObservableObject {
             statusSummary = StatusSummary(state: .pausedManual)
             return
         }
+        if isScreenLocked {
+            statusSummary = StatusSummary(state: .pausedScreenLocked)
+            return
+        }
         if isUserIdle {
             statusSummary = StatusSummary(state: .pausedIdle)
             return
         }
         guard let context = currentContext else {
             statusSummary = StatusSummary(state: .inactive)
+            return
+        }
+        if context.isExcluded {
+            statusSummary = StatusSummary(
+                state: .pausedExcluded,
+                appName: context.appName,
+                domain: context.domain,
+                projectName: nil,
+                projectID: nil
+            )
             return
         }
         statusSummary = StatusSummary(
@@ -394,20 +697,18 @@ final class ActivityTracker: ObservableObject {
 
     private func setCurrentContext(_ context: AppSessionContext?) {
         currentContext = context
+        crashRecovery.persist(snapshot: context.map { SessionSnapshot(context: $0) })
         refreshStatusSummary()
     }
 
     private func updateProjectAssociation(for context: inout AppSessionContext) {
-        let info = resolveProjectInfo(for: context.bundleIdentifier, domain: context.domain)
-        context.projectID = info.id
-        context.projectName = info.name
-    }
-
-    private func resolveProjectInfo(for bundleIdentifier: String?, domain: String?) -> (id: PersistentIdentifier?, name: String?) {
-        guard let project = resolveProject(for: bundleIdentifier, domain: domain) else {
-            return (nil, nil)
+        guard let project = assignmentResolver.resolveProject(for: context.bundleIdentifier, domain: context.domain) else {
+            context.projectID = nil
+            context.projectName = nil
+            return
         }
-        return (project.persistentModelID, project.name)
+        context.projectID = project.persistentModelID
+        context.projectName = project.name
     }
 
     private func pauseTimers() {
@@ -434,7 +735,58 @@ private struct AppSessionContext {
     var startDate: Date
     var projectID: PersistentIdentifier?
     var projectName: String?
+    var isExcluded: Bool
 }
+
+private extension SessionSnapshot {
+    init(context: AppSessionContext) {
+        self.init(
+            appName: context.appName,
+            bundleIdentifier: context.bundleIdentifier,
+            domain: context.domain,
+            startDate: context.startDate,
+            projectName: context.projectName,
+            isExcluded: context.isExcluded
+        )
+    }
+}
+
+#if DEBUG
+extension ActivityTracker {
+    func testing_beginContext(
+        appName: String,
+        bundleIdentifier: String? = nil,
+        domain: String? = nil,
+        startDate: Date = Date().addingTimeInterval(-20),
+        isExcluded: Bool = false
+    ) {
+        _ = flushCurrentSession()
+        var context = AppSessionContext(
+            appName: appName,
+            bundleIdentifier: bundleIdentifier,
+            domain: domain,
+            startDate: startDate,
+            projectID: nil,
+            projectName: nil,
+            isExcluded: isExcluded
+        )
+        if !isExcluded {
+            updateProjectAssociation(for: &context)
+        }
+        setCurrentContext(context)
+    }
+
+    func testing_forceIdleState(_ idle: Bool) {
+        isUserIdle = idle
+        refreshStatusSummary()
+    }
+
+    @discardableResult
+    func testing_forceFlush() -> Bool {
+        flushCurrentSession() != nil
+    }
+}
+#endif
 
 private final class BrowserDomainResolver {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Momentum", category: "BrowserDomainResolver")

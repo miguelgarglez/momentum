@@ -21,6 +21,8 @@ final class Project {
 
     @Relationship(deleteRule: .cascade, inverse: \TrackingSession.project)
     var sessions: [TrackingSession] = []
+    @Relationship(deleteRule: .cascade, inverse: \DailySummary.project)
+    var dailySummaries: [DailySummary] = []
 
     init(
         name: String,
@@ -78,14 +80,37 @@ extension Project {
     var weeklySeconds: TimeInterval {
         let calendar = Calendar.current
         let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: .now)?.start ?? .now
-        let interval = DateInterval(start: startOfWeek, end: .now)
+        guard !dailySummaries.isEmpty else {
+            let interval = DateInterval(start: startOfWeek, end: .now)
+            return secondsSpent(in: interval)
+        }
+        return dailySummaries.reduce(0) { partial, summary in
+            summary.date >= startOfWeek ? partial + summary.seconds : partial
+        }
+    }
+
+    var dailySeconds: TimeInterval {
+        let startOfDay = DailySummary.normalize(.now)
+        if let cached = dailySummaries.first(where: { $0.date == startOfDay }) {
+            return cached.seconds
+        }
+        let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay) ?? .now
+        let interval = DateInterval(start: startOfDay, end: min(endOfDay, .now))
         return secondsSpent(in: interval)
     }
-    
-    var dailySeconds: TimeInterval {
-        let startOfDay = Calendar.current.startOfDay(for: .now)
-        let interval = DateInterval(start: startOfDay, end: .now)
-        return secondsSpent(in: interval)
+
+    var monthlySeconds: TimeInterval {
+        let calendar = Calendar.current
+        guard let startOfMonth = calendar.dateInterval(of: .month, for: .now)?.start else {
+            return 0
+        }
+        guard !dailySummaries.isEmpty else {
+            let interval = DateInterval(start: startOfMonth, end: .now)
+            return secondsSpent(in: interval)
+        }
+        return dailySummaries.reduce(0) { partial, summary in
+            summary.date >= startOfMonth ? partial + summary.seconds : partial
+        }
     }
     
     var streakCount: Int {
@@ -151,18 +176,21 @@ private extension Project {
 }
 
 extension Project {
-    func recentDailySummaries(limit: Int = 7) -> [DailySummary] {
+    func recentDailySummaries(limit: Int = 7) -> [DailySummaryPoint] {
         guard limit > 0 else { return [] }
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
-        let days = (0..<limit).compactMap { offset -> DailySummary? in
+        let cached = dailySummaries.reduce(into: [Date: TimeInterval]()) { partial, summary in
+            partial[summary.date] = summary.seconds
+        }
+        let days = (0..<limit).compactMap { offset -> DailySummaryPoint? in
             guard let day = calendar.date(byAdding: .day, value: -offset, to: today),
                   let end = calendar.date(byAdding: .day, value: 1, to: day) else {
                 return nil
             }
-            let interval = DateInterval(start: day, end: end)
-            let seconds = secondsSpent(in: interval)
-            return DailySummary(date: day, seconds: seconds)
+            let normalized = calendar.startOfDay(for: day)
+            let seconds = cached[normalized] ?? secondsSpent(in: DateInterval(start: normalized, end: end))
+            return DailySummaryPoint(date: normalized, seconds: seconds)
         }
         return days.reversed()
     }

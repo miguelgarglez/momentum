@@ -56,6 +56,17 @@ struct ContentView: View {
                                 ForEach(projects) { project in
                                     ProjectRowView(project: project)
                                         .tag(project.persistentModelID)
+                                        .contextMenu {
+                                            Button("Editar") {
+                                                activeProjectSheet = .edit(project)
+                                            }
+                                            Button("Limpiar actividad", role: .destructive) {
+                                                clearActivity(for: project)
+                                            }
+                                            Button("Eliminar", role: .destructive) {
+                                                deleteProject(project)
+                                            }
+                                        }
                                 }
                                 .onDelete(perform: deleteProjects)
                             }
@@ -324,6 +335,10 @@ private struct ActionPanelView: View {
             return .orange
         case .pausedIdle:
             return .yellow
+        case .pausedScreenLocked:
+            return .blue
+        case .pausedExcluded:
+            return .secondary
         case .inactive:
             return .secondary
         }
@@ -451,6 +466,10 @@ struct DashboardHeaderView: View {
         projects.reduce(0) { $0 + $1.totalSeconds }
     }
 
+    private var monthlySeconds: TimeInterval {
+        projects.reduce(0) { $0 + $1.monthlySeconds }
+    }
+
     private var weeklySeconds: TimeInterval {
         projects.reduce(0) { $0 + $1.weeklySeconds }
     }
@@ -464,7 +483,12 @@ struct DashboardHeaderView: View {
             Text("Mide tu progreso, no tu productividad.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            DashboardMetricsView(total: totalSeconds, weekly: weeklySeconds, daily: todaySeconds)
+            DashboardMetricsView(
+                total: totalSeconds,
+                monthly: monthlySeconds,
+                weekly: weeklySeconds,
+                daily: todaySeconds
+            )
         }
         .padding()
         .background(.thinMaterial)
@@ -474,13 +498,17 @@ struct DashboardHeaderView: View {
 
 struct DashboardMetricsView: View {
     let total: TimeInterval
+    let monthly: TimeInterval
     let weekly: TimeInterval
     let daily: TimeInterval
 
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
+
     var body: some View {
-        HStack {
+        LazyVGrid(columns: columns, spacing: 16) {
             MetricTile(title: "Total invertido", value: total.hoursAndMinutesString, icon: "hourglass")
-            MetricTile(title: "Esta semana", value: weekly.hoursAndMinutesString, icon: "calendar")
+            MetricTile(title: "Este mes", value: monthly.hoursAndMinutesString, icon: "calendar.badge.clock")
+            MetricTile(title: "Esta semana", value: weekly.hoursAndMinutesString, icon: "chart.bar")
             MetricTile(title: "Hoy", value: daily.hoursAndMinutesString, icon: "sun.max")
         }
     }
@@ -551,6 +579,7 @@ struct ProjectDetailView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
+                            .accessibilityIdentifier("project-actions-menu")
                     }
                 }
             }
@@ -605,6 +634,7 @@ struct ProjectDetailView: View {
     private var metricGrid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
             MetricCard(title: "Total acumulado", value: project.totalSeconds.hoursAndMinutesString, subtitle: "Tu dedicación merece ser visible.")
+            MetricCard(title: "Mes", value: project.monthlySeconds.hoursAndMinutesString, subtitle: "Progreso del mes en curso.")
             MetricCard(title: "Semana", value: project.weeklySeconds.hoursAndMinutesString, subtitle: "Constancia en los últimos 7 días.")
             MetricCard(title: "Hoy", value: project.dailySeconds.hoursAndMinutesString, subtitle: "Cada minuto cuenta.")
             MetricCard(title: "Racha", value: "\(project.streakCount) días", subtitle: "Días consecutivos con actividad.")
@@ -956,7 +986,7 @@ enum UsageWindow: String, CaseIterable, Identifiable {
 struct WeeklySummaryChartView: View {
     let project: Project
 
-    private var summaries: [DailySummary] {
+    private var summaries: [DailySummaryPoint] {
         project.recentDailySummaries()
     }
 
@@ -984,7 +1014,7 @@ struct WeeklySummaryChartView: View {
         }
     }
 
-    private func height(for summary: DailySummary) -> CGFloat {
+    private func height(for summary: DailySummaryPoint) -> CGFloat {
         let ratio = summary.seconds / maxSeconds
         return max(12, CGFloat(ratio) * 120)
     }
@@ -1111,6 +1141,7 @@ struct ProjectFormView: View {
 
                 Section("Dominios") {
                     TextField("Dominios (separados por coma)", text: $draft.domains)
+                        .accessibilityIdentifier("project-domains-field")
                         .textFieldStyle(.roundedBorder)
                         .padding(.vertical, 4)
                 }
@@ -1153,6 +1184,7 @@ struct ProjectTitleField: View {
             text: $text,
             axis: .vertical
         )
+        .accessibilityIdentifier("project-title-field")
         .font(.title3.weight(.semibold))
         .textFieldStyle(.plain)
         .multilineTextAlignment(.leading)

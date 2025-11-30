@@ -117,6 +117,18 @@ final class StatusItemController: NSObject {
             menu.addItem(disabledItem("Tracking pausado manualmente"))
         case .pausedIdle:
             menu.addItem(disabledItem("Tracking pausado por inactividad"))
+        case .pausedScreenLocked:
+            menu.addItem(disabledItem("Tracking pausado por bloqueo de pantalla"))
+        case .pausedExcluded:
+            if let appName = summary.appName {
+                if let domain = summary.domain {
+                    menu.addItem(disabledItem("\(appName) • \(domain) (excluido)"))
+                } else {
+                    menu.addItem(disabledItem("\(appName) (excluido)"))
+                }
+            } else {
+                menu.addItem(disabledItem("Tracking desactivado por exclusión"))
+            }
         case .inactive:
             menu.addItem(disabledItem("Esperando actividad..."))
         }
@@ -130,6 +142,10 @@ final class StatusItemController: NSObject {
             return "Tracking pausado"
         case .pausedIdle:
             return "Tracking pausado (idle)"
+        case .pausedScreenLocked:
+            return "Tracking pausado (bloqueo)"
+        case .pausedExcluded:
+            return "Actividad excluida"
         case .inactive:
             return "Sin tracking"
         }

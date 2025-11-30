@@ -36,6 +36,34 @@ final class TrackerSettings: ObservableObject {
         }
     }
 
+    @Published var excludedApps: [String] {
+        didSet {
+            let sanitized = TrackerSettings.sanitize(entries: excludedApps)
+            if sanitized != excludedApps {
+                excludedApps = sanitized
+                return
+            }
+            defaults.set(excludedApps, forKey: Keys.excludedApps)
+        }
+    }
+
+    @Published var excludedDomains: [String] {
+        didSet {
+            let sanitized = TrackerSettings.sanitize(entries: excludedDomains, lowercaseStorage: true)
+            if sanitized != excludedDomains {
+                excludedDomains = sanitized
+                return
+            }
+            defaults.set(excludedDomains, forKey: Keys.excludedDomains)
+        }
+    }
+
+    @Published var isDatabaseEncryptionEnabled: Bool {
+        didSet {
+            defaults.set(isDatabaseEncryptionEnabled, forKey: Keys.encryptionEnabled)
+        }
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -45,6 +73,9 @@ final class TrackerSettings: ObservableObject {
         let storedIdle = defaults.double(forKey: Keys.idle)
         self.idleThreshold = storedIdle == 0 ? TimeInterval(15 * 60) : storedIdle
         self.isDomainTrackingEnabled = defaults.object(forKey: Keys.domains) as? Bool ?? true
+        self.excludedApps = TrackerSettings.readList(for: Keys.excludedApps, defaults: defaults)
+        self.excludedDomains = TrackerSettings.readList(for: Keys.excludedDomains, defaults: defaults, lowercaseStorage: true)
+        self.isDatabaseEncryptionEnabled = defaults.object(forKey: Keys.encryptionEnabled) as? Bool ?? false
     }
 
     var idleThresholdMinutes: Int {
@@ -52,13 +83,45 @@ final class TrackerSettings: ObservableObject {
         set { idleThreshold = TimeInterval(clamp(newValue, min: Self.minIdleMinutes, max: Self.maxIdleMinutes) * 60) }
     }
 
+    func isAppExcluded(_ bundleIdentifier: String?) -> Bool {
+        guard let value = bundleIdentifier?.lowercased() else { return false }
+        return excludedApps.contains { $0.lowercased() == value }
+    }
+
+    func isDomainExcluded(_ domain: String?) -> Bool {
+        guard let value = domain?.lowercased(), !value.isEmpty else { return false }
+        return excludedDomains.contains { value.contains($0) }
+    }
+
     private func clamp<T: Comparable>(_ value: T, min: T, max: T) -> T {
         Swift.min(Swift.max(value, min), max)
+    }
+
+    private static func sanitize(entries: [String], lowercaseStorage: Bool = false) -> [String] {
+        var seen: Set<String> = []
+        var result: [String] = []
+        for entry in entries {
+            let trimmed = entry.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let key = trimmed.lowercased()
+            if seen.insert(key).inserted {
+                result.append(lowercaseStorage ? key : trimmed)
+            }
+        }
+        return result
+    }
+
+    private static func readList(for key: String, defaults: UserDefaults, lowercaseStorage: Bool = false) -> [String] {
+        guard let list = defaults.array(forKey: key) as? [String] else { return [] }
+        return sanitize(entries: list, lowercaseStorage: lowercaseStorage)
     }
 
     private enum Keys {
         static let detection = "tracker.detectionInterval"
         static let idle = "tracker.idleThreshold"
         static let domains = "tracker.trackDomains"
+        static let excludedApps = "tracker.excludedApps"
+        static let excludedDomains = "tracker.excludedDomains"
+        static let encryptionEnabled = "tracker.encryptionEnabled"
     }
 }
