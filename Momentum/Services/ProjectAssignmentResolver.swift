@@ -31,13 +31,24 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
             return nil
         }
 
-        if let domain,
-           let match = projects.first(where: { $0.matches(domain: domain) }) {
-            return match
+        let normalizedDomain = domain?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        if let normalizedDomain, !normalizedDomain.isEmpty {
+            // When a domain is available we only consider explicit domain assignments.
+            if let match = projects.first(where: { $0.matches(domain: normalizedDomain) }) {
+                return match
+            }
+            return nil
         }
 
-        if let bundleIdentifier,
-           let match = projects.first(where: { $0.matches(appBundleIdentifier: bundleIdentifier) }) {
+        guard let bundleIdentifier = bundleIdentifier?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !bundleIdentifier.isEmpty else {
+            return nil
+        }
+
+        if let match = projects.first(where: { $0.matches(appBundleIdentifier: bundleIdentifier) }) {
             return match
         }
 

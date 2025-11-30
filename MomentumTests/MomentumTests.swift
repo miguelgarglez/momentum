@@ -22,6 +22,16 @@ struct MomentumTests {
         #expect(bundleMatch === safari)
     }
 
+    @Test("Resolver ignora el bundle si el dominio no coincide")
+    func projectAssignmentRequiresDomainMatchWhenProvided() throws {
+        let container = try factory.makeContainer()
+        let browsing = Project(name: "Browsing", assignedApps: ["com.apple.Safari"], assignedDomains: ["docs.test"])
+        container.mainContext.insert(browsing)
+        let resolver = ProjectAssignmentResolver(modelContainer: container)
+        let noMatch = resolver.resolveProject(for: "com.apple.Safari", domain: "medium.com")
+        #expect(noMatch == nil)
+    }
+
     @Test("Cálculo de racha corta en cuanto hay un día vacío")
     func streakStopsWhenThereIsAGap() throws {
         let container = try factory.makeContainer()
@@ -175,6 +185,21 @@ struct MomentumTests {
         tracker.testing_beginContext(appName: "Momentum", bundleIdentifier: "run.momentum.app", startDate: Date().addingTimeInterval(-120))
         #expect(tracker.testing_forceFlush())
         let sessions = try container.mainContext.fetch(FetchDescriptor<TrackingSession>())
+        #expect(sessions.isEmpty)
+    }
+
+    @Test("Tracker descarta dominios sin asignar aunque la app coincida")
+    func activityTrackerSkipsSessionsWhenDomainUnassigned() throws {
+        let scenario = try factory.makeTrackerScenario()
+        scenario.tracker.testing_beginContext(
+            appName: "Safari",
+            bundleIdentifier: scenario.secondaryBundle,
+            domain: "unknown.com",
+            startDate: Date().addingTimeInterval(-60)
+        )
+        #expect(scenario.tracker.statusSummary.projectName == nil)
+        #expect(scenario.tracker.testing_forceFlush())
+        let sessions = try scenario.container.mainContext.fetch(FetchDescriptor<TrackingSession>())
         #expect(sessions.isEmpty)
     }
 }
