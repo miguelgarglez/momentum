@@ -288,22 +288,15 @@ private struct AppExclusionEditor: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                if !resolvedApps.isEmpty {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 8)], spacing: 8) {
-                        ForEach(resolvedApps, id: \.bundleIdentifier) { app in
-                            ExcludedAppChip(title: app.name, subtitle: app.bundleIdentifier, icon: app.icon) {
-                                remove(identifier: app.bundleIdentifier)
-                            }
+                FlowLayout(spacing: 8) {
+                    ForEach(resolvedApps, id: \.bundleIdentifier) { app in
+                        ExcludedAppChip(title: app.name, icon: app.icon) {
+                            remove(identifier: app.bundleIdentifier)
                         }
                     }
-                }
-
-                if !unresolvedIDs.isEmpty {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 8)], spacing: 8) {
-                        ForEach(unresolvedIDs, id: \.self) { identifier in
-                            ExcludedAppChip(title: identifier, subtitle: nil, icon: Image(systemName: "app")) {
-                                remove(identifier: identifier)
-                            }
+                    ForEach(unresolvedIDs, id: \.self) { identifier in
+                        ExcludedAppChip(title: identifier, icon: Image(systemName: "app")) {
+                            remove(identifier: identifier)
                         }
                     }
                 }
@@ -348,8 +341,16 @@ private struct AppExclusionEditor: View {
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
                 HStack {
+#if os(macOS)
+                    LTRTextField(
+                        text: $manualEntry,
+                        placeholder: "com.ejemplo.app"
+                    )
+                    .macRoundedTextFieldStyle()
+#else
                     TextField("com.ejemplo.app", text: $manualEntry)
                         .textFieldStyle(.roundedBorder)
+#endif
                     Button("Añadir") {
                         add(identifier: manualEntry)
                         manualEntry = ""
@@ -395,8 +396,16 @@ private struct AppCatalogSelectionPanel: View {
             Text("Selecciona apps a excluir")
                 .font(.headline)
 
+#if os(macOS)
+            LTRTextField(
+                text: $searchText,
+                placeholder: "Buscar apps"
+            )
+            .macRoundedTextFieldStyle()
+#else
             TextField("Buscar apps", text: $searchText)
                 .textFieldStyle(.roundedBorder)
+#endif
 
             if filteredApps.isEmpty {
                 Text("No encontramos apps que coincidan con la búsqueda.")
@@ -441,28 +450,18 @@ private struct AppCatalogSelectionPanel: View {
 
 private struct ExcludedAppChip: View {
     let title: String
-    let subtitle: String?
     let icon: Image
     let onRemove: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             icon
                 .resizable()
-                .frame(width: 18, height: 18)
+                .frame(width: 20, height: 20)
                 .clipShape(RoundedRectangle(cornerRadius: 4))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.footnote.weight(.semibold))
-                    .lineLimit(1)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            Spacer(minLength: 0)
+            Text(title)
+                .font(.caption.weight(.medium))
+                .lineLimit(1)
             Button {
                 onRemove()
             } label: {
@@ -474,7 +473,7 @@ private struct ExcludedAppChip: View {
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
         .background(Color.secondary.opacity(0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(Capsule())
     }
 }
 
@@ -526,8 +525,16 @@ private struct ExclusionListEditor: View {
             }
 
             HStack {
+#if os(macOS)
+                LTRTextField(
+                    text: $newEntry,
+                    placeholder: placeholder
+                )
+                .macRoundedTextFieldStyle()
+#else
                 TextField(placeholder, text: $newEntry)
                     .textFieldStyle(.roundedBorder)
+#endif
                 Button("Añadir") { addEntry() }
                     .disabled(newEntry.trimmed().isEmpty)
             }

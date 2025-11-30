@@ -1140,10 +1140,20 @@ struct ProjectFormView: View {
                 )
 
                 Section("Dominios") {
+#if os(macOS)
+                    LTRTextField(
+                        text: $draft.domains,
+                        placeholder: "Dominios (separados por coma)"
+                    )
+                    .macRoundedTextFieldStyle()
+                    .accessibilityIdentifier("project-domains-field")
+                    .padding(.vertical, 4)
+#else
                     TextField("Dominios (separados por coma)", text: $draft.domains)
                         .accessibilityIdentifier("project-domains-field")
                         .textFieldStyle(.roundedBorder)
                         .padding(.vertical, 4)
+#endif
                 }
             }
             .formStyle(.grouped)
@@ -1179,6 +1189,25 @@ struct ProjectTitleField: View {
     @Binding var text: String
 
     var body: some View {
+#if os(macOS)
+        LTRTextField(
+            text: $text,
+            placeholder: "Ej. \"Construir Momentum\"",
+            font: NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .title3).pointSize, weight: .semibold),
+            allowsMultiline: true
+        )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(minHeight: 60, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.secondary.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.secondary.opacity(0.15))
+            )
+#else
         TextField(
             "Ej. \"Construir Momentum\"",
             text: $text,
@@ -1200,6 +1229,7 @@ struct ProjectTitleField: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.secondary.opacity(0.15))
         )
+#endif
     }
 }
 
@@ -1208,20 +1238,11 @@ struct AppAutoTrackingSection: View {
     @Binding var selection: Set<String>
     @Binding var manualApps: String
 
-    @State private var searchText = ""
+    @State private var isSelectorPresented = false
 
     private var selectedApps: [InstalledApp] {
         selection.compactMap { appCatalog.app(for: $0) }
             .sorted { $0.name < $1.name }
-    }
-
-    private var filteredApps: [InstalledApp] {
-        let apps = appCatalog.apps
-        guard !searchText.isEmpty else { return apps }
-        return apps.filter {
-            $0.name.localizedCaseInsensitiveContains(searchText) ||
-            $0.bundleIdentifier.localizedCaseInsensitiveContains(searchText)
-        }
     }
 
     var body: some View {
@@ -1241,61 +1262,61 @@ struct AppAutoTrackingSection: View {
                     }
                 }
 
-                TextField("Buscar apps", text: $searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .padding(.top, selectedApps.isEmpty ? 0 : 4)
-
-                Group {
-                    if filteredApps.isEmpty {
-                        Text("No encontramos apps que coincidan con la búsqueda.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else {
-                        ScrollView(.vertical, showsIndicators: true) {
-                            LazyVStack(spacing: 10) {
-                                ForEach(filteredApps) { app in
-                                    AppSelectionRow(
-                                        app: app,
-                                        isSelected: selection.contains(app.bundleIdentifier)
-                                    ) {
-                                        toggle(app.bundleIdentifier)
-                                    }
+                HStack {
+                    Spacer()
+                    Button {
+                        isSelectorPresented.toggle()
+                    } label: {
+                        Label("Seleccionar apps instaladas", systemImage: "rectangle.stack")
+                    }
+                    .popover(
+                        isPresented: $isSelectorPresented,
+                        attachmentAnchor: .rect(.bounds),
+                        arrowEdge: .top
+                    ) {
+                        ProjectAppCatalogSelectionPanel(selection: $selection)
+                            .frame(width: 360, height: 420)
+                            .padding()
+                    }
+                    .contextMenu {
+                        if appCatalog.apps.isEmpty {
+                            Text("Catálogo vacío")
+                        } else {
+                            ForEach(appCatalog.apps.prefix(8)) { app in
+                                Button(app.name) {
+                                    selection.insert(app.bundleIdentifier)
                                 }
                             }
-                            .padding(.vertical, 6)
+                            if appCatalog.apps.count > 8 {
+                                Divider()
+                                Text("Abre el selector para ver todas las apps")
+                                    .font(.caption)
+                            }
                         }
-                        .frame(minHeight: 160, maxHeight: 260)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14)
-                                .fill(Color.secondary.opacity(0.05))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.secondary.opacity(0.15))
-                        )
                     }
                 }
+
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Bundle IDs adicionales")
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(.secondary)
+#if os(macOS)
+                    LTRTextField(
+                        text: $manualApps,
+                        placeholder: "com.ejemplo.app, com.otro.bundle"
+                    )
+                    .macRoundedTextFieldStyle()
+#else
                     TextField("com.ejemplo.app, com.otro.bundle", text: $manualApps)
                         .textFieldStyle(.roundedBorder)
+#endif
                 }
             }
             .padding(.vertical, 4)
         }
     }
 
-    private func toggle(_ identifier: String) {
-        if selection.contains(identifier) {
-            selection.remove(identifier)
-        } else {
-            selection.insert(identifier)
-        }
-    }
 }
 
 struct SelectedAppChips: View {
@@ -1303,7 +1324,7 @@ struct SelectedAppChips: View {
     @Binding var selection: Set<String>
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 8)], spacing: 8) {
+        FlowLayout(spacing: 8) {
             ForEach(apps, id: \.self) { app in
                 HStack(spacing: 6) {
                     app.icon
@@ -1327,6 +1348,71 @@ struct SelectedAppChips: View {
                 .background(Color.secondary.opacity(0.12))
                 .clipShape(Capsule())
             }
+        }
+    }
+}
+
+private struct ProjectAppCatalogSelectionPanel: View {
+    @EnvironmentObject private var appCatalog: AppCatalog
+    @Binding var selection: Set<String>
+    @State private var searchText: String = ""
+
+    private var filteredApps: [InstalledApp] {
+        guard !searchText.isEmpty else { return appCatalog.apps }
+        return appCatalog.apps.filter { app in
+            app.name.localizedCaseInsensitiveContains(searchText) ||
+            app.bundleIdentifier.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Selecciona apps a incluir")
+                .font(.headline)
+
+#if os(macOS)
+            LTRTextField(
+                text: $searchText,
+                placeholder: "Buscar apps"
+            )
+            .macRoundedTextFieldStyle()
+#else
+            TextField("Buscar apps", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+#endif
+
+            if filteredApps.isEmpty {
+                Text("No encontramos apps que coincidan con la búsqueda.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(filteredApps) { app in
+                            AppSelectionRow(
+                                app: app,
+                                isSelected: selection.contains(app.bundleIdentifier)
+                            ) {
+                                toggle(identifier: app.bundleIdentifier)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            Text("Haz clic para alternar la asignación. Cierra el panel cuando termines.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func toggle(identifier: String) {
+        if selection.contains(identifier) {
+            selection.remove(identifier)
+        } else {
+            selection.insert(identifier)
         }
     }
 }
