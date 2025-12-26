@@ -34,6 +34,7 @@ struct LTRTextField: NSViewRepresentable {
     var font: NSFont = NSFont.preferredFont(forTextStyle: .body)
     var style: Style = .plain
     var allowsMultiline: Bool = false
+    var accessibilityIdentifier: String? = nil
 
     func makeCoordinator() -> Coordinator {
         Coordinator(text: $text)
@@ -48,6 +49,7 @@ struct LTRTextField: NSViewRepresentable {
         field.font = font
         configureLineMode(for: field)
         apply(style: style, to: field)
+        field.setAccessibilityIdentifier(accessibilityIdentifier)
         return field
     }
 
@@ -63,6 +65,9 @@ struct LTRTextField: NSViewRepresentable {
         }
         configureLineMode(for: nsView)
         apply(style: style, to: nsView)
+        if nsView.accessibilityIdentifier() != accessibilityIdentifier {
+            nsView.setAccessibilityIdentifier(accessibilityIdentifier)
+        }
     }
 
     private func configureLineMode(for field: NSTextField) {

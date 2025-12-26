@@ -83,6 +83,53 @@ struct MomentumTests {
         #expect(result == nil)
     }
 
+    @Test("Resolver detecta conflicto cuando hay multiples proyectos")
+    func projectAssignmentDetectsConflicts() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [bundleID])
+        let projectB = Project(name: "Curso", assignedApps: [bundleID])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+
+        let resolver = ProjectAssignmentResolver(modelContainer: container)
+        let result = resolver.resolveAssignment(for: bundleID, domain: nil)
+        switch result {
+        case let .conflict(context, candidates):
+            #expect(context.type == .app)
+            #expect(context.value == bundleID)
+            #expect(candidates.count == 2)
+        default:
+            #expect(false, "Expected conflict result")
+        }
+    }
+
+    @Test("Resolver usa regla guardada para resolver conflicto")
+    func projectAssignmentUsesRules() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [bundleID])
+        let projectB = Project(name: "Curso", assignedApps: [bundleID])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+        let rule = AssignmentRule(
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: bundleID,
+            project: projectB
+        )
+        container.mainContext.insert(rule)
+
+        let resolver = ProjectAssignmentResolver(modelContainer: container)
+        let result = resolver.resolveAssignment(for: bundleID, domain: nil)
+        switch result {
+        case let .assigned(project, usedRule):
+            #expect(usedRule)
+            #expect(project === projectB)
+        default:
+            #expect(false, "Expected assignment via rule")
+        }
+    }
+
     @Test("Resolver de solapamientos recorta y divide sesiones")
     func overlapResolverSplitsSessions() throws {
         let container = try factory.makeContainer()
@@ -202,6 +249,227 @@ struct MomentumTests {
         let sessions = try scenario.container.mainContext.fetch(FetchDescriptor<TrackingSession>())
         #expect(sessions.isEmpty)
     }
+
+    @Test("Tracker guarda sesiones pendientes cuando hay conflicto")
+    func activityTrackerStoresPendingOnConflict() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [bundleID])
+        let projectB = Project(name: "Curso", assignedApps: [bundleID])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+        let suiteName = "MomentumTests.Pending.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fatalError("Unable to create UserDefaults suite")
+        }
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = TrackerSettings(defaults: defaults)
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: MockCrashRecoveryHandler(),
+            performanceMonitor: MockPerformanceMonitor()
+        )
+
+        tracker.testing_beginContext(
+            appName: "VSCode",
+            bundleIdentifier: bundleID,
+            startDate: Date().addingTimeInterval(-40)
+        )
+        #expect(tracker.testing_forceFlush())
+
+        let pending = try container.mainContext.fetch(FetchDescriptor<PendingTrackingSession>())
+        let sessions = try container.mainContext.fetch(FetchDescriptor<TrackingSession>())
+        #expect(pending.count == 1)
+        #expect(sessions.isEmpty)
+    }
+
+    @Test("Resolver conflicto crea regla y vuelca pendientes")
+    func activityTrackerResolvesPendingSessions() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [bundleID])
+        let projectB = Project(name: "Curso", assignedApps: [bundleID])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+        let suiteName = "MomentumTests.Resolve.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fatalError("Unable to create UserDefaults suite")
+        }
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = TrackerSettings(defaults: defaults)
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: MockCrashRecoveryHandler(),
+            performanceMonitor: MockPerformanceMonitor()
+        )
+
+        let pending = PendingTrackingSession(
+            startDate: Date().addingTimeInterval(-120),
+            endDate: Date().addingTimeInterval(-60),
+            appName: "VSCode",
+            bundleIdentifier: bundleID,
+            domain: nil,
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: bundleID
+        )
+        container.mainContext.insert(pending)
+        try container.mainContext.save()
+
+        tracker.resolveConflict(
+            context: AssignmentContext(type: .app, value: bundleID),
+            project: projectB
+        )
+
+        let rules = try container.mainContext.fetch(FetchDescriptor<AssignmentRule>())
+        let remainingPending = try container.mainContext.fetch(FetchDescriptor<PendingTrackingSession>())
+        let sessions = try container.mainContext.fetch(FetchDescriptor<TrackingSession>())
+        #expect(rules.count == 1)
+        #expect(rules.first?.project === projectB)
+        #expect(remainingPending.isEmpty)
+        #expect(sessions.count == 1)
+        #expect(sessions.first?.project === projectB)
+        #expect(tracker.pendingConflictCount == 0)
+    }
+
+    @Test("Regla evita volver a crear pendientes")
+    func activityTrackerUsesRuleAfterResolution() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [bundleID])
+        let projectB = Project(name: "Curso", assignedApps: [bundleID])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+        let suiteName = "MomentumTests.Rule.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fatalError("Unable to create UserDefaults suite")
+        }
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = TrackerSettings(defaults: defaults)
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: MockCrashRecoveryHandler(),
+            performanceMonitor: MockPerformanceMonitor()
+        )
+
+        tracker.resolveConflict(
+            context: AssignmentContext(type: .app, value: bundleID),
+            project: projectA
+        )
+
+        tracker.testing_beginContext(
+            appName: "VSCode",
+            bundleIdentifier: bundleID,
+            startDate: Date().addingTimeInterval(-40)
+        )
+        #expect(tracker.testing_forceFlush())
+
+        let pending = try container.mainContext.fetch(FetchDescriptor<PendingTrackingSession>())
+        let sessions = try container.mainContext.fetch(FetchDescriptor<TrackingSession>())
+        #expect(pending.isEmpty)
+        #expect(sessions.count == 1)
+        #expect(sessions.first?.project === projectA)
+    }
+
+    @Test("Conflicto por dominio crea pendientes")
+    func activityTrackerStoresPendingOnDomainConflict() throws {
+        let container = try factory.makeContainer()
+        let domain = "docs.test"
+        let projectA = Project(name: "DocA", assignedApps: [], assignedDomains: [domain])
+        let projectB = Project(name: "DocB", assignedApps: [], assignedDomains: [domain])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+        let suiteName = "MomentumTests.DomainPending.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fatalError("Unable to create UserDefaults suite")
+        }
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = TrackerSettings(defaults: defaults)
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: MockCrashRecoveryHandler(),
+            performanceMonitor: MockPerformanceMonitor()
+        )
+
+        tracker.testing_beginContext(
+            appName: "Safari",
+            bundleIdentifier: "com.apple.Safari",
+            domain: domain,
+            startDate: Date().addingTimeInterval(-40)
+        )
+        #expect(tracker.testing_forceFlush())
+
+        let pending = try container.mainContext.fetch(FetchDescriptor<PendingTrackingSession>())
+        let sessions = try container.mainContext.fetch(FetchDescriptor<TrackingSession>())
+        #expect(pending.count == 1)
+        #expect(sessions.isEmpty)
+    }
+
+    @Test("No se crea pendiente cuando hay un unico proyecto")
+    func activityTrackerDoesNotCreatePendingWhenSingleMatch() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let project = Project(name: "Dev", assignedApps: [bundleID])
+        container.mainContext.insert(project)
+        let suiteName = "MomentumTests.NoPending.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fatalError("Unable to create UserDefaults suite")
+        }
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = TrackerSettings(defaults: defaults)
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: MockCrashRecoveryHandler(),
+            performanceMonitor: MockPerformanceMonitor()
+        )
+
+        tracker.testing_beginContext(
+            appName: "VSCode",
+            bundleIdentifier: bundleID,
+            startDate: Date().addingTimeInterval(-40)
+        )
+        #expect(tracker.testing_forceFlush())
+
+        let pending = try container.mainContext.fetch(FetchDescriptor<PendingTrackingSession>())
+        let sessions = try container.mainContext.fetch(FetchDescriptor<TrackingSession>())
+        #expect(pending.isEmpty)
+        #expect(sessions.count == 1)
+    }
+
+    @Test("El contador de pendientes refleja inserciones")
+    func activityTrackerPendingCountIncrements() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [bundleID])
+        let projectB = Project(name: "Curso", assignedApps: [bundleID])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+        let suiteName = "MomentumTests.PendingCount.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fatalError("Unable to create UserDefaults suite")
+        }
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = TrackerSettings(defaults: defaults)
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: MockCrashRecoveryHandler(),
+            performanceMonitor: MockPerformanceMonitor()
+        )
+
+        #expect(tracker.pendingConflictCount == 0)
+        tracker.testing_beginContext(
+            appName: "VSCode",
+            bundleIdentifier: bundleID,
+            startDate: Date().addingTimeInterval(-40)
+        )
+        #expect(tracker.testing_forceFlush())
+        #expect(tracker.pendingConflictCount == 1)
+    }
 }
 
 @MainActor
@@ -217,6 +485,8 @@ final class InMemoryModelContainerFactory {
     func makeContainer() throws -> ModelContainer {
         let schema = Schema([
             Project.self,
+            AssignmentRule.self,
+            PendingTrackingSession.self,
             TrackingSession.self,
             DailySummary.self
         ])

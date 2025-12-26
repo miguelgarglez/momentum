@@ -31,6 +31,7 @@ final class ActivityTracker: ObservableObject {
         enum State: Equatable {
             case inactive
             case tracking
+            case pendingResolution
             case pausedManual
             case pausedIdle
             case pausedScreenLocked
@@ -46,6 +47,7 @@ final class ActivityTracker: ObservableObject {
 
     @Published private(set) var isTrackingEnabled = true
     @Published private(set) var statusSummary = StatusSummary(state: .inactive)
+    @Published private(set) var pendingConflictCount: Int = 0
 
     private let modelContainer: ModelContainer
     private let settings: TrackerSettings
@@ -104,6 +106,7 @@ final class ActivityTracker: ObservableObject {
         observeSettings()
         refreshStatusSummary()
         recoverLastSessionIfNeeded()
+        refreshPendingConflictCount()
     }
 
     deinit {
@@ -122,7 +125,8 @@ final class ActivityTracker: ObservableObject {
             startDate: snapshot.startDate,
             projectID: nil,
             projectName: snapshot.projectName,
-            isExcluded: snapshot.isExcluded
+            isExcluded: snapshot.isExcluded,
+            isPendingAssignment: false
         )
         updateProjectAssociation(for: &context)
         let endDate = Date()
@@ -162,7 +166,8 @@ final class ActivityTracker: ObservableObject {
             startDate: .now,
             projectID: nil,
             projectName: nil,
-            isExcluded: isExcludedApp
+            isExcluded: isExcludedApp,
+            isPendingAssignment: false
         )
         if !isExcludedApp {
             updateProjectAssociation(for: &context)
@@ -199,10 +204,55 @@ final class ActivityTracker: ObservableObject {
 
     private func persistSession(context: AppSessionContext, endDate: Date) {
         guard endDate > context.startDate else { return }
-        guard let project = assignmentResolver.resolveProject(for: context.bundleIdentifier, domain: context.domain) else {
+        switch assignmentResolver.resolveAssignment(for: context.bundleIdentifier, domain: context.domain) {
+        case let .assigned(project, _):
+            persistSession(context: context, endDate: endDate, project: project)
+        case let .conflict(conflictContext, _):
+            persistPendingSession(context: context, endDate: endDate, conflictContext: conflictContext)
+        case .none:
             logger.debug("Skipping session for \(context.bundleIdentifier ?? context.appName, privacy: .public) - no project matches")
-            return
         }
+    }
+
+    private func persistSession(context: AppSessionContext, endDate: Date, project: Project) {
+        insertResolvedSession(context: context, endDate: endDate, project: project)
+        do {
+            try modelContainer.mainContext.save()
+            logger.info("Logged \(endDate.timeIntervalSince(context.startDate), privacy: .public)s for \(context.appName, privacy: .public) project=\(project.name, privacy: .public)")
+        } catch {
+            logger.error("Failed to save session: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func persistPendingSession(
+        context: AppSessionContext,
+        endDate: Date,
+        conflictContext: AssignmentContext
+    ) {
+        let pending = PendingTrackingSession(
+            startDate: context.startDate,
+            endDate: endDate,
+            appName: context.appName,
+            bundleIdentifier: context.bundleIdentifier,
+            domain: context.domain,
+            contextType: conflictContext.type.rawValue,
+            contextValue: conflictContext.value
+        )
+        modelContainer.mainContext.insert(pending)
+        do {
+            try modelContainer.mainContext.save()
+            refreshPendingConflictCount()
+            logger.info("Stored pending session for \(conflictContext.value, privacy: .public)")
+        } catch {
+            logger.error("Failed to save pending session: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func insertResolvedSession(
+        context: AppSessionContext,
+        endDate: Date,
+        project: Project
+    ) {
         let interval = DateInterval(start: context.startDate, end: endDate)
         let overlapResolver = SessionOverlapResolver(context: modelContainer.mainContext)
         let removedSegments = overlapResolver.resolveOverlaps(with: interval)
@@ -219,13 +269,6 @@ final class ActivityTracker: ObservableObject {
             updateDailySummaries(for: project, interval: removedInterval, sign: -1)
         }
         updateDailySummaries(for: project, interval: interval, sign: 1)
-        do {
-            try modelContainer.mainContext.save()
-            let projectName = session.project?.name ?? "none"
-            logger.info("Logged \(session.duration, privacy: .public)s for \(session.appName, privacy: .public) project=\(projectName, privacy: .public)")
-        } catch {
-            logger.error("Failed to save session: \(error.localizedDescription, privacy: .public)")
-        }
     }
 
     private func updateDailySummaries(for project: Project?, interval: DateInterval, sign: Double) {
@@ -272,7 +315,8 @@ final class ActivityTracker: ObservableObject {
                     startDate: endDate,
                     projectID: context.projectID,
                     projectName: context.projectName,
-                    isExcluded: context.isExcluded
+                    isExcluded: context.isExcluded,
+                    isPendingAssignment: context.isPendingAssignment
                 ))
             }
         }
@@ -379,7 +423,8 @@ final class ActivityTracker: ObservableObject {
                     startDate: endDate,
                     projectID: nil,
                     projectName: nil,
-                    isExcluded: true
+                    isExcluded: true,
+                    isPendingAssignment: false
                 )
                 setCurrentContext(excludedContext)
             } else if var current = currentContext {
@@ -387,6 +432,7 @@ final class ActivityTracker: ObservableObject {
                 current.isExcluded = true
                 current.projectID = nil
                 current.projectName = nil
+                current.isPendingAssignment = false
                 current.startDate = .now
                 setCurrentContext(current)
             } else {
@@ -397,7 +443,8 @@ final class ActivityTracker: ObservableObject {
                     startDate: .now,
                     projectID: nil,
                     projectName: nil,
-                    isExcluded: true
+                    isExcluded: true,
+                    isPendingAssignment: false
                 )
                 setCurrentContext(excludedContext)
             }
@@ -415,7 +462,8 @@ final class ActivityTracker: ObservableObject {
                     startDate: endDate,
                     projectID: nil,
                     projectName: nil,
-                    isExcluded: false
+                    isExcluded: false,
+                    isPendingAssignment: false
                 )
                 updateProjectAssociation(for: &resumed)
                 setCurrentContext(resumed)
@@ -433,7 +481,8 @@ final class ActivityTracker: ObservableObject {
                     startDate: .now,
                     projectID: nil,
                     projectName: nil,
-                    isExcluded: false
+                    isExcluded: false,
+                    isPendingAssignment: false
                 )
                 updateProjectAssociation(for: &resumed)
                 setCurrentContext(resumed)
@@ -460,7 +509,8 @@ final class ActivityTracker: ObservableObject {
                 startDate: endDate,
                 projectID: previousContext.projectID,
                 projectName: previousContext.projectName,
-                isExcluded: previousContext.isExcluded
+                isExcluded: previousContext.isExcluded,
+                isPendingAssignment: previousContext.isPendingAssignment
             ))
         } else if var current = currentContext {
             current.domain = domain
@@ -485,13 +535,15 @@ final class ActivityTracker: ObservableObject {
                     startDate: endDate,
                     projectID: nil,
                     projectName: nil,
-                    isExcluded: true
+                    isExcluded: true,
+                    isPendingAssignment: false
                 )
                 setCurrentContext(excludedContext)
             } else if var current = currentContext {
                 current.isExcluded = true
                 current.projectID = nil
                 current.projectName = nil
+                current.isPendingAssignment = false
                 current.startDate = .now
                 setCurrentContext(current)
             }
@@ -509,7 +561,8 @@ final class ActivityTracker: ObservableObject {
                     startDate: endDate,
                     projectID: nil,
                     projectName: nil,
-                    isExcluded: false
+                    isExcluded: false,
+                    isPendingAssignment: false
                 )
                 updateProjectAssociation(for: &resumed)
                 setCurrentContext(resumed)
@@ -686,6 +739,16 @@ final class ActivityTracker: ObservableObject {
             )
             return
         }
+        if context.isPendingAssignment {
+            statusSummary = StatusSummary(
+                state: .pendingResolution,
+                appName: context.appName,
+                domain: context.domain,
+                projectName: nil,
+                projectID: nil
+            )
+            return
+        }
         statusSummary = StatusSummary(
             state: .tracking,
             appName: context.appName,
@@ -702,13 +765,25 @@ final class ActivityTracker: ObservableObject {
     }
 
     private func updateProjectAssociation(for context: inout AppSessionContext) {
-        guard let project = assignmentResolver.resolveProject(for: context.bundleIdentifier, domain: context.domain) else {
+        switch assignmentResolver.resolveAssignment(for: context.bundleIdentifier, domain: context.domain) {
+        case let .assigned(project, _):
+            context.projectID = project.persistentModelID
+            context.projectName = project.name
+            context.isPendingAssignment = false
+        case .conflict:
             context.projectID = nil
             context.projectName = nil
-            return
+            context.isPendingAssignment = true
+        case .none:
+            context.projectID = nil
+            context.projectName = nil
+            context.isPendingAssignment = false
         }
-        context.projectID = project.persistentModelID
-        context.projectName = project.name
+    }
+
+    private func refreshPendingConflictCount() {
+        let descriptor = FetchDescriptor<PendingTrackingSession>()
+        pendingConflictCount = (try? modelContainer.mainContext.fetch(descriptor).count) ?? 0
     }
 
     private func pauseTimers() {
@@ -726,6 +801,66 @@ final class ActivityTracker: ObservableObject {
         startDomainPolling()
         startIdleMonitoring()
     }
+
+    @MainActor
+    func resolveConflict(context: AssignmentContext, project: Project) {
+        let typeValue = context.type.rawValue
+        let contextValue = context.value
+        let ruleDescriptor = FetchDescriptor<AssignmentRule>(
+            predicate: #Predicate {
+                $0.contextType == typeValue &&
+                $0.contextValue == contextValue
+            }
+        )
+        if let rule = try? modelContainer.mainContext.fetch(ruleDescriptor).first {
+            rule.project = project
+            rule.lastUsedAt = .now
+        } else {
+            let rule = AssignmentRule(
+                contextType: context.type.rawValue,
+                contextValue: context.value,
+                project: project
+            )
+            modelContainer.mainContext.insert(rule)
+        }
+
+        let pendingDescriptor = FetchDescriptor<PendingTrackingSession>(
+            predicate: #Predicate {
+                $0.contextType == typeValue &&
+                $0.contextValue == contextValue
+            }
+        )
+        guard let pendingSessions = try? modelContainer.mainContext.fetch(pendingDescriptor),
+              !pendingSessions.isEmpty else {
+            refreshPendingConflictCount()
+            return
+        }
+
+        var resolvedCount = 0
+        pendingSessions.forEach { pending in
+            let sessionContext = AppSessionContext(
+                appName: pending.appName,
+                bundleIdentifier: pending.bundleIdentifier,
+                domain: pending.domain,
+                startDate: pending.startDate,
+                projectID: nil,
+                projectName: project.name,
+                isExcluded: false,
+                isPendingAssignment: false
+            )
+            insertResolvedSession(context: sessionContext, endDate: pending.endDate, project: project)
+            modelContainer.mainContext.delete(pending)
+            resolvedCount += 1
+        }
+
+        do {
+            try modelContainer.mainContext.save()
+            refreshPendingConflictCount()
+            logger.info("Resolved \(resolvedCount, privacy: .public) pending sessions for \(context.value, privacy: .public)")
+        } catch {
+            logger.error("Failed to resolve pending sessions: \(error.localizedDescription, privacy: .public)")
+        }
+    }
 }
 
 private struct AppSessionContext {
@@ -736,6 +871,7 @@ private struct AppSessionContext {
     var projectID: PersistentIdentifier?
     var projectName: String?
     var isExcluded: Bool
+    var isPendingAssignment: Bool
 }
 
 private extension SessionSnapshot {
@@ -768,7 +904,8 @@ extension ActivityTracker {
             startDate: startDate,
             projectID: nil,
             projectName: nil,
-            isExcluded: isExcluded
+            isExcluded: isExcluded,
+            isPendingAssignment: false
         )
         if !isExcluded {
             updateProjectAssociation(for: &context)

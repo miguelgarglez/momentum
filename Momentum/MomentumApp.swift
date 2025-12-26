@@ -182,6 +182,8 @@ final class AppEnvironment: ObservableObject {
 
         let schema = Schema([
             Project.self,
+            AssignmentRule.self,
+            PendingTrackingSession.self,
             TrackingSession.self,
             DailySummary.self
         ])

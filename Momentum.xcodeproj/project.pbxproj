@@ -27,6 +27,7 @@
 		A63FF0EB2ED3B686002F9FA7 /* Momentum.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Momentum.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A63FF0FB2ED3B689002F9FA7 /* MomentumTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MomentumTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A63FF1052ED3B689002F9FA7 /* MomentumUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MomentumUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A6F18FA62EF9F1A700E8572C /* Momentum.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Momentum.xctestplan; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -88,6 +89,7 @@
 		A63FF0E22ED3B686002F9FA7 = {
 			isa = PBXGroup;
 			children = (
+				A6F18FA62EF9F1A700E8572C /* Momentum.xctestplan */,
 				A63FF0ED2ED3B686002F9FA7 /* Momentum */,
 				A63FF0FE2ED3B689002F9FA7 /* MomentumTests */,
 				A63FF1082ED3B689002F9FA7 /* MomentumUITests */,

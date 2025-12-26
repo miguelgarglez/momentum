@@ -1,0 +1,36 @@
+{
+  "configurations" : [
+    {
+      "id" : "53842103-B4ED-4BA5-93DD-CE1A1B5899CF",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Momentum.xcodeproj",
+      "identifier" : "A63FF0EA2ED3B686002F9FA7",
+      "name" : "Momentum"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Momentum.xcodeproj",
+        "identifier" : "A63FF1042ED3B689002F9FA7",
+        "name" : "MomentumUITests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Momentum.xcodeproj",
+        "identifier" : "A63FF0FA2ED3B689002F9FA7",
+        "name" : "MomentumTests"
+      }
+    }
+  ],
+  "version" : 1
+}

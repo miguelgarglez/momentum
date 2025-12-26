@@ -20,7 +20,7 @@ Su objetivo es convertir ese tiempo en **progreso visible**, manteniendo los dat
 - **FR-1.3** Eliminar proyecto junto con sus registros.
 - **FR-1.4** Asignar apps a un proyecto.
 - **FR-1.5** Asignar dominios web a un proyecto.
-- **FR-1.6** Un app/dominio puede pertenecer a varios proyectos, pero el usuario podrá definir prioridad.
+- **FR-1.6** Un app/dominio puede pertenecer a varios proyectos y Momentum debe gestionar conflictos mediante reglas de asignacion guardadas.
 
 ## FR-2. Tracking Automático
 - **FR-2.1** Detectar app activa en foreground cada X segundos (configurable, default 5 s).
@@ -30,6 +30,7 @@ Su objetivo es convertir ese tiempo en **progreso visible**, manteniendo los dat
   - Otros navegadores opcionados más adelante.
   > **Nota MVP:** La versión actual sólo lee dominios en Safari y Chrome usando AppleScript.
 - **FR-2.3** Asociar cada intervalo detectado al proyecto correspondiente.
+- **FR-2.3.1** Si existe conflicto sin regla, acumular tiempo pendiente y solicitar resolucion en UI.
 - **FR-2.4** Pausa automática del tracking si:
   - No hay interacción durante N minutos (idle).
   - Se bloquea pantalla.
@@ -161,6 +162,22 @@ Su objetivo es convertir ese tiempo en **progreso visible**, manteniendo los dat
 - domains [String]
 - createdAt (Date)
 
+### Entidad AssignmentRule (MVP)
+- id (UUID)
+- contextType ("app" | "domain")
+- contextValue (String)
+- projectId (UUID)
+- createdAt (Date)
+- lastUsedAt (Date)
+
+### Entidad PendingContextTime (MVP)
+- id (UUID)
+- contextType ("app" | "domain")
+- contextValue (String)
+- totalSeconds (Int)
+- lastSeenAt (Date)
+- createdAt (Date)
+
 ### Entidad ActivityRecord
 - id (UUID)
 - projectId (UUID)
@@ -181,8 +198,8 @@ Su objetivo es convertir ese tiempo en **progreso visible**, manteniendo los dat
 ## 6.1. Tracking Automático
 1. Timer cada 5 segundos → detecta app activa  
 2. Si navegador activo → obtener dominio  
-3. Resolver proyecto asociado  
-4. Registrar intervalo (o extender el actual)  
+3. Resolver proyecto asociado o detectar conflicto  
+4. Registrar intervalo o acumular tiempo pendiente  
 5. Si idle → cerrar intervalo y pausar tracking  
 6. Al volver → crear nuevo intervalo
 

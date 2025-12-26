@@ -4,6 +4,7 @@ import SwiftData
 @MainActor
 protocol ProjectAssignmentResolving {
     func resolveProject(for bundleIdentifier: String?, domain: String?) -> Project?
+    func resolveAssignment(for bundleIdentifier: String?, domain: String?) -> AssignmentResult
 }
 
 /// Encapsulates the rules for routing tracked sessions to projects.
@@ -21,37 +22,82 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
     }
 
     func resolveProject(for bundleIdentifier: String?, domain: String?) -> Project? {
-        let descriptor = FetchDescriptor<Project>(
-            sortBy: [
-                SortDescriptor(\Project.priority, order: .reverse),
-                SortDescriptor(\Project.createdAt, order: .forward)
-            ]
-        )
-        guard let projects = try? modelContainer.mainContext.fetch(descriptor) else {
+        switch resolveAssignment(for: bundleIdentifier, domain: domain) {
+        case let .assigned(project, _):
+            return project
+        case .conflict, .none:
             return nil
         }
+    }
 
-        let normalizedDomain = domain?
+    func resolveAssignment(for bundleIdentifier: String?, domain: String?) -> AssignmentResult {
+        guard let projects = fetchProjects() else {
+            return .none
+        }
+
+        if let context = normalizedDomainContext(from: domain) {
+            let candidates = projects.filter { $0.matches(domain: context.value) }
+            return resolve(context: context, candidates: candidates, allProjects: projects)
+        }
+
+        if let context = normalizedAppContext(from: bundleIdentifier) {
+            let candidates = projects.filter { $0.matches(appBundleIdentifier: context.value) }
+            return resolve(context: context, candidates: candidates, allProjects: projects)
+        }
+
+        return .none
+    }
+
+    private func fetchProjects() -> [Project]? {
+        let descriptor = FetchDescriptor<Project>(
+            sortBy: [SortDescriptor(\Project.createdAt, order: .forward)]
+        )
+        return try? modelContainer.mainContext.fetch(descriptor)
+    }
+
+    private func resolve(
+        context: AssignmentContext,
+        candidates: [Project],
+        allProjects: [Project]
+    ) -> AssignmentResult {
+        if let rule = fetchRule(for: context),
+           let ruleProject = rule.project {
+            rule.lastUsedAt = .now
+            try? modelContainer.mainContext.save()
+            return .assigned(ruleProject, usedRule: true)
+        }
+
+        guard !candidates.isEmpty else { return .none }
+        guard candidates.count > 1 else {
+            return .assigned(candidates[0], usedRule: false)
+        }
+        return .conflict(context, candidates: candidates)
+    }
+
+    private func fetchRule(for context: AssignmentContext) -> AssignmentRule? {
+        let typeValue = context.type.rawValue
+        let contextValue = context.value
+        let descriptor = FetchDescriptor<AssignmentRule>(
+            predicate: #Predicate {
+                $0.contextType == typeValue &&
+                $0.contextValue == contextValue
+            }
+        )
+        return try? modelContainer.mainContext.fetch(descriptor).first
+    }
+
+    private func normalizedDomainContext(from domain: String?) -> AssignmentContext? {
+        let normalized = domain?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
-        if let normalizedDomain, !normalizedDomain.isEmpty {
-            // When a domain is available we only consider explicit domain assignments.
-            if let match = projects.first(where: { $0.matches(domain: normalizedDomain) }) {
-                return match
-            }
-            return nil
-        }
+        guard let normalized, !normalized.isEmpty else { return nil }
+        return AssignmentContext(type: .domain, value: normalized)
+    }
 
-        guard let bundleIdentifier = bundleIdentifier?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-              !bundleIdentifier.isEmpty else {
-            return nil
-        }
-
-        if let match = projects.first(where: { $0.matches(appBundleIdentifier: bundleIdentifier) }) {
-            return match
-        }
-
-        return nil
+    private func normalizedAppContext(from bundleIdentifier: String?) -> AssignmentContext? {
+        let normalized = bundleIdentifier?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let normalized, !normalized.isEmpty else { return nil }
+        return AssignmentContext(type: .app, value: normalized)
     }
 }

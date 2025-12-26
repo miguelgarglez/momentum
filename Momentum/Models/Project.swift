@@ -14,7 +14,6 @@ final class Project {
     var name: String
     var colorHex: String
     var iconName: String
-    var priority: Int = 0
     var assignedAppsRaw: String = "[]"
     var assignedDomainsRaw: String = "[]"
     var createdAt: Date
@@ -28,14 +27,12 @@ final class Project {
         name: String,
         colorHex: String = ProjectPalette.defaultColor.hex,
         iconName: String = ProjectIcon.spark.rawValue,
-        priority: Int = 0,
         assignedApps: [String] = [],
         assignedDomains: [String] = []
     ) {
         self.name = name
         self.colorHex = colorHex
         self.iconName = iconName
-        self.priority = priority
         self.assignedAppsRaw = Project.encode(strings: assignedApps)
         self.assignedDomainsRaw = Project.encode(strings: assignedDomains.map { $0.lowercased() })
         self.createdAt = Date()
@@ -79,13 +76,14 @@ extension Project {
     
     var weeklySeconds: TimeInterval {
         let calendar = Calendar.current
-        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: .now)?.start ?? .now
+        let end = Date()
+        let startOfWindow = calendar.date(byAdding: .day, value: -6, to: DailySummary.normalize(end)) ?? end
         guard !dailySummaries.isEmpty else {
-            let interval = DateInterval(start: startOfWeek, end: .now)
+            let interval = DateInterval(start: startOfWindow, end: end)
             return secondsSpent(in: interval)
         }
         return dailySummaries.reduce(0) { partial, summary in
-            summary.date >= startOfWeek ? partial + summary.seconds : partial
+            summary.date >= startOfWindow ? partial + summary.seconds : partial
         }
     }
 
@@ -151,7 +149,6 @@ extension Project {
         name = draft.name
         colorHex = draft.colorHex
         iconName = draft.iconName
-        priority = draft.priority
         assignedApps = draft.assignedApps
         assignedDomains = draft.assignedDomains
     }

@@ -17,13 +17,15 @@ struct ContentView: View {
     @EnvironmentObject private var tracker: ActivityTracker
     @Query(
         sort: [
-            SortDescriptor(\Project.priority, order: .reverse),
             SortDescriptor(\Project.createdAt, order: .forward)
         ]
     ) private var projects: [Project]
+    @Query(sort: [SortDescriptor(\PendingTrackingSession.endDate, order: .reverse)])
+    private var pendingSessions: [PendingTrackingSession]
 
     @State private var selectedProjectID: PersistentIdentifier?
     @State private var activeProjectSheet: ProjectSheet?
+    @State private var showConflictSheet = false
     @State private var toast: ToastMessage?
 
     var body: some View {
@@ -98,6 +100,16 @@ struct ContentView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .overlay(alignment: .topLeading) {
+            if !pendingConflicts.isEmpty {
+                PendingConflictBanner(count: pendingConflicts.count) {
+                    showConflictSheet = true
+                }
+                .padding(.top, 18)
+                .padding(.leading, 24)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: toast)
 #if os(macOS)
         .onReceive(NotificationCenter.default.publisher(for: .statusItemOpenProject)) { notification in
@@ -105,6 +117,13 @@ struct ContentView: View {
             selectedProjectID = identifier
         }
 #endif
+        .sheet(isPresented: $showConflictSheet) {
+            PendingConflictResolutionView(
+                pendingSessions: pendingSessions,
+                projects: projects
+            )
+            .environmentObject(tracker)
+        }
     }
 
 
@@ -117,7 +136,6 @@ struct ContentView: View {
                     name: draft.name,
                     colorHex: draft.colorHex,
                     iconName: draft.iconName,
-                    priority: draft.priority,
                     assignedApps: draft.assignedApps,
                     assignedDomains: draft.assignedDomains
                 )
@@ -231,6 +249,10 @@ struct ContentView: View {
         guard let selectedProjectID else { return projects.first }
         return projects.first(where: { $0.persistentModelID == selectedProjectID })
     }
+
+    private var pendingConflicts: [PendingConflict] {
+        PendingConflict.grouped(from: pendingSessions, projects: projects)
+    }
 }
 
 private enum ProjectSheet: Identifiable {
@@ -331,6 +353,8 @@ private struct ActionPanelView: View {
         switch summary.state {
         case .tracking:
             return .accentColor
+        case .pendingResolution:
+            return .orange
         case .pausedManual:
             return .orange
         case .pausedIdle:
@@ -371,6 +395,210 @@ private struct ActionPanelView: View {
         .padding(.horizontal, 16)
         .frame(maxHeight: .infinity, alignment: .bottomLeading)
         .background(.regularMaterial)
+    }
+}
+
+private struct PendingConflictBanner: View {
+    let count: Int
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(Color.orange.opacity(0.18))
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.orange)
+            }
+            .frame(width: 28, height: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Pendiente de asignación")
+                    .font(.subheadline.weight(.semibold))
+                Text("Tienes \(count) contexto(s) por resolver.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Resolver") {
+                action()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: 300, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.95))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.orange.opacity(0.6), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
+    }
+}
+
+private struct PendingConflictResolutionView: View {
+    @EnvironmentObject private var tracker: ActivityTracker
+    @Environment(\.dismiss) private var dismiss
+
+    let pendingSessions: [PendingTrackingSession]
+    let projects: [Project]
+
+    @State private var selections: [String: PersistentIdentifier] = [:]
+
+    var body: some View {
+        let conflicts = PendingConflict.grouped(from: pendingSessions, projects: projects)
+
+        NavigationStack {
+            Group {
+                if conflicts.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "checkmark.seal")
+                            .font(.largeTitle)
+                            .foregroundStyle(.secondary)
+                        Text("No hay conflictos pendientes.")
+                            .font(.headline)
+                        Text("Cuando aparezcan, podrás resolverlos aquí.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding()
+                } else {
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            ForEach(conflicts) { conflict in
+                                PendingConflictRow(
+                                    conflict: conflict,
+                                    selection: Binding(
+                                        get: { selections[conflict.id] },
+                                        set: { selections[conflict.id] = $0 }
+                                    ),
+                                    onResolve: { project in
+                                        tracker.resolveConflict(context: conflict.context, project: project)
+                                    }
+                                )
+                            }
+                        }
+                        .padding()
+                    }
+                }
+            }
+            .navigationTitle("Resolver conflictos")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cerrar") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .frame(minWidth: 520, minHeight: 420)
+    }
+}
+
+private struct PendingConflictRow: View {
+    let conflict: PendingConflict
+    @Binding var selection: PersistentIdentifier?
+    let onResolve: (Project) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(conflict.title)
+                        .font(.headline)
+                    if let subtitle = conflict.subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Text(conflict.totalSeconds.hoursAndMinutesString)
+                    .font(.subheadline.weight(.semibold))
+            }
+
+            Picker("Proyecto", selection: $selection) {
+                ForEach(conflict.candidates) { project in
+                    Text(project.name)
+                        .tag(project.persistentModelID)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+
+            Button("Asignar") {
+                guard let selection,
+                      let project = conflict.candidates.first(where: { $0.persistentModelID == selection }) else { return }
+                onResolve(project)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(selection == nil)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.secondary.opacity(0.08))
+        )
+        .onAppear {
+            if selection == nil {
+                selection = conflict.candidates.first?.persistentModelID
+            }
+        }
+    }
+}
+
+private struct PendingConflict: Identifiable {
+    let id: String
+    let context: AssignmentContext
+    let title: String
+    let subtitle: String?
+    let totalSeconds: TimeInterval
+    let candidates: [Project]
+
+    static func grouped(from sessions: [PendingTrackingSession], projects: [Project]) -> [PendingConflict] {
+        let grouped = Dictionary(grouping: sessions) { "\($0.contextType)::\($0.contextValue)" }
+
+        return grouped.compactMap { key, items in
+            guard let first = items.first else { return nil }
+            let type = AssignmentContextType(rawValue: first.contextType) ?? .app
+            let context = AssignmentContext(type: type, value: first.contextValue)
+            let candidates = projects.filter { project in
+                switch type {
+                case .app:
+                    return project.matches(appBundleIdentifier: first.contextValue)
+                case .domain:
+                    return project.matches(domain: first.contextValue)
+                }
+            }
+            guard !candidates.isEmpty else { return nil }
+            let totalSeconds = items.reduce(0) { $0 + max(0, $1.endDate.timeIntervalSince($1.startDate)) }
+            let title: String
+            let subtitle: String?
+            switch type {
+            case .app:
+                title = first.appName
+                subtitle = first.bundleIdentifier ?? first.contextValue
+            case .domain:
+                title = first.contextValue
+                subtitle = first.appName
+            }
+
+            return PendingConflict(
+                id: key,
+                context: context,
+                title: title,
+                subtitle: subtitle,
+                totalSeconds: totalSeconds,
+                candidates: candidates
+            )
+        }
+        .sorted { $0.totalSeconds > $1.totalSeconds }
     }
 }
 
@@ -617,17 +845,6 @@ struct ProjectDetailView: View {
                 }
             }
             Spacer()
-            Label {
-                Text("Prioridad \(project.priority)")
-            } icon: {
-                Image(systemName: "flag.fill")
-            }
-            .font(.caption)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(project.color.opacity(0.15))
-            .clipShape(Capsule())
-            .help("Momentum asigna el contexto al proyecto con la prioridad más alta cuando hay coincidencias")
         }
     }
 
@@ -985,6 +1202,8 @@ enum UsageWindow: String, CaseIterable, Identifiable {
 
 struct WeeklySummaryChartView: View {
     let project: Project
+    @State private var hoveredDate: Date?
+    private let chartHeight: CGFloat = 120
 
     private var summaries: [DailySummaryPoint] {
         project.recentDailySummaries()
@@ -1001,9 +1220,25 @@ struct WeeklySummaryChartView: View {
             HStack(alignment: .bottom, spacing: 12) {
                 ForEach(summaries, id: \.date) { summary in
                     VStack {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(project.color.opacity(summary.seconds == 0 ? 0.15 : 0.8))
-                            .frame(height: height(for: summary))
+                        VStack {
+                            Spacer(minLength: 0)
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(project.color.opacity(summary.seconds == 0 ? 0.15 : 0.8))
+                                .frame(height: height(for: summary))
+                                .overlay(alignment: .top) {
+                                    if hoveredDate == summary.date {
+                                        ChartTooltipView(text: summary.seconds.minutesOrHoursMinutesString)
+                                            .offset(y: -8)
+                                            .transition(.opacity.combined(with: .move(edge: .top)))
+                                    }
+                                }
+                        }
+                        .frame(height: chartHeight)
+                        .contentShape(Rectangle())
+                        .onHover { hovering in
+                            hoveredDate = hovering ? summary.date : nil
+                        }
+                        .animation(.easeInOut(duration: 0.12), value: hoveredDate)
                         Text(summary.label.uppercased())
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -1016,7 +1251,24 @@ struct WeeklySummaryChartView: View {
 
     private func height(for summary: DailySummaryPoint) -> CGFloat {
         let ratio = summary.seconds / maxSeconds
-        return max(12, CGFloat(ratio) * 120)
+        return max(12, CGFloat(ratio) * chartHeight)
+    }
+}
+
+private struct ChartTooltipView: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.black.opacity(0.8))
+            )
+            .accessibilityLabel("Tiempo: \(text)")
     }
 }
 
@@ -1024,7 +1276,6 @@ struct ProjectFormDraft {
     var name: String
     var colorHex: String
     var iconName: String
-    var priority: Int
     var selectedAppIDs: Set<String>
     var manualApps: String
     var domains: String
@@ -1034,7 +1285,6 @@ struct ProjectFormDraft {
             name = project.name
             colorHex = project.colorHex
             iconName = project.iconName
-            priority = project.priority
             selectedAppIDs = Set(project.assignedApps)
             manualApps = ""
             domains = project.assignedDomains.joined(separator: ", ")
@@ -1042,7 +1292,6 @@ struct ProjectFormDraft {
             name = ""
             colorHex = ProjectPalette.defaultColor.hex
             iconName = ProjectIcon.spark.systemName
-            priority = 0
             selectedAppIDs = []
             manualApps = ""
             domains = ""
@@ -1122,18 +1371,6 @@ struct ProjectFormView: View {
                     }
                 }
 
-                Section("Prioridad") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Stepper(value: $draft.priority, step: 1) {
-                            Text("Nivel \(draft.priority)")
-                                .font(.headline)
-                        }
-                        Text("Se aplica el proyecto con el nivel más alto si el contexto coincide en varios.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
                 AppAutoTrackingSection(
                     selection: $draft.selectedAppIDs,
                     manualApps: $draft.manualApps
@@ -1143,10 +1380,10 @@ struct ProjectFormView: View {
 #if os(macOS)
                     LTRTextField(
                         text: $draft.domains,
-                        placeholder: "Dominios (separados por coma)"
+                        placeholder: "Dominios (separados por coma)",
+                        accessibilityIdentifier: "project-domains-field"
                     )
                     .macRoundedTextFieldStyle()
-                    .accessibilityIdentifier("project-domains-field")
                     .padding(.vertical, 4)
 #else
                     TextField("Dominios (separados por coma)", text: $draft.domains)
@@ -1194,7 +1431,8 @@ struct ProjectTitleField: View {
             text: $text,
             placeholder: "Ej. \"Construir Momentum\"",
             font: NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .title3).pointSize, weight: .semibold),
-            allowsMultiline: true
+            allowsMultiline: true,
+            accessibilityIdentifier: "project-title-field"
         )
             .padding(.horizontal, 12)
             .padding(.vertical, 10)

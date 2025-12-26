@@ -45,7 +45,7 @@ Para mantener un modelado consistente de las sesiones:
 - **ProjectAssignmentResolver**  
   Encapsula la lógica de decidir qué proyecto recibe una sesión según el dominio o bundle ID activos.  
   Si se resuelve un dominio, sólo se asigna cuando ese dominio aparece en el proyecto (sin caer al bundle para evitar registros en proyectos erróneos).  
-  Cuando no hay dominio disponible, evalúa directamente los bundle IDs registrados respetando la prioridad configurada; si la app no está asignada, la sesión se descarta para evitar que caiga en el primer proyecto.  
+  Cuando no hay dominio disponible, evalúa directamente los bundle IDs registrados y resuelve conflictos mediante reglas guardadas; si la app no está asignada, la sesión se descarta para evitar que caiga en el primer proyecto.  
   Aísla reglas y heurísticas que de otro modo vivirían dentro del tracker.
 
 - **SessionOverlapResolver**  

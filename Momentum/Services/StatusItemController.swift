@@ -10,6 +10,7 @@ final class StatusItemController: NSObject {
     private var clockTimer: Timer?
     private var currentTimeString: String = ""
     private var latestSummary: ActivityTracker.StatusSummary
+    private var pendingConflictCount: Int
 
     private lazy var timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -22,6 +23,7 @@ final class StatusItemController: NSObject {
         self.tracker = tracker
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.latestSummary = tracker.statusSummary
+        self.pendingConflictCount = tracker.pendingConflictCount
         super.init()
         configureButton()
         updateClockLabel()
@@ -31,6 +33,15 @@ final class StatusItemController: NSObject {
             .sink { [weak self] summary in
                 guard let self else { return }
                 self.latestSummary = summary
+                self.rebuildMenu()
+            }
+            .store(in: &cancellables)
+        tracker.$pendingConflictCount
+            .receive(on: RunLoop.main)
+            .sink { [weak self] count in
+                guard let self else { return }
+                self.pendingConflictCount = count
+                self.updateButtonBadge()
                 self.rebuildMenu()
             }
             .store(in: &cancellables)
@@ -46,6 +57,21 @@ final class StatusItemController: NSObject {
         statusItem.button?.image = NSImage(systemSymbolName: "flame", accessibilityDescription: "Momentum")
         statusItem.button?.imagePosition = .imageLeading
         statusItem.button?.appearsDisabled = false
+        updateButtonBadge()
+    }
+
+    private func updateButtonBadge() {
+        guard let button = statusItem.button else { return }
+        if pendingConflictCount > 0 {
+            button.title = "●"
+            button.attributedTitle = NSAttributedString(
+                string: "●",
+                attributes: [.foregroundColor: NSColor.systemOrange]
+            )
+        } else {
+            button.title = ""
+            button.attributedTitle = NSAttributedString(string: "")
+        }
     }
 
     private func startClockTimer() {
@@ -77,6 +103,13 @@ final class StatusItemController: NSObject {
         let toggleItem = NSMenuItem(title: toggleTitle, action: #selector(handleToggleTracking), keyEquivalent: "")
         toggleItem.target = self
         menu.addItem(toggleItem)
+
+        if pendingConflictCount > 0 {
+            let conflictTitle = "Resolver conflictos (\(pendingConflictCount))"
+            let conflictItem = NSMenuItem(title: conflictTitle, action: #selector(handleShowApp), keyEquivalent: "")
+            conflictItem.target = self
+            menu.addItem(conflictItem)
+        }
 
         if let projectName = latestSummary.projectName,
            latestSummary.projectID != nil {
@@ -113,6 +146,17 @@ final class StatusItemController: NSObject {
             }
             let projectLabel = summary.projectName ?? "Sin proyecto asignado"
             menu.addItem(disabledItem("Proyecto: \(projectLabel)"))
+        case .pendingResolution:
+            if let appName = summary.appName {
+                if let domain = summary.domain {
+                    menu.addItem(disabledItem("\(appName) • \(domain)"))
+                } else {
+                    menu.addItem(disabledItem(appName))
+                }
+            } else {
+                menu.addItem(disabledItem("Pendiente de asignación"))
+            }
+            menu.addItem(disabledItem("Proyecto: pendiente de asignación"))
         case .pausedManual:
             menu.addItem(disabledItem("Tracking pausado manualmente"))
         case .pausedIdle:
@@ -138,6 +182,8 @@ final class StatusItemController: NSObject {
         switch summary.state {
         case .tracking:
             return "Tracking activo"
+        case .pendingResolution:
+            return "Pendiente de asignación"
         case .pausedManual:
             return "Tracking pausado"
         case .pausedIdle:

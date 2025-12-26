@@ -15,11 +15,11 @@ Use `xcodebuild` with the project and scheme:
   ```
 - Build for testing (no tests run):
   ```bash
-  xcodebuild -project Momentum.xcodeproj -scheme Momentum -destination 'platform=iOS Simulator,name=iPhone 15' build-for-testing
+  xcodebuild -project Momentum.xcodeproj -scheme Momentum -destination 'platform=macOS' build-for-testing
   ```
 - Run all tests:
   ```bash
-  xcodebuild -project Momentum.xcodeproj -scheme Momentum -destination 'platform=iOS Simulator,name=iPhone 15' test
+  xcodebuild -project Momentum.xcodeproj -scheme Momentum -destination 'platform=macOS' test
   ```
 - Run a subset:
   - `-only-testing:MomentumTests`
@@ -35,6 +35,7 @@ Use `xcodebuild` with the project and scheme:
 - Tests are written with XCTest in `MomentumTests/` and `MomentumUITests/`.
 - Name test classes after module and feature (e.g., `ProjectManagerTests`).
 - No explicit coverage threshold is defined; add tests for new behavior and regressions.
+- Run the relevant test suite when a feature/fix is effectively finished to confirm behavior; avoid running tests on every tiny edit during active development.
 
 ## Commit & Pull Request Guidelines
 - Commit messages follow Conventional Commits (`feat:`, `fix:`, `chore:`) with concise subjects.
