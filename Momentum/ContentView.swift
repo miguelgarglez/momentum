@@ -425,6 +425,7 @@ private struct PendingConflictBanner: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
+            .accessibilityIdentifier("pending-conflict-resolve-button")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -438,6 +439,8 @@ private struct PendingConflictBanner: View {
                 .stroke(Color.orange.opacity(0.6), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("pending-conflict-banner")
     }
 }
 
@@ -498,6 +501,8 @@ private struct PendingConflictResolutionView: View {
             }
         }
         .frame(minWidth: 520, minHeight: 420)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("pending-conflict-sheet")
     }
 }
 
@@ -531,6 +536,7 @@ private struct PendingConflictRow: View {
             }
             .pickerStyle(.menu)
             .labelsHidden()
+            .accessibilityIdentifier("pending-conflict-project-picker-\(conflict.id)")
 
             Button("Asignar") {
                 guard let selection,
@@ -539,12 +545,15 @@ private struct PendingConflictRow: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(selection == nil)
+            .accessibilityIdentifier("pending-conflict-assign-button-\(conflict.id)")
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color.secondary.opacity(0.08))
         )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("pending-conflict-row-\(conflict.id)")
         .onAppear {
             if selection == nil {
                 selection = conflict.candidates.first?.persistentModelID

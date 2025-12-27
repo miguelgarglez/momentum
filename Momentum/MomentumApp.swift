@@ -108,6 +108,10 @@ private extension MomentumApp {
         CommandLine.arguments.contains("--uitests") || ProcessInfo.processInfo.environment["UITESTS"] == "1"
     }
 
+    static var shouldSeedConflicts: Bool {
+        CommandLine.arguments.contains("--seed-conflicts")
+    }
+
     static func makeStoreURL(in directory: URL) -> URL {
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -202,11 +206,15 @@ final class AppEnvironment: ObservableObject {
         }
 
         let container = try ModelContainer(for: schema, configurations: [configuration])
+        if isUITest && MomentumApp.shouldSeedConflicts {
+            seedPendingConflicts(in: container)
+        }
         let performanceMonitor: PerformanceBudgetMonitoring = isUITest ? NoopPerformanceBudgetMonitor() : PerformanceBudgetMonitor()
+        let crashRecovery: CrashRecoveryHandling = isUITest ? NoopCrashRecoveryManager() : CrashRecoveryManager()
         let tracker = ActivityTracker(
             modelContainer: container,
             settings: trackerSettings,
-            crashRecovery: CrashRecoveryManager(),
+            crashRecovery: crashRecovery,
             performanceMonitor: performanceMonitor
         )
         let dataProtection = isUITest ? nil : DataProtectionCoordinator(container: container, settings: trackerSettings)
@@ -214,5 +222,45 @@ final class AppEnvironment: ObservableObject {
         self.container = container
         self.tracker = tracker
         self.dataProtection = dataProtection
+    }
+}
+
+private extension AppEnvironment {
+    func seedPendingConflicts(in container: ModelContainer) {
+        let context = container.mainContext
+        let existingPending = (try? context.fetch(FetchDescriptor<PendingTrackingSession>())) ?? []
+        let existingProjects = (try? context.fetch(FetchDescriptor<Project>())) ?? []
+        guard existingPending.isEmpty, existingProjects.isEmpty else { return }
+
+        let bundleID = "com.momentum.seed.app"
+        let domain = "example.com"
+        let projectA = Project(name: "Momentum Seed A", assignedApps: [bundleID], assignedDomains: [domain])
+        let projectB = Project(name: "Momentum Seed B", assignedApps: [bundleID], assignedDomains: [domain])
+        context.insert(projectA)
+        context.insert(projectB)
+
+        let now = Date()
+        let appSession = PendingTrackingSession(
+            startDate: now.addingTimeInterval(-180),
+            endDate: now,
+            appName: "Seed App",
+            bundleIdentifier: bundleID,
+            domain: nil,
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: bundleID
+        )
+        let domainSession = PendingTrackingSession(
+            startDate: now.addingTimeInterval(-420),
+            endDate: now.addingTimeInterval(-120),
+            appName: "Safari",
+            bundleIdentifier: "com.apple.Safari",
+            domain: domain,
+            contextType: AssignmentContextType.domain.rawValue,
+            contextValue: domain
+        )
+        context.insert(appSession)
+        context.insert(domainSession)
+
+        try? context.save()
     }
 }

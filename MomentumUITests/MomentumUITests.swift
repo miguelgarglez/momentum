@@ -42,15 +42,65 @@ final class MomentumUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Tus proyectos"].exists)
     }
 
+    func testConflictBannerOpensResolutionSheet() throws {
+        let app = launch(reset: true, seedConflicts: true)
+        let conflictsText = app.staticTexts["Tienes 2 contexto(s) por resolver."]
+        XCTAssertTrue(conflictsText.waitForExistence(timeout: 3))
+
+        let resolveButton = app.buttons["Resolver"]
+        XCTAssertTrue(resolveButton.waitForExistence(timeout: 2))
+        resolveButton.click()
+
+        let sheetTitle = app.staticTexts["Resolver conflictos"]
+        XCTAssertTrue(sheetTitle.waitForExistence(timeout: 3))
+    }
+
+    func testConflictListShowsAppAndDomainRows() throws {
+        let app = launch(reset: true, seedConflicts: true)
+        let resolveButton = app.buttons["Resolver"]
+        XCTAssertTrue(resolveButton.waitForExistence(timeout: 3))
+        resolveButton.click()
+
+        let sheetTitle = app.staticTexts["Resolver conflictos"]
+        XCTAssertTrue(sheetTitle.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Seed App"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["example.com"].waitForExistence(timeout: 2))
+    }
+
+    func testConflictResolutionAssignsProject() throws {
+        let app = launch(reset: true, seedConflicts: true)
+        let resolveButton = app.buttons["Resolver"]
+        XCTAssertTrue(resolveButton.waitForExistence(timeout: 3))
+        resolveButton.click()
+
+        let sheetTitle = app.staticTexts["Resolver conflictos"]
+        XCTAssertTrue(sheetTitle.waitForExistence(timeout: 3))
+        let assignButton = app.buttons["Asignar"].firstMatch
+        XCTAssertTrue(assignButton.waitForExistence(timeout: 3))
+        XCTAssertTrue(assignButton.isEnabled)
+        assignButton.click()
+
+        let closeButton = app.buttons["Cerrar"]
+        if closeButton.waitForExistence(timeout: 2) {
+            closeButton.click()
+        }
+
+        let bannerText = app.staticTexts["Tienes 1 contexto(s) por resolver."]
+        XCTAssertTrue(bannerText.waitForExistence(timeout: 3))
+    }
+
     // MARK: - Helpers
 
-    private func launch(reset: Bool) -> XCUIApplication {
+    private func launch(reset: Bool, seedConflicts: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         let storePath = suiteStorePath
         var arguments = ["--uitests", "--store-path", storePath]
         if reset {
             arguments.append("--uitests-reset")
             clearTestStoreDirectory(at: storePath)
+        }
+        if seedConflicts {
+            arguments.append("--seed-conflicts")
         }
         app.launchEnvironment["MOMENTUM_STORE_PATH"] = storePath
         app.launchArguments = arguments

@@ -89,3 +89,14 @@ final class CrashRecoveryManager: ObservableObject, CrashRecoveryHandling {
 #endif
     }
 }
+
+@MainActor
+final class NoopCrashRecoveryManager: CrashRecoveryHandling {
+    func persist(snapshot: SessionSnapshot?) {
+        // no-op for tests
+    }
+
+    func consumePendingSnapshot() -> SessionSnapshot? {
+        nil
+    }
+}
