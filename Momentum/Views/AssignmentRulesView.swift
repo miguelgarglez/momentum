@@ -3,7 +3,9 @@ import SwiftData
 
 struct AssignmentRulesView: View {
     @EnvironmentObject private var settings: TrackerSettings
+    @EnvironmentObject private var appCatalog: AppCatalog
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @Query(sort: \AssignmentRule.lastUsedAt, order: .reverse) private var rules: [AssignmentRule]
     @Query(sort: \Project.name, order: .forward) private var projects: [Project]
 
@@ -13,6 +15,9 @@ struct AssignmentRulesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+#if os(macOS)
+            backButtonRow
+#endif
             filterHeader
 
             if filteredRules.isEmpty {
@@ -34,8 +39,13 @@ struct AssignmentRulesView: View {
                 .accessibilityIdentifier("assignment-rules-list")
             }
         }
-        .padding()
+        .padding(.top, 8)
+        .padding(.horizontal)
+        .padding(.bottom, 12)
         .navigationTitle("Reglas de asignacion")
+#if os(macOS)
+        .navigationBarBackButtonHidden(true)
+#endif
         .confirmationDialog("¿Eliminar regla?", isPresented: deleteConfirmationBinding, titleVisibility: .visible) {
             Button("Eliminar", role: .destructive) {
                 deletePendingRule()
@@ -50,33 +60,94 @@ struct AssignmentRulesView: View {
         }
     }
 
+#if os(macOS)
+    private var backButtonRow: some View {
+        HStack {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 28, height: 28)
+                    .background(Color.primary.opacity(0.08), in: Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Volver")
+
+            Spacer()
+        }
+    }
+#endif
+
     private var filterHeader: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        ViewThatFits(in: .horizontal) {
+            filterHeaderHorizontal
+            filterHeaderVertical
+        }
+    }
+
+    private var filterHeaderHorizontal: some View {
+        HStack(alignment: .bottom, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Buscar")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
-#if os(macOS)
-                LTRTextField(text: $searchText, placeholder: "Contexto o proyecto")
-                    .macRoundedTextFieldStyle()
-                    .accessibilityIdentifier("assignment-rules-search-field")
-#else
-                TextField("Contexto o proyecto", text: $searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("assignment-rules-search-field")
-#endif
+                searchField
             }
 
-            Picker("Filtrar por proyecto", selection: $projectFilter) {
-                Text("Todos los proyectos")
-                    .tag(Optional<PersistentIdentifier>.none)
-                ForEach(projects) { project in
-                    Text(project.name)
-                        .tag(Optional(project.persistentModelID))
-                }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Filtrar por proyecto")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+                projectFilterPicker
             }
-            .pickerStyle(.menu)
         }
+    }
+
+    private var filterHeaderVertical: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Buscar")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+                searchField
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Filtrar por proyecto")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+                projectFilterPicker
+            }
+        }
+    }
+
+    private var searchField: some View {
+#if os(macOS)
+        LTRTextField(text: $searchText, placeholder: "Contexto o proyecto")
+            .macRoundedTextFieldStyle()
+            .accessibilityIdentifier("assignment-rules-search-field")
+#else
+        TextField("Contexto o proyecto", text: $searchText)
+            .textFieldStyle(.roundedBorder)
+            .accessibilityIdentifier("assignment-rules-search-field")
+#endif
+    }
+
+    private var projectFilterPicker: some View {
+        Picker("Filtrar por proyecto", selection: $projectFilter) {
+            Text("Todos los proyectos")
+                .tag(Optional<PersistentIdentifier>.none)
+            ForEach(projects) { project in
+                Text(project.name)
+                    .tag(Optional(project.persistentModelID))
+            }
+        }
+        .pickerStyle(.menu)
     }
 
     private var emptyState: some View {
@@ -149,6 +220,7 @@ struct AssignmentRulesView: View {
 
 private struct AssignmentRuleRow: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var appCatalog: AppCatalog
 
     let rule: AssignmentRule
     let projects: [Project]
@@ -159,20 +231,12 @@ private struct AssignmentRuleRow: View {
     @State private var hasLoadedSelection = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                contextIcon
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("\(rule.contextLabel): \(rule.contextValue)")
+                    Text("\(rule.contextLabel): \(contextTitle)")
                         .font(.headline)
-                    if let projectName = rule.project?.name {
-                        Text(projectName)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("Proyecto eliminado")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 6) {
@@ -190,7 +254,9 @@ private struct AssignmentRuleRow: View {
                 }
             }
 
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
+                projectBadge
+
                 Picker("Proyecto", selection: $selectedProjectID) {
                     Text("Sin proyecto")
                         .tag(Optional<PersistentIdentifier>.none)
@@ -200,15 +266,21 @@ private struct AssignmentRuleRow: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .labelsHidden()
 
                 Spacer()
 
-                Button("Eliminar", role: .destructive) {
+                Button(role: .destructive) {
                     onDelete()
+                } label: {
+                    Label("Eliminar", systemImage: "trash")
                 }
+                .buttonStyle(.bordered)
+                .tint(.red)
+                .controlSize(.small)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .onAppear {
             if !hasLoadedSelection {
                 selectedProjectID = rule.project?.persistentModelID
@@ -233,5 +305,74 @@ private struct AssignmentRuleRow: View {
         let formatter = RelativeDateTimeFormatter()
         let relative = formatter.localizedString(for: rule.effectiveLastUsedAt, relativeTo: .now)
         return "Ultimo uso: \(relative)"
+    }
+
+    private var contextTitle: String {
+        switch AssignmentContextType(rawValue: rule.contextType) {
+        case .app:
+            return appCatalog.app(for: rule.contextValue)?.name ?? rule.contextValue
+        case .domain:
+            return rule.contextValue
+        case .none:
+            return rule.contextValue
+        }
+    }
+
+    @ViewBuilder
+    private var contextIcon: some View {
+        let size: CGFloat = 30
+        switch AssignmentContextType(rawValue: rule.contextType) {
+        case .app:
+#if os(macOS)
+            if let app = appCatalog.app(for: rule.contextValue) {
+                app.icon
+                    .resizable()
+                    .frame(width: size, height: size)
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            } else {
+                Image(systemName: "app.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .frame(width: size, height: size)
+                    .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            }
+#else
+            Image(systemName: "app.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .frame(width: size, height: size)
+                .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+#endif
+        case .domain:
+            Image(systemName: "globe")
+                .font(.system(size: 16, weight: .semibold))
+                .frame(width: size, height: size)
+                .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        case .none:
+            Image(systemName: "questionmark.circle")
+                .font(.system(size: 16, weight: .semibold))
+                .frame(width: size, height: size)
+                .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+    }
+
+    private var projectBadge: some View {
+        let project = projects.first { $0.persistentModelID == selectedProjectID }
+        let color = project?.color ?? Color.secondary.opacity(0.4)
+        let iconName = ProjectIcon(rawValue: project?.iconName ?? "")?.systemName ?? "minus"
+        return HStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(project == nil ? 0.25 : 1))
+                    .frame(width: 20, height: 20)
+                Image(systemName: iconName)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(project == nil ? Color.secondary : Color.white)
+            }
+            Text(project?.name ?? "Sin proyecto")
+                .font(.subheadline)
+                .foregroundStyle(project == nil ? .secondary : .primary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.secondary.opacity(0.12), in: Capsule())
     }
 }
