@@ -16,9 +16,11 @@ protocol ProjectAssignmentResolving {
 @MainActor
 struct ProjectAssignmentResolver: ProjectAssignmentResolving {
     private let modelContainer: ModelContainer
+    private let settings: TrackerSettings
 
-    init(modelContainer: ModelContainer) {
+    init(modelContainer: ModelContainer, settings: TrackerSettings) {
         self.modelContainer = modelContainer
+        self.settings = settings
     }
 
     func resolveProject(for bundleIdentifier: String?, domain: String?) -> Project? {
@@ -60,11 +62,15 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
         candidates: [Project],
         allProjects: [Project]
     ) -> AssignmentResult {
-        if let rule = fetchRule(for: context),
-           let ruleProject = rule.project {
-            rule.lastUsedAt = .now
-            try? modelContainer.mainContext.save()
-            return .assigned(ruleProject, usedRule: true)
+        if let rule = fetchRule(for: context) {
+            if isExpired(rule) {
+                modelContainer.mainContext.delete(rule)
+                try? modelContainer.mainContext.save()
+            } else if let ruleProject = rule.project {
+                rule.lastUsedAt = .now
+                try? modelContainer.mainContext.save()
+                return .assigned(ruleProject, usedRule: true)
+            }
         }
 
         guard !candidates.isEmpty else { return .none }
@@ -84,6 +90,11 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
             }
         )
         return try? modelContainer.mainContext.fetch(descriptor).first
+    }
+
+    private func isExpired(_ rule: AssignmentRule) -> Bool {
+        guard let cutoff = settings.assignmentRuleExpiration.cutoffDate() else { return false }
+        return rule.effectiveLastUsedAt < cutoff
     }
 
     private func normalizedDomainContext(from domain: String?) -> AssignmentContext? {

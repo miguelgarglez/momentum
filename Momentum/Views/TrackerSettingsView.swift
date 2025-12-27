@@ -23,6 +23,7 @@ struct TrackerSettingsView: View {
                     trackingSection
                     idleSection
                     exclusionSection
+                    assignmentRulesSection
                     privacySection
                 }
                 .formStyle(.grouped)
@@ -154,6 +155,28 @@ struct TrackerSettingsView: View {
         }
     }
 
+    private var assignmentRulesSection: some View {
+        Section("Reglas de asignacion") {
+            Picker("Expiración de reglas", selection: $draft.assignmentRuleExpiration) {
+                ForEach(AssignmentRuleExpirationOption.allCases) { option in
+                    Text(option.label)
+                        .tag(option)
+                }
+            }
+            .pickerStyle(.menu)
+            .accessibilityIdentifier("assignment-rules-expiration-picker")
+
+            NavigationLink("Gestionar reglas de asignacion") {
+                AssignmentRulesView()
+            }
+            .accessibilityIdentifier("assignment-rules-link")
+
+            Text("Las reglas expiradas se eliminan automáticamente, y podrás reinstalarlas al resolver un conflicto.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var privacySection: some View {
         Section("Privacidad y datos") {
             Toggle(isOn: $draft.isDatabaseEncryptionEnabled) {
@@ -203,6 +226,7 @@ struct TrackerSettingsView: View {
         settings.excludedApps = draft.excludedApps
         settings.excludedDomains = draft.excludedDomains
         settings.isDatabaseEncryptionEnabled = draft.isDatabaseEncryptionEnabled
+        settings.assignmentRuleExpiration = draft.assignmentRuleExpiration
     }
 
     @MainActor
@@ -240,6 +264,7 @@ private struct TrackerSettingsDraft {
     var excludedApps: [String]
     var excludedDomains: [String]
     var isDatabaseEncryptionEnabled: Bool
+    var assignmentRuleExpiration: AssignmentRuleExpirationOption
 
     init(from settings: TrackerSettings) {
         detectionInterval = settings.detectionInterval
@@ -248,6 +273,7 @@ private struct TrackerSettingsDraft {
         excludedApps = settings.excludedApps
         excludedDomains = settings.excludedDomains
         isDatabaseEncryptionEnabled = settings.isDatabaseEncryptionEnabled
+        assignmentRuleExpiration = settings.assignmentRuleExpiration
     }
 
     init() {
@@ -257,6 +283,7 @@ private struct TrackerSettingsDraft {
         excludedApps = []
         excludedDomains = []
         isDatabaseEncryptionEnabled = false
+        assignmentRuleExpiration = .never
     }
 }
 

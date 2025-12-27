@@ -31,3 +31,20 @@ final class AssignmentRule {
         self.lastUsedAt = lastUsedAt
     }
 }
+
+extension AssignmentRule {
+    var effectiveLastUsedAt: Date {
+        max(lastUsedAt, createdAt)
+    }
+
+    var contextLabel: String {
+        switch AssignmentContextType(rawValue: contextType) {
+        case .app:
+            return "App"
+        case .domain:
+            return "Dominio"
+        case .none:
+            return "Contexto"
+        }
+    }
+}

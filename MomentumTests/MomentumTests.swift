@@ -10,12 +10,13 @@ struct MomentumTests {
     @Test("Resolver prioriza dominios sobre bundles")
     func projectAssignmentPrefersDomains() throws {
         let container = try factory.makeContainer()
+        let settings = makeSettings()
         let focus = Project(name: "Focus", assignedApps: [], assignedDomains: ["notion.so"])
         let safari = Project(name: "Safari", assignedApps: ["com.apple.Safari"], assignedDomains: [])
         container.mainContext.insert(focus)
         container.mainContext.insert(safari)
 
-        let resolver = ProjectAssignmentResolver(modelContainer: container)
+        let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
         let domainMatch = resolver.resolveProject(for: "com.apple.Safari", domain: "notion.so/wiki/page")
         #expect(domainMatch === focus)
         let bundleMatch = resolver.resolveProject(for: "com.apple.Safari", domain: nil)
@@ -25,9 +26,10 @@ struct MomentumTests {
     @Test("Resolver ignora el bundle si el dominio no coincide")
     func projectAssignmentRequiresDomainMatchWhenProvided() throws {
         let container = try factory.makeContainer()
+        let settings = makeSettings()
         let browsing = Project(name: "Browsing", assignedApps: ["com.apple.Safari"], assignedDomains: ["docs.test"])
         container.mainContext.insert(browsing)
-        let resolver = ProjectAssignmentResolver(modelContainer: container)
+        let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
         let noMatch = resolver.resolveProject(for: "com.apple.Safari", domain: "medium.com")
         #expect(noMatch == nil)
     }
@@ -78,7 +80,7 @@ struct MomentumTests {
     @Test("Resolver devuelve nil cuando no hay coincidencias")
     func projectAssignmentReturnsNilWhenNoMatch() throws {
         let container = try factory.makeContainer()
-        let resolver = ProjectAssignmentResolver(modelContainer: container)
+        let resolver = ProjectAssignmentResolver(modelContainer: container, settings: makeSettings())
         let result = resolver.resolveProject(for: "com.unknown.app", domain: "unknown.site")
         #expect(result == nil)
     }
@@ -86,13 +88,14 @@ struct MomentumTests {
     @Test("Resolver detecta conflicto cuando hay multiples proyectos")
     func projectAssignmentDetectsConflicts() throws {
         let container = try factory.makeContainer()
+        let settings = makeSettings()
         let bundleID = "com.test.vscode"
         let projectA = Project(name: "Dev", assignedApps: [bundleID])
         let projectB = Project(name: "Curso", assignedApps: [bundleID])
         container.mainContext.insert(projectA)
         container.mainContext.insert(projectB)
 
-        let resolver = ProjectAssignmentResolver(modelContainer: container)
+        let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
         let result = resolver.resolveAssignment(for: bundleID, domain: nil)
         switch result {
         case let .conflict(context, candidates):
@@ -107,6 +110,7 @@ struct MomentumTests {
     @Test("Resolver usa regla guardada para resolver conflicto")
     func projectAssignmentUsesRules() throws {
         let container = try factory.makeContainer()
+        let settings = makeSettings()
         let bundleID = "com.test.vscode"
         let projectA = Project(name: "Dev", assignedApps: [bundleID])
         let projectB = Project(name: "Curso", assignedApps: [bundleID])
@@ -119,7 +123,7 @@ struct MomentumTests {
         )
         container.mainContext.insert(rule)
 
-        let resolver = ProjectAssignmentResolver(modelContainer: container)
+        let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
         let result = resolver.resolveAssignment(for: bundleID, domain: nil)
         switch result {
         case let .assigned(project, usedRule):
@@ -128,6 +132,52 @@ struct MomentumTests {
         default:
             #expect(false, "Expected assignment via rule")
         }
+    }
+
+    @Test("Resolver ignora reglas expiradas")
+    func projectAssignmentSkipsExpiredRules() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [bundleID])
+        let projectB = Project(name: "Curso", assignedApps: [bundleID])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+
+        let settings = makeSettings()
+        settings.assignmentRuleExpiration = .days30
+
+        let expiredDate = Date().addingTimeInterval(-60 * 60 * 24 * 40)
+        let rule = AssignmentRule(
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: bundleID,
+            project: projectB,
+            createdAt: expiredDate,
+            lastUsedAt: expiredDate
+        )
+        container.mainContext.insert(rule)
+
+        let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
+        let result = resolver.resolveAssignment(for: bundleID, domain: nil)
+        switch result {
+        case let .conflict(context, candidates):
+            #expect(context.type == .app)
+            #expect(context.value == bundleID)
+            #expect(candidates.count == 2)
+        default:
+            #expect(false, "Expected conflict when rule is expired")
+        }
+
+        let remainingRules = try container.mainContext.fetch(FetchDescriptor<AssignmentRule>())
+        #expect(remainingRules.isEmpty)
+    }
+
+    private func makeSettings() -> TrackerSettings {
+        let suiteName = "MomentumTests.Settings.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fatalError("Unable to create UserDefaults suite")
+        }
+        defaults.removePersistentDomain(forName: suiteName)
+        return TrackerSettings(defaults: defaults)
     }
 
     @Test("Resolver de solapamientos recorta y divide sesiones")

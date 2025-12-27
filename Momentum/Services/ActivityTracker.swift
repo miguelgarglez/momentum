@@ -62,12 +62,15 @@ final class ActivityTracker: ObservableObject {
     private let minimumSessionDuration: TimeInterval = 10
     /// Frequency for checking the system idle timer (seconds).
     private let idleCheckInterval: TimeInterval = 5
+    /// Frequency for purging expired assignment rules.
+    private let rulesCleanupInterval: TimeInterval = 60 * 60 * 24
 
     private var currentContext: AppSessionContext?
     private var observer: NSObjectProtocol?
     private var heartbeatTimer: Timer?
     private var domainTimer: Timer?
     private var idleTimer: Timer?
+    private var rulesCleanupTimer: Timer?
     private var screenLockObserver: NSObjectProtocol?
     private var screenUnlockObserver: NSObjectProtocol?
     private var isResolvingDomain = false
@@ -87,7 +90,7 @@ final class ActivityTracker: ObservableObject {
         self.settings = settings
         self.crashRecovery = crashRecovery ?? CrashRecoveryManager()
         self.performanceMonitor = performanceMonitor ?? PerformanceBudgetMonitor()
-        self.assignmentResolver = assignmentResolver ?? ProjectAssignmentResolver(modelContainer: modelContainer)
+        self.assignmentResolver = assignmentResolver ?? ProjectAssignmentResolver(modelContainer: modelContainer, settings: settings)
         observer = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
@@ -104,6 +107,7 @@ final class ActivityTracker: ObservableObject {
         startIdleMonitoring()
         startScreenLockMonitoring()
         observeSettings()
+        startRuleExpirationMonitoring()
         refreshStatusSummary()
         recoverLastSessionIfNeeded()
         refreshPendingConflictCount()
@@ -404,6 +408,13 @@ final class ActivityTracker: ObservableObject {
                 self?.enforceExclusionRules()
             }
             .store(in: &cancellables)
+
+        settings.$assignmentRuleExpiration
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.startRuleExpirationMonitoring()
+            }
+            .store(in: &cancellables)
     }
 
     private func applyResolvedDomain(_ domain: String?, for application: NSRunningApplication) {
@@ -581,6 +592,7 @@ final class ActivityTracker: ObservableObject {
         }
         stopScreenLockMonitoring()
         pauseTimers()
+        rulesCleanupTimer?.invalidate()
     }
 
     private func startIdleMonitoring() {
@@ -800,6 +812,37 @@ final class ActivityTracker: ObservableObject {
         startHeartbeat()
         startDomainPolling()
         startIdleMonitoring()
+    }
+
+    private func startRuleExpirationMonitoring() {
+        rulesCleanupTimer?.invalidate()
+        rulesCleanupTimer = nil
+        guard settings.assignmentRuleExpiration.days != nil else { return }
+        rulesCleanupTimer = Timer.scheduledTimer(withTimeInterval: rulesCleanupInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.purgeExpiredRules()
+            }
+        }
+        purgeExpiredRules()
+    }
+
+    private func purgeExpiredRules() {
+        guard let cutoff = settings.assignmentRuleExpiration.cutoffDate() else { return }
+        let descriptor = FetchDescriptor<AssignmentRule>()
+        guard let rules = try? modelContainer.mainContext.fetch(descriptor) else { return }
+        let expired = rules.filter { isRuleExpired($0, cutoff: cutoff) }
+        guard !expired.isEmpty else { return }
+        expired.forEach { modelContainer.mainContext.delete($0) }
+        do {
+            try modelContainer.mainContext.save()
+            logger.info("Purged \(expired.count, privacy: .public) expired assignment rules")
+        } catch {
+            logger.error("Failed to purge expired assignment rules: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func isRuleExpired(_ rule: AssignmentRule, cutoff: Date) -> Bool {
+        rule.effectiveLastUsedAt < cutoff
     }
 
     @MainActor

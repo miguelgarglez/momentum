@@ -112,6 +112,10 @@ private extension MomentumApp {
         CommandLine.arguments.contains("--seed-conflicts")
     }
 
+    static var shouldSeedRules: Bool {
+        CommandLine.arguments.contains("--seed-rules")
+    }
+
     static func makeStoreURL(in directory: URL) -> URL {
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -209,6 +213,9 @@ final class AppEnvironment: ObservableObject {
         if isUITest && MomentumApp.shouldSeedConflicts {
             seedPendingConflicts(in: container)
         }
+        if isUITest && MomentumApp.shouldSeedRules {
+            seedAssignmentRules(in: container)
+        }
         let performanceMonitor: PerformanceBudgetMonitoring = isUITest ? NoopPerformanceBudgetMonitor() : PerformanceBudgetMonitor()
         let crashRecovery: CrashRecoveryHandling = isUITest ? NoopCrashRecoveryManager() : CrashRecoveryManager()
         let tracker = ActivityTracker(
@@ -260,6 +267,28 @@ private extension AppEnvironment {
         )
         context.insert(appSession)
         context.insert(domainSession)
+
+        try? context.save()
+    }
+
+    func seedAssignmentRules(in container: ModelContainer) {
+        let context = container.mainContext
+        let existingRules = (try? context.fetch(FetchDescriptor<AssignmentRule>())) ?? []
+        guard existingRules.isEmpty else { return }
+
+        let bundleID = "com.momentum.seed.app"
+        let project = Project(name: "Regla Seed", assignedApps: [bundleID])
+        context.insert(project)
+
+        let referenceDate = Date().addingTimeInterval(-60 * 60 * 24 * 5)
+        let rule = AssignmentRule(
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: bundleID,
+            project: project,
+            createdAt: referenceDate,
+            lastUsedAt: referenceDate
+        )
+        context.insert(rule)
 
         try? context.save()
     }

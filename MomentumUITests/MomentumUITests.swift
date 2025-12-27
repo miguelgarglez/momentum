@@ -89,9 +89,27 @@ final class MomentumUITests: XCTestCase {
         XCTAssertTrue(bannerText.waitForExistence(timeout: 3))
     }
 
+    func testAssignmentRulesAppearInSettings() throws {
+        let app = launch(reset: true, seedRules: true)
+        app.typeKey(",", modifierFlags: .command)
+
+        var settingsWindow = app.windows.matching(identifier: "Configuración").firstMatch
+        if !settingsWindow.waitForExistence(timeout: 2) {
+            settingsWindow = app.windows.firstMatch
+        }
+
+        let rulesLink = settingsWindow.buttons["assignment-rules-link"]
+        XCTAssertTrue(rulesLink.waitForExistence(timeout: 3))
+        rulesLink.click()
+
+        let rulesTitle = settingsWindow.staticTexts["Reglas de asignacion"]
+        XCTAssertTrue(rulesTitle.waitForExistence(timeout: 3))
+        XCTAssertTrue(settingsWindow.staticTexts["com.momentum.seed.app"].waitForExistence(timeout: 3))
+    }
+
     // MARK: - Helpers
 
-    private func launch(reset: Bool, seedConflicts: Bool = false) -> XCUIApplication {
+    private func launch(reset: Bool, seedConflicts: Bool = false, seedRules: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         let storePath = suiteStorePath
         var arguments = ["--uitests", "--store-path", storePath]
@@ -101,6 +119,9 @@ final class MomentumUITests: XCTestCase {
         }
         if seedConflicts {
             arguments.append("--seed-conflicts")
+        }
+        if seedRules {
+            arguments.append("--seed-rules")
         }
         app.launchEnvironment["MOMENTUM_STORE_PATH"] = storePath
         app.launchArguments = arguments

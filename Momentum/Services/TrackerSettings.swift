@@ -1,5 +1,45 @@
 import Foundation
 
+enum AssignmentRuleExpirationOption: String, CaseIterable, Identifiable {
+    case never
+    case days30
+    case days60
+    case days90
+
+    var id: String { rawValue }
+
+    var days: Int? {
+        switch self {
+        case .never:
+            return nil
+        case .days30:
+            return 30
+        case .days60:
+            return 60
+        case .days90:
+            return 90
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .never:
+            return "Nunca"
+        case .days30:
+            return "30 días"
+        case .days60:
+            return "60 días"
+        case .days90:
+            return "90 días"
+        }
+    }
+
+    func cutoffDate(from date: Date = .now) -> Date? {
+        guard let days else { return nil }
+        return Calendar.current.date(byAdding: .day, value: -days, to: date)
+    }
+}
+
 @MainActor
 final class TrackerSettings: ObservableObject {
     static let minDetectionInterval: Double = 5
@@ -64,6 +104,12 @@ final class TrackerSettings: ObservableObject {
         }
     }
 
+    @Published var assignmentRuleExpiration: AssignmentRuleExpirationOption {
+        didSet {
+            defaults.set(assignmentRuleExpiration.rawValue, forKey: Keys.assignmentRuleExpiration)
+        }
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -76,6 +122,12 @@ final class TrackerSettings: ObservableObject {
         self.excludedApps = TrackerSettings.readList(for: Keys.excludedApps, defaults: defaults)
         self.excludedDomains = TrackerSettings.readList(for: Keys.excludedDomains, defaults: defaults, lowercaseStorage: true)
         self.isDatabaseEncryptionEnabled = defaults.object(forKey: Keys.encryptionEnabled) as? Bool ?? false
+        if let rawValue = defaults.string(forKey: Keys.assignmentRuleExpiration),
+           let option = AssignmentRuleExpirationOption(rawValue: rawValue) {
+            self.assignmentRuleExpiration = option
+        } else {
+            self.assignmentRuleExpiration = .never
+        }
     }
 
     var idleThresholdMinutes: Int {
@@ -123,5 +175,6 @@ final class TrackerSettings: ObservableObject {
         static let excludedApps = "tracker.excludedApps"
         static let excludedDomains = "tracker.excludedDomains"
         static let encryptionEnabled = "tracker.encryptionEnabled"
+        static let assignmentRuleExpiration = "assignmentRules.expiration"
     }
 }
