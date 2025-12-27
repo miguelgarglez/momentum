@@ -30,9 +30,15 @@ struct ContentView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     private enum Layout {
-        static let actionPanelWidth: CGFloat = 76
-        static let collapsedDetailLeadingPadding: CGFloat = 76
+        static let actionPanelWidth: CGFloat = 84
         static let toastAnimation = Animation.spring(response: 0.3, dampingFraction: 0.85)
+        static let sidebarInset: CGFloat = 8
+        static let sidebarCornerRadius: CGFloat = 18
+        static let sidebarBorderOpacity: Double = 0.12
+        static let collapsedDetailLeadingPadding: CGFloat = actionPanelWidth + sidebarInset * 2
+        static let sidebarMinWidth: CGFloat = 350
+        static let sidebarIdealWidth: CGFloat = 400
+        static let sidebarMaxWidth: CGFloat = 450
     }
 
     var body: some View {
@@ -43,6 +49,11 @@ struct ContentView: View {
                     Divider()
                     sidebarList
                 }
+                .navigationSplitViewColumnWidth(
+                    min: Layout.sidebarMinWidth,
+                    ideal: Layout.sidebarIdealWidth,
+                    max: Layout.sidebarMaxWidth
+                )
                 .background(.regularMaterial)
             } detail: {
                 detailContent
@@ -55,9 +66,9 @@ struct ContentView: View {
             .sheet(item: $activeProjectSheet, content: sheetContent)
             .overlay(alignment: .leading) {
                 if columnVisibility == .detailOnly {
-                    actionPanel
-                        .background(.regularMaterial)
-                        .overlay(Divider(), alignment: .trailing)
+                    sidebarChrome {
+                        actionPanel
+                    }
                         .transition(.move(edge: .leading).combined(with: .opacity))
                 }
             }
@@ -119,6 +130,22 @@ struct ContentView: View {
         )
         .frame(width: Layout.actionPanelWidth, alignment: .bottomLeading)
         .frame(maxHeight: .infinity, alignment: .bottomLeading)
+    }
+
+    private func sidebarChrome<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .background(
+                RoundedRectangle(cornerRadius: Layout.sidebarCornerRadius, style: .continuous)
+                    .fill(.regularMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Layout.sidebarCornerRadius, style: .continuous)
+                    .stroke(Color.primary.opacity(Layout.sidebarBorderOpacity), lineWidth: 1)
+            )
+            .padding(.horizontal, Layout.sidebarInset)
+            .padding(.bottom, Layout.sidebarInset)
+            .padding(.top, Layout.sidebarInset)
+            .ignoresSafeArea(.container, edges: .top)
     }
 
     private var sidebarList: some View {
@@ -401,10 +428,10 @@ private struct ActionPanelView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .center, spacing: 16) {
             Spacer(minLength: 0)
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .center, spacing: 10) {
                 ActionPanelIconButton(
                     systemName: toggleIcon,
                     tint: trackingBadgeColor,
@@ -424,8 +451,9 @@ private struct ActionPanelView: View {
 
         }
         .padding(.vertical, 20)
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 12)
         .frame(maxHeight: .infinity, alignment: .bottomLeading)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 }
 
@@ -758,7 +786,7 @@ struct DashboardHeaderView: View {
                 daily: todaySeconds
             )
         }
-        .padding()
+        .padding(12)
         .background(.thinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
