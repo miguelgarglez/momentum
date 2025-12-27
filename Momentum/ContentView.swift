@@ -27,70 +27,39 @@ struct ContentView: View {
     @State private var activeProjectSheet: ProjectSheet?
     @State private var showConflictSheet = false
     @State private var toast: ToastMessage?
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+
+    private enum Layout {
+        static let actionPanelWidth: CGFloat = 76
+        static let collapsedDetailLeadingPadding: CGFloat = 76
+        static let toastAnimation = Animation.spring(response: 0.3, dampingFraction: 0.85)
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            HStack(spacing: 0) {
-                ActionPanelView(
-                    summary: tracker.statusSummary,
-                    isTrackingEnabled: tracker.isTrackingEnabled,
-                    onToggleTracking: { tracker.toggleTracking() },
-                    onCreateProject: { activeProjectSheet = .create },
-                    settingsControl: settingsControlView
-                )
-
-                Divider()
-
-                NavigationSplitView {
-                    List(selection: $selectedProjectID) {
-                        if !projects.isEmpty {
-                            Section {
-                                DashboardHeaderView(projects: projects)
-                                    .listRowInsets(.init(top: 12, leading: 12, bottom: 12, trailing: 12))
-                                    .listRowBackground(Color.clear)
-                            }
-                        }
-
-                        Section("Tus proyectos") {
-                            if projects.isEmpty {
-                                EmptyProjectsView()
-                            } else {
-                                ForEach(projects) { project in
-                                    ProjectRowView(project: project)
-                                        .tag(project.persistentModelID)
-                                        .contextMenu {
-                                            Button("Editar") {
-                                                activeProjectSheet = .edit(project)
-                                            }
-                                            Button("Limpiar actividad", role: .destructive) {
-                                                clearActivity(for: project)
-                                            }
-                                            Button("Eliminar", role: .destructive) {
-                                                deleteProject(project)
-                                            }
-                                        }
-                                }
-                                .onDelete(perform: deleteProjects)
-                            }
-                        }
-                    }
-                } detail: {
-                    if let selected = selectedProject {
-                        ProjectDetailView(
-                            project: selected,
-                            onEdit: { activeProjectSheet = .edit($0) },
-                            onDelete: { deleteProject($0) },
-                            onClearActivity: { clearActivity(for: $0) }
-                        )
-                    } else {
-                        WelcomeView()
-                    }
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                HStack(spacing: 0) {
+                    actionPanel
+                    Divider()
+                    sidebarList
                 }
-                .navigationTitle("Momentum")
-                .onAppear {
-                    selectedProjectID = projects.first?.persistentModelID
+                .background(.regularMaterial)
+            } detail: {
+                detailContent
+                    .padding(.leading, columnVisibility == .detailOnly ? Layout.collapsedDetailLeadingPadding : 0)
+            }
+            .navigationTitle("Momentum")
+            .onAppear {
+                selectedProjectID = projects.first?.persistentModelID
+            }
+            .sheet(item: $activeProjectSheet, content: sheetContent)
+            .overlay(alignment: .leading) {
+                if columnVisibility == .detailOnly {
+                    actionPanel
+                        .background(.regularMaterial)
+                        .overlay(Divider(), alignment: .trailing)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
                 }
-                .sheet(item: $activeProjectSheet, content: sheetContent)
             }
 
             if let toast {
@@ -110,7 +79,7 @@ struct ContentView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: toast)
+        .animation(Layout.toastAnimation, value: toast)
 #if os(macOS)
         .onReceive(NotificationCenter.default.publisher(for: .statusItemOpenProject)) { notification in
             guard let identifier = notification.userInfo?[StatusItemUserInfoKey.projectID] as? PersistentIdentifier else { return }
@@ -124,6 +93,69 @@ struct ContentView: View {
             )
             .environmentObject(tracker)
         }
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
+        if let selected = selectedProject {
+            ProjectDetailView(
+                project: selected,
+                onEdit: { activeProjectSheet = .edit($0) },
+                onDelete: { deleteProject($0) },
+                onClearActivity: { clearActivity(for: $0) }
+            )
+        } else {
+            WelcomeView()
+        }
+    }
+
+    private var actionPanel: some View {
+        ActionPanelView(
+            summary: tracker.statusSummary,
+            isTrackingEnabled: tracker.isTrackingEnabled,
+            onToggleTracking: { tracker.toggleTracking() },
+            onCreateProject: { activeProjectSheet = .create },
+            settingsControl: settingsControlView
+        )
+        .frame(width: Layout.actionPanelWidth, alignment: .bottomLeading)
+        .frame(maxHeight: .infinity, alignment: .bottomLeading)
+    }
+
+    private var sidebarList: some View {
+        List(selection: $selectedProjectID) {
+            if !projects.isEmpty {
+                Section {
+                    DashboardHeaderView(projects: projects)
+                        .listRowInsets(.init(top: 12, leading: 12, bottom: 12, trailing: 12))
+                        .listRowBackground(Color.clear)
+                }
+            }
+
+            Section("Tus proyectos") {
+                if projects.isEmpty {
+                    EmptyProjectsView()
+                } else {
+                    ForEach(projects) { project in
+                        ProjectRowView(project: project)
+                            .tag(project.persistentModelID)
+                            .contextMenu {
+                                Button("Editar") {
+                                    activeProjectSheet = .edit(project)
+                                }
+                                Button("Limpiar actividad", role: .destructive) {
+                                    clearActivity(for: project)
+                                }
+                                Button("Eliminar", role: .destructive) {
+                                    deleteProject(project)
+                                }
+                            }
+                    }
+                    .onDelete(perform: deleteProjects)
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
     }
 
 
@@ -394,7 +426,6 @@ private struct ActionPanelView: View {
         .padding(.vertical, 20)
         .padding(.horizontal, 16)
         .frame(maxHeight: .infinity, alignment: .bottomLeading)
-        .background(.regularMaterial)
     }
 }
 
@@ -851,6 +882,9 @@ struct ProjectDetailView: View {
                         .font(.title2.bold())
                     Text(project.lastActivityText)
                         .foregroundStyle(.secondary)
+                        .transaction { transaction in
+                            transaction.animation = nil
+                        }
                 }
             }
             Spacer()
