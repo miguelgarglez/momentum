@@ -829,11 +829,25 @@ struct DashboardMetricsView: View {
 
 struct ProjectDetailView: View {
     @Bindable var project: Project
+    @Query private var recentSessions: [TrackingSession]
     @State private var usageWindow: UsageWindow = .hour
     let onEdit: (Project) -> Void
     let onDelete: (Project) -> Void
     let onClearActivity: (Project) -> Void
     @State private var showClearActivityDialog = false
+    private enum Layout {
+        static let sectionSpacing: CGFloat = 24
+        static let cardPadding: CGFloat = 18
+        static let cardCornerRadius: CGFloat = 18
+        static let cardStrokeOpacity: Double = 0.08
+        static let heroIconSize: CGFloat = 64
+        static let metricColumns: [GridItem] = [
+            GridItem(.flexible()),
+            GridItem(.flexible())
+        ]
+        static let metricSpacing: CGFloat = 14
+        static let insetCornerRadius: CGFloat = 12
+    }
 
     init(
         project: Project,
@@ -842,6 +856,13 @@ struct ProjectDetailView: View {
         onClearActivity: @escaping (Project) -> Void = { _ in }
     ) {
         self._project = Bindable(project)
+        let projectID = project.persistentModelID
+        self._recentSessions = Query(
+            filter: #Predicate<TrackingSession> { session in
+                session.project?.persistentModelID == projectID
+            },
+            sort: [SortDescriptor(\TrackingSession.endDate, order: .reverse)]
+        )
         self.onEdit = onEdit
         self.onDelete = onDelete
         self.onClearActivity = onClearActivity
@@ -849,9 +870,9 @@ struct ProjectDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
                 header
-                metricGrid
+                summarySection
                 WeeklySummaryChartView(project: project)
                 assignmentsSection
                 usageSummarySection
@@ -899,7 +920,7 @@ struct ProjectDetailView: View {
             HStack(spacing: 16) {
                 Circle()
                     .fill(project.color.gradient)
-                    .frame(width: 60, height: 60)
+                    .frame(width: Layout.heroIconSize, height: Layout.heroIconSize)
                     .overlay(
                         Image(systemName: project.iconName)
                             .font(.title2)
@@ -907,9 +928,18 @@ struct ProjectDetailView: View {
                     )
                 VStack(alignment: .leading, spacing: 6) {
                     Text(project.name)
-                        .font(.title2.bold())
-                    Text(project.lastActivityText)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 26, weight: .semibold))
+                    HStack(spacing: 8) {
+                        DetailMetaPill(
+                            text: project.lastActivityText,
+                            systemImage: "clock"
+                        )
+                        DetailMetaPill(
+                            text: "\(project.streakCount) días de racha",
+                            systemImage: "flame.fill",
+                            tint: .orange
+                        )
+                    }
                         .transaction { transaction in
                             transaction.animation = nil
                         }
@@ -919,20 +949,47 @@ struct ProjectDetailView: View {
         }
     }
 
-    private var metricGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
-            MetricCard(title: "Total acumulado", value: project.totalSeconds.hoursAndMinutesString, subtitle: "Tu dedicación merece ser visible.")
-            MetricCard(title: "Mes", value: project.monthlySeconds.hoursAndMinutesString, subtitle: "Progreso del mes en curso.")
-            MetricCard(title: "Semana", value: project.weeklySeconds.hoursAndMinutesString, subtitle: "Constancia en los últimos 7 días.")
-            MetricCard(title: "Hoy", value: project.dailySeconds.hoursAndMinutesString, subtitle: "Cada minuto cuenta.")
-            MetricCard(title: "Racha", value: "\(project.streakCount) días", subtitle: "Días consecutivos con actividad.")
+    private var summarySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Resumen")
+                    .font(.headline)
+                Text("Tu progreso en un vistazo.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            LazyVGrid(columns: Layout.metricColumns, spacing: Layout.metricSpacing) {
+                MetricCard(title: "Total acumulado", value: project.totalSeconds.hoursAndMinutesString, subtitle: "Tu dedicación merece ser visible.")
+                MetricCard(title: "Mes", value: project.monthlySeconds.hoursAndMinutesString, subtitle: "Progreso del mes en curso.")
+                MetricCard(title: "Semana", value: project.weeklySeconds.hoursAndMinutesString, subtitle: "Constancia en los últimos 7 días.")
+                MetricCard(title: "Hoy", value: project.dailySeconds.hoursAndMinutesString, subtitle: "Cada minuto cuenta.")
+            }
+
+            HighlightMetricRow(
+                title: "Racha",
+                value: "\(project.streakCount) días",
+                subtitle: "Días consecutivos con actividad.",
+                icon: "flame.fill",
+                tint: .orange
+            )
         }
+        .detailCardStyle(
+            padding: Layout.cardPadding,
+            cornerRadius: Layout.cardCornerRadius,
+            strokeOpacity: Layout.cardStrokeOpacity
+        )
     }
 
     private var assignmentsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Contexto asignado")
-                .font(.headline)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Contexto asignado")
+                    .font(.headline)
+                Text("Apps y dominios que suman tiempo automáticamente.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             if project.assignedApps.isEmpty && project.assignedDomains.isEmpty {
                 Text("Asigna apps o dominios para que Momentum sume tiempo automáticamente.")
                     .font(.subheadline)
@@ -952,21 +1009,25 @@ struct ProjectDetailView: View {
                 }
             }
         }
+        .detailCardStyle(
+            padding: Layout.cardPadding,
+            cornerRadius: Layout.cardCornerRadius,
+            strokeOpacity: Layout.cardStrokeOpacity
+        )
     }
 
     private var usageSummarySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Uso por contexto")
-                    .font(.headline)
-                Spacer()
-                Picker("Intervalo", selection: $usageWindow) {
-                    ForEach(UsageWindow.allCases) { window in
-                        Text(window.title).tag(window)
-                    }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) {
+                    usageSummaryHeader(alignment: .leading)
+                    Spacer()
+                    usageWindowPicker
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 240)
+                VStack(alignment: .center, spacing: 10) {
+                    usageSummaryHeader(alignment: .center)
+                    usageWindowPicker
+                }
             }
 
             let summaries = project.contextUsageSummaries(for: usageWindow.interval, limit: 6)
@@ -977,19 +1038,58 @@ struct ProjectDetailView: View {
                 ContextUsageList(summaries: summaries)
             }
         }
+        .detailCardStyle(
+            padding: Layout.cardPadding,
+            cornerRadius: Layout.cardCornerRadius,
+            strokeOpacity: Layout.cardStrokeOpacity
+        )
+    }
+
+    private var usageWindowPicker: some View {
+        Picker("", selection: $usageWindow) {
+            ForEach(UsageWindow.allCases) { window in
+                Text(window.title).tag(window)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 240)
+        .accessibilityLabel("Intervalo")
+    }
+
+    private func usageSummaryHeader(alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 4) {
+            Text("Uso por contexto")
+                .font(.headline)
+                .lineLimit(2)
+                .multilineTextAlignment(alignment == .center ? .center : .leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
+            Text("Distribución del tiempo por app o dominio.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(alignment == .center ? .center : .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: alignment == .center ? .center : .leading)
     }
 
     private var lastUsedSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Último usado")
                 .font(.headline)
-            if let session = project.sessions.sorted(by: { $0.endDate > $1.endDate }).first {
+            if let session = recentSessions.first {
                 LastUsedCard(session: session)
             } else {
                 Text("Aún no hay sesiones para este proyecto.")
                     .foregroundStyle(.secondary)
             }
         }
+        .detailCardStyle(
+            padding: Layout.cardPadding,
+            cornerRadius: Layout.cardCornerRadius,
+            strokeOpacity: Layout.cardStrokeOpacity
+        )
     }
 }
 
@@ -1001,17 +1101,22 @@ struct MetricCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.subheadline)
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .tracking(0.6)
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.title3.bold())
+                .font(.system(size: 22, weight: .semibold))
+                .monospacedDigit()
             Text(subtitle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding()
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(12)
+        .detailInsetStyle(
+            cornerRadius: 14,
+            strokeOpacity: 0.12
+        )
     }
 }
 
@@ -1066,8 +1171,10 @@ struct ContextUsageRow: View {
                 .progressViewStyle(.linear)
         }
         .padding()
-        .background(Color(nsColor: .windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .detailInsetStyle(
+            cornerRadius: 14,
+            strokeOpacity: 0.12
+        )
     }
 }
 
@@ -1117,8 +1224,10 @@ struct LastUsedCard: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
-        .background(Color(nsColor: .windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .detailInsetStyle(
+            cornerRadius: 14,
+            strokeOpacity: 0.12
+        )
     }
 }
 
@@ -1145,8 +1254,14 @@ struct AssignedAppsChips: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
-        .background(Color.secondary.opacity(0.15))
-        .clipShape(Capsule())
+        .background(
+            Capsule()
+                .fill(Color.secondary.opacity(0.12))
+        )
+        .overlay(
+            Capsule()
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
         .help(app?.bundleIdentifier ?? identifier)
     }
 
@@ -1170,8 +1285,14 @@ struct WrappingChips: View {
                     .font(.caption)
                     .padding(.vertical, 6)
                     .padding(.horizontal, 10)
-                    .background(Color.secondary.opacity(0.15))
-                    .clipShape(Capsule())
+                    .background(
+                        Capsule()
+                            .fill(Color.secondary.opacity(0.12))
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                    )
             }
         }
     }
@@ -1286,16 +1407,38 @@ struct WeeklySummaryChartView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Últimos 7 días")
-                .font(.headline)
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Últimos 7 días")
+                        .font(.headline)
+                    Text("Actividad reciente y consistencia.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(summariesTotalText)
+                        .font(.subheadline.weight(.semibold))
+                    Text("\(activeDays) días activos")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
             HStack(alignment: .bottom, spacing: 12) {
                 ForEach(summaries, id: \.date) { summary in
                     VStack {
                         VStack {
                             Spacer(minLength: 0)
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(project.color.opacity(summary.seconds == 0 ? 0.15 : 0.8))
+                                .fill(project.color.opacity(summary.seconds == 0 ? 0.12 : 0.75))
                                 .frame(height: height(for: summary))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(
+                                            isToday(summary.date) ? project.color.opacity(0.7) : .clear,
+                                            lineWidth: 1
+                                        )
+                                )
                                 .overlay(alignment: .top) {
                                     if hoveredDate == summary.date {
                                         ChartTooltipView(text: summary.seconds.minutesOrHoursMinutesString)
@@ -1310,7 +1453,7 @@ struct WeeklySummaryChartView: View {
                             hoveredDate = hovering ? summary.date : nil
                         }
                         .animation(.easeInOut(duration: 0.12), value: hoveredDate)
-                        Text(summary.label.uppercased())
+                        Text(label(for: summary))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -1318,11 +1461,36 @@ struct WeeklySummaryChartView: View {
                 }
             }
         }
+        .detailCardStyle(
+            padding: 16,
+            cornerRadius: 18,
+            strokeOpacity: 0.08
+        )
     }
 
     private func height(for summary: DailySummaryPoint) -> CGFloat {
         let ratio = summary.seconds / maxSeconds
         return max(12, CGFloat(ratio) * chartHeight)
+    }
+
+    private var summariesTotalText: String {
+        let totalSeconds = summaries.reduce(0) { $0 + $1.seconds }
+        return totalSeconds.hoursAndMinutesString
+    }
+
+    private var activeDays: Int {
+        summaries.filter { $0.seconds > 0 }.count
+    }
+
+    private func isToday(_ date: Date) -> Bool {
+        Calendar.current.isDateInToday(date)
+    }
+
+    private func label(for summary: DailySummaryPoint) -> String {
+        if isToday(summary.date) {
+            return "HOY"
+        }
+        return summary.label.uppercased()
     }
 }
 
@@ -1331,7 +1499,10 @@ private struct ChartTooltipView: View {
 
     var body: some View {
         Text(text)
-            .font(.caption2.weight(.semibold))
+            .font(.caption.weight(.semibold))
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .monospacedDigit()
             .foregroundStyle(.white)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -1340,6 +1511,102 @@ private struct ChartTooltipView: View {
                     .fill(Color.black.opacity(0.8))
             )
             .accessibilityLabel("Tiempo: \(text)")
+    }
+}
+
+private struct DetailMetaPill: View {
+    let text: String
+    let systemImage: String
+    var tint: Color = .secondary
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.caption)
+            Text(text)
+                .font(.caption)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(tint.opacity(0.12))
+        )
+        .overlay(
+            Capsule()
+                .stroke(tint.opacity(0.18), lineWidth: 1)
+        )
+        .foregroundStyle(tint)
+    }
+}
+
+private struct HighlightMetricRow: View {
+    let title: String
+    let value: String
+    let subtitle: String
+    let icon: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(tint.opacity(0.18))
+                .frame(width: 36, height: 36)
+                .overlay(
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(tint)
+                )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .textCase(.uppercase)
+                    .tracking(0.6)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.system(size: 20, weight: .semibold))
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(12)
+        .detailInsetStyle(
+            cornerRadius: 14,
+            strokeOpacity: 0.12
+        )
+    }
+}
+
+private extension View {
+    func detailCardStyle(
+        padding: CGFloat = 18,
+        cornerRadius: CGFloat = 18,
+        strokeOpacity: Double = 0.08
+    ) -> some View {
+        self
+            .padding(padding)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.primary.opacity(strokeOpacity), lineWidth: 1)
+            )
+    }
+
+    func detailInsetStyle(
+        cornerRadius: CGFloat = 12,
+        strokeOpacity: Double = 0.12
+    ) -> some View {
+        self
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.secondary.opacity(0.12))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.primary.opacity(strokeOpacity), lineWidth: 1)
+            )
     }
 }
 
