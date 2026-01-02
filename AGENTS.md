@@ -46,6 +46,10 @@ Use `xcodebuild` with the project and scheme:
 - On macOS, editable fields should use `LTRTextField` from `Momentum/Views/Components/LTRTextField.swift`.
 - Reapply border styling with `macRoundedTextFieldStyle()` from `Momentum/Views/Components/MacTextFieldStyle.swift`.
 
+## macOS Status Item
+- The menu bar status item is created when `AppEnvironment` finishes bootstrapping the `ActivityTracker` via `StatusItemCoordinator`.
+- Avoid wiring status item creation through `NSApplicationDelegate`; keep the lifecycle owned by `AppEnvironment` so it is deterministic.
+
 ## Tooling Notes
 - Optional: create `.vscode/tasks.json` entries for the `xcodebuild` commands.
 - If installed, `xcpretty` can be used to format `xcodebuild` output.

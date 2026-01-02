@@ -19,9 +19,6 @@ struct MomentumApp: App {
     @StateObject private var themePreview = ThemePreviewState()
     @State private var bootstrapError: String?
     @State private var isBootstrapping = false
-#if os(macOS)
-    @NSApplicationDelegateAdaptor(MomentumAppDelegate.self) private var appDelegate
-#endif
 
     init() {
         let settings = TrackerSettings()
@@ -123,11 +120,6 @@ struct MomentumApp: App {
                 Self.resetPersistentStore(at: configuration.directory)
             }
             try environment.configure(storeDirectory: configuration.directory, isUITest: Self.isUITestRun)
-#if os(macOS)
-            if let tracker = environment.tracker {
-                appDelegate.trackerProvider = { tracker }
-            }
-#endif
             bootstrapError = nil
         } catch {
             bootstrapError = error.localizedDescription
@@ -221,6 +213,9 @@ final class AppEnvironment: ObservableObject {
     private(set) var container: ModelContainer?
     @Published private(set) var tracker: ActivityTracker?
     private var dataProtection: DataProtectionCoordinator?
+#if os(macOS)
+    private var statusItemCoordinator = StatusItemCoordinator()
+#endif
 
     init(trackerSettings: TrackerSettings) {
         self.trackerSettings = trackerSettings
@@ -278,6 +273,9 @@ final class AppEnvironment: ObservableObject {
         self.container = container
         self.tracker = tracker
         self.dataProtection = dataProtection
+#if os(macOS)
+        statusItemCoordinator.configure(with: tracker)
+#endif
     }
 }
 
