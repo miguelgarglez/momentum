@@ -1,9 +1,13 @@
 import SwiftUI
 import SwiftData
+#if os(macOS)
+import AppKit
+#endif
 
 struct TrackerSettingsView: View {
     @EnvironmentObject private var settings: TrackerSettings
     @EnvironmentObject private var appCatalog: AppCatalog
+    @EnvironmentObject private var themePreview: ThemePreviewState
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Project.name, order: .forward) private var projects: [Project]
@@ -13,6 +17,7 @@ struct TrackerSettingsView: View {
     @State private var projectPendingDeletion: Project?
     @State private var maintenanceError: String?
     @State private var showingEncryptionInfo = false
+    @State private var hasLoadedDraft = false
 
     init() {}
 
@@ -20,6 +25,7 @@ struct TrackerSettingsView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 Form {
+                    appearanceSection
                     trackingSection
                     idleSection
                     exclusionSection
@@ -34,7 +40,10 @@ struct TrackerSettingsView: View {
 
                 HStack(spacing: 12) {
                     Spacer()
-                    Button("Cerrar") { dismiss() }
+                    Button("Cerrar") {
+                        clearThemePreview()
+                        dismiss()
+                    }
                     Button("Guardar") {
                         applyChanges()
                         dismiss()
@@ -47,8 +56,26 @@ struct TrackerSettingsView: View {
             .navigationTitle("Configuración")
             .frame(minWidth: 360)
         }
+#if os(macOS)
+        .background(WindowCloseObserver {
+            clearThemePreview()
+        })
+#endif
         .onAppear {
-            draft = TrackerSettingsDraft(from: settings)
+            if !hasLoadedDraft {
+                draft = TrackerSettingsDraft(from: settings)
+                hasLoadedDraft = true
+            }
+            if themePreview.selection == nil {
+                themePreview.selection = settings.themePreference
+            }
+        }
+        .task(id: themePreview.selection) {
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                themePreview.previewPreference = themePreview.selection
+            }
         }
         .confirmationDialog("¿Borrar todos los datos?", isPresented: $showEraseAllConfirmation, titleVisibility: .visible) {
             Button("Borrar todo", role: .destructive) { deleteAllData() }
@@ -117,6 +144,20 @@ struct TrackerSettingsView: View {
                     step: 1
                 )
             }
+        }
+    }
+
+    private var appearanceSection: some View {
+        Section("Apariencia") {
+            Picker("Tema", selection: themeSelectionBinding) {
+                ForEach(AppThemePreference.allCases) { option in
+                    Text(option.label)
+                        .tag(option)
+                }
+            }
+            .pickerStyle(.menu)
+            .transaction { $0.disablesAnimations = true }
+            .animation(.none, value: themePreview.selection)
         }
     }
 
@@ -227,7 +268,23 @@ struct TrackerSettingsView: View {
         settings.excludedDomains = draft.excludedDomains
         settings.isDatabaseEncryptionEnabled = draft.isDatabaseEncryptionEnabled
         settings.assignmentRuleExpiration = draft.assignmentRuleExpiration
+        settings.themePreference = themeSelectionBinding.wrappedValue
+        clearThemePreview()
     }
+
+    private func clearThemePreview() {
+        themePreview.selection = nil
+        themePreview.previewPreference = nil
+    }
+
+    private var themeSelectionBinding: Binding<AppThemePreference> {
+        Binding(
+            get: { themePreview.selection ?? settings.themePreference },
+            set: { themePreview.selection = $0 }
+        )
+    }
+
+    
 
     @MainActor
     private func deleteAllData() {
@@ -255,6 +312,62 @@ struct TrackerSettingsView: View {
         }
     }
 }
+
+#if os(macOS)
+private struct WindowCloseObserver: NSViewRepresentable {
+    let onClose: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onClose: onClose)
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            context.coordinator.attach(to: view.window)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            context.coordinator.attach(to: nsView.window)
+        }
+    }
+
+    final class Coordinator {
+        private let onClose: () -> Void
+        private weak var window: NSWindow?
+        private var observer: NSObjectProtocol?
+
+        init(onClose: @escaping () -> Void) {
+            self.onClose = onClose
+        }
+
+        func attach(to window: NSWindow?) {
+            guard self.window !== window else { return }
+            if let observer {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            self.window = window
+            guard let window else { return }
+            observer = NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification,
+                object: window,
+                queue: .main
+            ) { [onClose] _ in
+                onClose()
+            }
+        }
+
+        deinit {
+            if let observer {
+                NotificationCenter.default.removeObserver(observer)
+            }
+        }
+    }
+}
+#endif
 
 @MainActor
 private struct TrackerSettingsDraft {

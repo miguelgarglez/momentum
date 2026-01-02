@@ -7,17 +7,30 @@
 
 import SwiftUI
 import SwiftData
+#if os(macOS)
+import AppKit
+#endif
 
 @main
+@MainActor
 struct MomentumApp: App {
-    @StateObject private var environment = AppEnvironment()
+    @StateObject private var trackerSettings: TrackerSettings
+    @StateObject private var environment: AppEnvironment
+    @StateObject private var themePreview = ThemePreviewState()
     @State private var bootstrapError: String?
     @State private var isBootstrapping = false
 #if os(macOS)
     @NSApplicationDelegateAdaptor(MomentumAppDelegate.self) private var appDelegate
 #endif
 
+    init() {
+        let settings = TrackerSettings()
+        _trackerSettings = StateObject(wrappedValue: settings)
+        _environment = StateObject(wrappedValue: AppEnvironment(trackerSettings: settings))
+    }
+
     var body: some Scene {
+        let effectiveThemePreference = themePreview.previewPreference ?? trackerSettings.themePreference
         WindowGroup {
             Group {
                 if let container = environment.container,
@@ -26,6 +39,7 @@ struct MomentumApp: App {
                         .environmentObject(tracker)
                         .environmentObject(environment.trackerSettings)
                         .environmentObject(environment.appCatalog)
+                        .environmentObject(themePreview)
                         .modelContainer(container)
                 } else if let bootstrapError {
                     VStack(spacing: 8) {
@@ -44,6 +58,12 @@ struct MomentumApp: App {
             .task {
                 await bootstrapIfNeeded()
             }
+            .preferredColorSchemeIfNeeded(effectiveThemePreference.colorScheme)
+#if os(macOS)
+            .task(id: effectiveThemePreference) {
+                applyAppearance(for: effectiveThemePreference)
+            }
+#endif
         }
 
         Settings {
@@ -52,6 +72,7 @@ struct MomentumApp: App {
                     TrackerSettingsView()
                         .environmentObject(environment.trackerSettings)
                         .environmentObject(environment.appCatalog)
+                        .environmentObject(themePreview)
                         .modelContainer(container)
                 } else {
                     ProgressView("Cargando ajustes…")
@@ -61,10 +82,34 @@ struct MomentumApp: App {
             .task {
                 await bootstrapIfNeeded()
             }
+            .preferredColorSchemeIfNeeded(effectiveThemePreference.colorScheme)
+#if os(macOS)
+            .task(id: effectiveThemePreference) {
+                applyAppearance(for: effectiveThemePreference)
+            }
+#endif
         }
         .windowResizability(.contentSize)
         .defaultSize(width: 420, height: 360)
     }
+
+#if os(macOS)
+    private func applyAppearance(for preference: AppThemePreference) {
+        let appearance: NSAppearance?
+        switch preference {
+        case .system:
+            appearance = nil
+        case .light:
+            appearance = NSAppearance(named: .aqua)
+        case .dark:
+            appearance = NSAppearance(named: .darkAqua)
+        }
+        NSApp.appearance = appearance
+        for window in NSApp.windows {
+            window.appearance = appearance
+        }
+    }
+#endif
 
     @MainActor
     private func bootstrapIfNeeded() async {
@@ -171,11 +216,15 @@ private extension MomentumApp {
 
 @MainActor
 final class AppEnvironment: ObservableObject {
-    let trackerSettings = TrackerSettings()
+    let trackerSettings: TrackerSettings
     let appCatalog = AppCatalog()
     private(set) var container: ModelContainer?
     @Published private(set) var tracker: ActivityTracker?
     private var dataProtection: DataProtectionCoordinator?
+
+    init(trackerSettings: TrackerSettings) {
+        self.trackerSettings = trackerSettings
+    }
 
     var isConfigured: Bool {
         container != nil && tracker != nil
@@ -291,5 +340,16 @@ private extension AppEnvironment {
         context.insert(rule)
 
         try? context.save()
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func preferredColorSchemeIfNeeded(_ scheme: ColorScheme?) -> some View {
+        if let scheme {
+            preferredColorScheme(scheme)
+        } else {
+            self
+        }
     }
 }

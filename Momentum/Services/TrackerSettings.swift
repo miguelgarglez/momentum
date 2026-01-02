@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum AssignmentRuleExpirationOption: String, CaseIterable, Identifiable {
     case never
@@ -37,6 +38,36 @@ enum AssignmentRuleExpirationOption: String, CaseIterable, Identifiable {
     func cutoffDate(from date: Date = .now) -> Date? {
         guard let days else { return nil }
         return Calendar.current.date(byAdding: .day, value: -days, to: date)
+    }
+}
+
+enum AppThemePreference: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .system:
+            return "Sistema"
+        case .light:
+            return "Claro"
+        case .dark:
+            return "Oscuro"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system:
+            return nil
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        }
     }
 }
 
@@ -110,6 +141,12 @@ final class TrackerSettings: ObservableObject {
         }
     }
 
+    @Published var themePreference: AppThemePreference {
+        didSet {
+            defaults.set(themePreference.rawValue, forKey: Keys.themePreference)
+        }
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -127,6 +164,12 @@ final class TrackerSettings: ObservableObject {
             self.assignmentRuleExpiration = option
         } else {
             self.assignmentRuleExpiration = .never
+        }
+        if let rawValue = defaults.string(forKey: Keys.themePreference),
+           let option = AppThemePreference(rawValue: rawValue) {
+            self.themePreference = option
+        } else {
+            self.themePreference = .system
         }
     }
 
@@ -176,5 +219,6 @@ final class TrackerSettings: ObservableObject {
         static let excludedDomains = "tracker.excludedDomains"
         static let encryptionEnabled = "tracker.encryptionEnabled"
         static let assignmentRuleExpiration = "assignmentRules.expiration"
+        static let themePreference = "app.themePreference"
     }
 }
