@@ -2001,18 +2001,7 @@ struct ActivityHeatmapView: View {
     }
 
     private func intensity(for seconds: TimeInterval) -> Int {
-        guard seconds > 0 else { return 0 }
-        if thresholds.count < 3 { return 0 }
-        if seconds <= thresholds[0] { return 1 }
-        if seconds <= thresholds[1] { return 2 }
-        if seconds <= thresholds[2] { return 3 }
-        return 4
-    }
-
-    private func percentile(_ percentile: Double, in values: [TimeInterval]) -> TimeInterval {
-        guard !values.isEmpty else { return 0 }
-        let index = Int(round(Double(values.count - 1) * percentile))
-        return values[min(max(index, 0), values.count - 1)]
+        HeatmapIntensityCalculator.intensity(for: seconds, thresholds: thresholds)
     }
 
     private func refreshDays() {
@@ -2038,17 +2027,8 @@ struct ActivityHeatmapView: View {
         }
 
         self.days = days
-        self.thresholds = computeThresholds(from: days)
-    }
-
-    private func computeThresholds(from days: [HeatmapDay]) -> [TimeInterval] {
-        let values = days.filter { $0.isInRange && $0.seconds > 0 }.map(\.seconds).sorted()
-        guard values.count > 1 else { return [0, 0, 0] }
-        return [
-            percentile(0.25, in: values),
-            percentile(0.5, in: values),
-            percentile(0.75, in: values)
-        ]
+        let values = days.filter { $0.isInRange && $0.seconds > 0 }.map(\.seconds)
+        self.thresholds = HeatmapIntensityCalculator.thresholds(for: values)
     }
 
     private func startOfWeek(for date: Date, calendar: Calendar) -> Date {

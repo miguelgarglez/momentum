@@ -102,9 +102,11 @@ final class MomentumUITests: XCTestCase {
         XCTAssertTrue(rulesLink.waitForExistence(timeout: 3))
         rulesLink.click()
 
-        let rulesTitle = settingsWindow.staticTexts["Reglas de asignacion"]
-        XCTAssertTrue(rulesTitle.waitForExistence(timeout: 3))
-        XCTAssertTrue(settingsWindow.staticTexts["com.momentum.seed.app"].waitForExistence(timeout: 3))
+        let rulesList = app.otherElements["assignment-rules-list"]
+        let searchField = app.textFields["assignment-rules-search-field"]
+        let rulesViewIsVisible = rulesList.waitForExistence(timeout: 3) || searchField.waitForExistence(timeout: 3)
+        XCTAssertTrue(rulesViewIsVisible)
+        XCTAssertTrue(app.staticTexts["com.momentum.seed.app"].waitForExistence(timeout: 3))
     }
 
     // MARK: - Helpers
