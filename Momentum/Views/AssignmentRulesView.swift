@@ -287,7 +287,7 @@ private struct AssignmentRuleRow: View {
                 hasLoadedSelection = true
             }
         }
-        .onChange(of: selectedProjectID) { newValue in
+        .onChange(of: selectedProjectID) { _, newValue in
             guard hasLoadedSelection else { return }
             guard newValue != rule.project?.persistentModelID else { return }
             updateRuleProject(to: newValue)

@@ -103,7 +103,7 @@ struct MomentumTests {
             #expect(context.value == bundleID)
             #expect(candidates.count == 2)
         default:
-            #expect(false, "Expected conflict result")
+            #expect(Bool(false), "Expected conflict result")
         }
     }
 
@@ -130,7 +130,7 @@ struct MomentumTests {
             #expect(usedRule)
             #expect(project === projectB)
         default:
-            #expect(false, "Expected assignment via rule")
+            #expect(Bool(false), "Expected assignment via rule")
         }
     }
 
@@ -164,7 +164,7 @@ struct MomentumTests {
             #expect(context.value == bundleID)
             #expect(candidates.count == 2)
         default:
-            #expect(false, "Expected conflict when rule is expired")
+            #expect(Bool(false), "Expected conflict when rule is expired")
         }
 
         let remainingRules = try container.mainContext.fetch(FetchDescriptor<AssignmentRule>())

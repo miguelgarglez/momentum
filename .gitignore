@@ -1,5 +1,6 @@
 # Xcode / Swift defaults
 DerivedData/
+.derivedData/
 build/
 *.pbxuser
 !default.pbxuser
@@ -34,6 +35,7 @@ fastlane/test_output/
 *.ipa
 *.dSYM.zip
 *.dSYM
+*.xcresult
 
 # Raycast extension build output
 dist/

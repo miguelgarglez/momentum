@@ -425,7 +425,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.0; // x-release-please-version
-				PRODUCT_BUNDLE_IDENTIFIER = miguelgarglez.Momentum;
+				PRODUCT_BUNDLE_IDENTIFIER = miguelgarglez.Momentum.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;

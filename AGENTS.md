@@ -8,7 +8,19 @@
 - `Momentum.xcodeproj` is the Xcode project entry point.
 
 ## Build, Test, and Development Commands
-Use `xcodebuild` with the project and scheme:
+Prefer `Makefile` targets for local development:
+- `make build`
+- `make build-for-testing`
+- `make test`
+- `make test-unit`
+- `make test-ui`
+- `make run-dev`
+- `make run-release`
+- `make reset-dev-data`
+- `make install-release`
+- `make archive-release`
+- `make clean`
+Raw `xcodebuild` commands are still valid and occasionally useful:
 - List schemes/destinations:
   ```bash
   xcodebuild -list -project Momentum.xcodeproj
@@ -53,6 +65,13 @@ Use `xcodebuild` with the project and scheme:
 - Name test classes after module and feature (e.g., `ProjectManagerTests`).
 - No explicit coverage threshold is defined; add tests for new behavior and regressions.
 - Run the relevant test suite when a feature/fix is effectively finished to confirm behavior; avoid running tests on every tiny edit during active development.
+- For non-trivial changes (logic, persistence, tracking), run at least `make test-unit`.
+- For small UI tweaks, skip tests unless behavior could regress.
+
+## Verification Expectations (local)
+- For non-trivial changes (logic, persistence, tracking), run at least `make test-unit`.
+- For refactors or medium changes, also run `make build` to confirm the app compiles.
+- For small UI tweaks, skip tests unless behavior could regress.
 
 ## Commit & Pull Request Guidelines
 - Commit messages follow Conventional Commits (`feat:`, `fix:`, `chore:`) with concise subjects.
@@ -70,3 +89,14 @@ Use `xcodebuild` with the project and scheme:
 ## Tooling Notes
 - Optional: create `.vscode/tasks.json` entries for the `xcodebuild` commands.
 - If installed, `xcpretty` can be used to format `xcodebuild` output.
+
+## Local Dev Convenience
+- For cleaner local `xcodebuild` output, use `xcbeautify` (preferred) or `xcpretty`.
+  - Install: `brew install xcbeautify` (or `gem install xcpretty`).
+  - Example: `xcodebuild ... | xcbeautify`
+- `Makefile` targets: `make build`, `make build-for-testing`, `make test`, `make test-unit`, `make test-ui`, `make run-dev`, `make run-release`, `make clean`.
+- `make install-release` builds Release and copies `Momentum.app` into `/Applications`.
+- `make archive-release` creates a `.xcarchive`, installs the app, and writes a zip to `~/Downloads`.
+- Debug builds use bundle id `miguelgarglez.Momentum.dev`; expect to re-grant macOS permissions (Accessibility, Screen Recording, etc.).
+- Debug builds auto-seed sample data once when the store is empty (projects, sessions, conflicts, summaries).
+- `make reset-dev-data` clears the dev store and seed flag, then re-launches the dev app.

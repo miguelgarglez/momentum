@@ -255,6 +255,11 @@ final class AppEnvironment: ObservableObject {
         }
 
         let container = try ModelContainer(for: schema, configurations: [configuration])
+#if DEBUG
+        if !isUITest {
+            seedDebugDataIfNeeded(in: container)
+        }
+#endif
         if isUITest && MomentumApp.shouldSeedConflicts {
             seedPendingConflicts(in: container)
         }
@@ -343,6 +348,128 @@ private extension AppEnvironment {
 
         try? context.save()
     }
+
+#if DEBUG
+    func seedDebugDataIfNeeded(in container: ModelContainer) {
+        let defaults = UserDefaults.standard
+        let seedKey = "Momentum.DebugSeeded"
+        guard !defaults.bool(forKey: seedKey) else { return }
+
+        let context = container.mainContext
+        let existingProjects = (try? context.fetch(FetchDescriptor<Project>())) ?? []
+        guard existingProjects.isEmpty else { return }
+
+        let now = Date()
+        let calendar = Calendar.current
+
+        func day(_ offset: Int) -> Date {
+            calendar.startOfDay(for: calendar.date(byAdding: .day, value: -offset, to: now) ?? now)
+        }
+
+        func addSession(
+            project: Project,
+            dayOffset: Int,
+            startHour: Int,
+            durationMinutes: Int,
+            appName: String,
+            bundleID: String,
+            domain: String? = nil
+        ) {
+            guard let start = calendar.date(byAdding: .hour, value: startHour, to: day(dayOffset)) else { return }
+            let session = TrackingSession(
+                startDate: start,
+                endDate: start.addingTimeInterval(TimeInterval(durationMinutes * 60)),
+                appName: appName,
+                bundleIdentifier: bundleID,
+                domain: domain,
+                project: project
+            )
+            context.insert(session)
+            project.sessions.append(session)
+        }
+
+        func addSummary(project: Project, dayOffset: Int, minutes: Int) {
+            let summary = DailySummary(date: day(dayOffset), seconds: TimeInterval(minutes * 60), project: project)
+            context.insert(summary)
+            project.dailySummaries.append(summary)
+        }
+
+        let deepWork = Project(
+            name: "Deep Work",
+            assignedApps: ["com.apple.dt.Xcode"],
+            assignedDomains: ["developer.apple.com"]
+        )
+        let writing = Project(
+            name: "Writing",
+            assignedApps: ["com.apple.iWork.Pages"],
+            assignedDomains: ["docs.google.com"]
+        )
+        let admin = Project(
+            name: "Admin",
+            assignedApps: ["com.apple.Mail", "com.apple.Calendar"],
+            assignedDomains: []
+        )
+
+        let conflictBundle = "com.microsoft.VSCode"
+        let conflictDomain = "docs.seed.local"
+        let courseA = Project(name: "Curso A", assignedApps: [conflictBundle], assignedDomains: [conflictDomain])
+        let courseB = Project(name: "Curso B", assignedApps: [conflictBundle], assignedDomains: [conflictDomain])
+
+        [deepWork, writing, admin, courseA, courseB].forEach { context.insert($0) }
+
+        addSession(project: deepWork, dayOffset: 0, startHour: 9, durationMinutes: 120, appName: "Xcode", bundleID: "com.apple.dt.Xcode")
+        addSession(project: deepWork, dayOffset: 1, startHour: 10, durationMinutes: 90, appName: "Xcode", bundleID: "com.apple.dt.Xcode")
+        addSession(project: deepWork, dayOffset: 2, startHour: 11, durationMinutes: 45, appName: "Xcode", bundleID: "com.apple.dt.Xcode")
+
+        addSession(project: writing, dayOffset: 0, startHour: 14, durationMinutes: 60, appName: "Pages", bundleID: "com.apple.iWork.Pages", domain: "docs.google.com")
+        addSession(project: writing, dayOffset: 1, startHour: 15, durationMinutes: 30, appName: "Pages", bundleID: "com.apple.iWork.Pages", domain: "docs.google.com")
+        addSession(project: writing, dayOffset: 2, startHour: 13, durationMinutes: 90, appName: "Pages", bundleID: "com.apple.iWork.Pages", domain: "docs.google.com")
+
+        addSession(project: admin, dayOffset: 0, startHour: 17, durationMinutes: 25, appName: "Mail", bundleID: "com.apple.Mail")
+
+        addSummary(project: deepWork, dayOffset: 0, minutes: 120)
+        addSummary(project: deepWork, dayOffset: 1, minutes: 90)
+        addSummary(project: deepWork, dayOffset: 2, minutes: 45)
+        addSummary(project: writing, dayOffset: 0, minutes: 60)
+        addSummary(project: writing, dayOffset: 1, minutes: 30)
+        addSummary(project: writing, dayOffset: 2, minutes: 90)
+        addSummary(project: admin, dayOffset: 0, minutes: 25)
+
+        let pendingAppConflict = PendingTrackingSession(
+            startDate: now.addingTimeInterval(-900),
+            endDate: now.addingTimeInterval(-600),
+            appName: "VSCode",
+            bundleIdentifier: conflictBundle,
+            domain: nil,
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: conflictBundle
+        )
+        let pendingDomainConflict = PendingTrackingSession(
+            startDate: now.addingTimeInterval(-1800),
+            endDate: now.addingTimeInterval(-1200),
+            appName: "Safari",
+            bundleIdentifier: "com.apple.Safari",
+            domain: conflictDomain,
+            contextType: AssignmentContextType.domain.rawValue,
+            contextValue: conflictDomain
+        )
+        context.insert(pendingAppConflict)
+        context.insert(pendingDomainConflict)
+
+        let ruleDate = now.addingTimeInterval(-60 * 60 * 24 * 7)
+        let rule = AssignmentRule(
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: "com.apple.dt.Xcode",
+            project: deepWork,
+            createdAt: ruleDate,
+            lastUsedAt: ruleDate
+        )
+        context.insert(rule)
+
+        try? context.save()
+        defaults.set(true, forKey: seedKey)
+    }
+#endif
 }
 
 private extension View {
