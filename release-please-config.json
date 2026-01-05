@@ -1,9 +1,22 @@
 {
-  "bootstrap-sha": "e49edb9f492f4066681e97145faf63d36e293072",
+  "bootstrap-sha": "0ef9ab9875510dd127236675f35d9fd5cb1cb555",
   "packages": {
     ".": {
       "release-type": "simple",
       "version-file": "version.txt",
+      "changelog-sections": [
+        { "type": "feat", "section": "Features" },
+        { "type": "fix", "section": "Bug Fixes" },
+        { "type": "refactor", "section": "Refactors" },
+        { "type": "docs", "section": "Documentation" },
+        { "type": "test", "section": "Tests" },
+        { "type": "ci", "section": "CI" },
+        { "type": "chore", "section": "Chores" },
+        { "type": "build", "section": "Build" },
+        { "type": "perf", "section": "Performance" },
+        { "type": "style", "section": "Style" },
+        { "type": "revert", "section": "Reverts" }
+      ],
       "extra-files": [
         "Momentum.xcodeproj/project.pbxproj"
       ]
