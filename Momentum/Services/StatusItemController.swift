@@ -11,6 +11,7 @@ final class StatusItemController: NSObject {
     private var currentTimeString: String = ""
     private var latestSummary: ActivityTracker.StatusSummary
     private var pendingConflictCount: Int
+    private weak var badgeView: NSView?
 
     private lazy var timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -55,22 +56,36 @@ final class StatusItemController: NSObject {
 
     private func configureButton() {
         statusItem.button?.image = NSImage(systemSymbolName: "flame", accessibilityDescription: "Momentum")
-        statusItem.button?.imagePosition = .imageLeading
+        statusItem.button?.imagePosition = .imageOnly
         statusItem.button?.appearsDisabled = false
         updateButtonBadge()
     }
 
     private func updateButtonBadge() {
         guard let button = statusItem.button else { return }
+        button.title = ""
+        button.attributedTitle = NSAttributedString(string: "")
+
         if pendingConflictCount > 0 {
-            button.title = "●"
-            button.attributedTitle = NSAttributedString(
-                string: "●",
-                attributes: [.foregroundColor: NSColor.systemOrange]
-            )
+            if badgeView == nil {
+                let badgeSize: CGFloat = 6
+                let dot = NSView()
+                dot.wantsLayer = true
+                dot.layer?.backgroundColor = NSColor.systemOrange.cgColor
+                dot.layer?.cornerRadius = badgeSize / 2
+                dot.translatesAutoresizingMaskIntoConstraints = false
+                button.addSubview(dot)
+                NSLayoutConstraint.activate([
+                    dot.widthAnchor.constraint(equalToConstant: badgeSize),
+                    dot.heightAnchor.constraint(equalToConstant: badgeSize),
+                    dot.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -7),
+                    dot.topAnchor.constraint(equalTo: button.topAnchor, constant: 4)
+                ])
+                badgeView = dot
+            }
         } else {
-            button.title = ""
-            button.attributedTitle = NSAttributedString(string: "")
+            badgeView?.removeFromSuperview()
+            badgeView = nil
         }
     }
 

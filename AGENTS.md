@@ -20,6 +20,9 @@ Prefer `Makefile` targets for local development:
 - `make install-release`
 - `make archive-release`
 - `make clean`
+
+### DMG packaging note
+- The `archive-release`/`dmg` targets use `create-dmg`, which briefly opens a Finder window while applying the DMG layout (background/icon positions). This is expected for local builds.
 Raw `xcodebuild` commands are still valid and occasionally useful:
 - List schemes/destinations:
   ```bash

@@ -1622,7 +1622,7 @@ struct WeeklySummaryChartView: View {
         case .quarter:
             let formatter = DateFormatter()
             formatter.locale = locale
-            formatter.dateFormat = "d MMM"
+            formatter.dateFormat = "d/M"
             let aggregated = aggregate(points: points, calendar: calendar, by: .weekOfYear)
             return aggregated.enumerated().map { index, entry in
                 ActivityBucket(
@@ -1707,6 +1707,7 @@ private struct ActivityBarsRow: View {
                         label: label(for: summary),
                         isToday: isToday(summary.date),
                         barWidth: barWidth,
+                        labelHeight: labelHeight,
                         tooltipAlignment: tooltipAlignment(for: index)
                     )
                     .frame(width: barWidth)
@@ -1784,6 +1785,7 @@ private struct ActivityBarView: View {
     let label: String
     let isToday: Bool
     let barWidth: CGFloat
+    let labelHeight: CGFloat
     let tooltipAlignment: Alignment
 
     var body: some View {
@@ -1830,12 +1832,14 @@ private struct ActivityBarView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.6)
+                    .truncationMode(.tail)
             } else {
                 Text(" ")
                     .font(.caption2)
             }
         }
+        .frame(height: labelHeight)
     }
 
     private var isHovered: Bool {

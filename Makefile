@@ -1,4 +1,4 @@
-.PHONY: help build build-for-testing test test-unit test-ui run-dev run-release run reset-dev-data archive-release install-release clean
+.PHONY: help build build-for-testing test test-unit test-ui run-dev run-release run reset-dev-data archive-release install-release dmg clean clean-release
 
 PROJECT := Momentum.xcodeproj
 SCHEME := Momentum
@@ -15,6 +15,12 @@ INSTALL_DIR ?= /Applications
 ZIP_DIR ?= $(HOME)/Downloads
 VERSION ?= $(shell cat version.txt 2>/dev/null | tr -d ' \n\r\t')
 VERSION_SAFE := $(if $(strip $(VERSION)),$(strip $(VERSION)),0.0.0)
+DMG_BACKGROUND ?= Packaging/dmg-background.png
+DMG_WINDOW_SIZE ?= 660 440
+DMG_ICON_SIZE ?= 128
+DMG_APP_POS ?= 180 220
+DMG_APPLICATIONS_POS ?= 480 220
+DMG_STAGING_DIR ?= $(ARCHIVE_DIR)/.dmg-staging
 
 XCBEAUTIFY := $(shell command -v xcbeautify 2>/dev/null)
 XCPRETTY := $(shell command -v xcpretty 2>/dev/null)
@@ -30,8 +36,10 @@ help:
 	@echo "  run-release       Build and launch the release app (quits running release app first)"
 	@echo "  reset-dev-data    Remove dev store + seed flag, then run dev app"
 	@echo "  install-release   Build Release and copy app to /Applications"
-	@echo "  archive-release   Archive Release, install app, and zip to ~/Downloads"
+	@echo "  archive-release   Archive Release, install app, and .dmg to ~/Downloads"
+	@echo "  dmg               Build a drag-and-drop DMG from an existing .app"
 	@echo "  clean             Remove DerivedData (.derivedData)"
+	@echo "  clean-release     Remove release build artifacts"
 
 build:
 	@set -euo pipefail; \
@@ -133,13 +141,47 @@ archive-release:
 		echo "App not found at $$APP_PATH"; \
 		exit 1; \
 	fi; \
+	$(MAKE) dmg DMG_APP_PATH="$$APP_PATH"
+
+dmg:
+	@set -euo pipefail; \
+	if ! command -v create-dmg >/dev/null 2>&1; then \
+		echo "create-dmg not found. Install with: brew install create-dmg"; \
+		exit 1; \
+	fi; \
+	if [ -z "$(DMG_APP_PATH)" ]; then \
+		echo "DMG_APP_PATH is required (path to .app)"; \
+		exit 1; \
+	fi; \
+	if [ ! -d "$(DMG_APP_PATH)" ]; then \
+		echo "App not found at $(DMG_APP_PATH)"; \
+		exit 1; \
+	fi; \
+	if [ ! -f "$(DMG_BACKGROUND)" ]; then \
+		echo "DMG background not found at $(DMG_BACKGROUND)"; \
+		exit 1; \
+	fi; \
 	DMG_PATH="$(ZIP_DIR)/$(APP_NAME)-$(VERSION_SAFE).dmg"; \
-	STAGING_DIR="$(ZIP_DIR)/.$(APP_NAME)-dmg"; \
+	STAGING_DIR="$(DMG_STAGING_DIR)"; \
 	rm -rf "$$STAGING_DIR" "$$DMG_PATH"; \
 	mkdir -p "$$STAGING_DIR"; \
-	cp -R "$$APP_PATH" "$$STAGING_DIR/$(APP_NAME).app"; \
-	hdiutil create -volname "$(APP_NAME)" -srcfolder "$$STAGING_DIR" -ov -format UDZO "$$DMG_PATH" >/dev/null; \
+	cp -R "$(DMG_APP_PATH)" "$$STAGING_DIR/$(APP_NAME).app"; \
+	create-dmg \
+		--volname "$(APP_NAME)" \
+		--background "$(DMG_BACKGROUND)" \
+		--window-size $(DMG_WINDOW_SIZE) \
+		--icon-size $(DMG_ICON_SIZE) \
+		--icon "$(APP_NAME).app" $(DMG_APP_POS) \
+		--app-drop-link $(DMG_APPLICATIONS_POS) \
+		--format UDZO \
+		--hdiutil-quiet \
+		--no-internet-enable \
+		"$$DMG_PATH" \
+		"$$STAGING_DIR" >/dev/null; \
 	rm -rf "$$STAGING_DIR"
 
 clean:
 	@rm -rf "$(DERIVED_DATA)"
+
+clean-release:
+	@rm -rf "$(ARCHIVE_DIR)" "$(DMG_STAGING_DIR)"
