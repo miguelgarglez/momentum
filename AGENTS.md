@@ -25,6 +25,23 @@ Use `xcodebuild` with the project and scheme:
   - `-only-testing:MomentumTests`
   - `-only-testing:MomentumUITests`
 
+## GitHub Actions (CI + Release)
+- CI workflow: `.github/workflows/ci.yml`
+  - Triggers: `push` and `pull_request` on `main`, plus manual runs.
+  - Uses `xcodebuild` on `macos-latest` with `-derivedDataPath $RUNNER_TEMP/DerivedData`.
+  - Build number: `CURRENT_PROJECT_VERSION` set to UTC timestamp `YYYYMMDDHHmmss`.
+  - Code signing disabled for CI: `CODE_SIGNING_ALLOWED=NO`, `CODE_SIGNING_REQUIRED=NO`, `CODE_SIGN_IDENTITY=""`.
+  - Runs `MomentumTests` only; UI tests are manual.
+- Release-please workflow: `.github/workflows/release-please.yml`
+  - Uses `release-please-config.json` and `.release-please-manifest.json`.
+  - Generates release PRs, tags, and GitHub Releases on `main`.
+  - Uses `CHANGELOG.md`, `version.txt`, and `Momentum.xcodeproj/project.pbxproj` (via `x-release-please-version`).
+  - No PAT configured; PRs created by release-please do not trigger CI.
+- Release build workflow: `.github/workflows/release-build.yml`
+  - Triggers on GitHub Release creation.
+  - Same build/test settings as CI (DerivedData, build number, no signing).
+  - Runs `MomentumTests` only.
+
 ## Coding Style & Naming Conventions
 - Use Xcode’s default Swift formatting with 4-space indentation.
 - Types use `UpperCamelCase`; properties and methods use `lowerCamelCase`.
