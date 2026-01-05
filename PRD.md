@@ -20,7 +20,8 @@ Su objetivo es convertir ese tiempo en **progreso visible**, manteniendo los dat
 - **FR-1.3** Eliminar proyecto junto con sus registros.
 - **FR-1.4** Asignar apps a un proyecto.
 - **FR-1.5** Asignar dominios web a un proyecto.
-- **FR-1.6** Un app/dominio puede pertenecer a varios proyectos y Momentum debe gestionar conflictos mediante reglas de asignacion guardadas.
+- **FR-1.6** Un app/dominio puede pertenecer a varios proyectos y Momentum debe gestionar conflictos con reglas guardadas, tiempo pendiente y UI de resolucion.
+- **FR-1.7** Gestion de reglas: listar, editar y eliminar reglas de asignacion; soporta expiracion configurable basada en `lastUsedAt`.
 
 ## FR-2. Tracking Automático
 - **FR-2.1** Detectar app activa en foreground cada X segundos (configurable, default 5 s).
@@ -64,6 +65,8 @@ Su objetivo es convertir ese tiempo en **progreso visible**, manteniendo los dat
 - **FR-5.2** Configurar tiempo de detección (5–15 s).
 - **FR-5.3** Configurar umbral de inactividad.
 - **FR-5.4** Posibilidad de excluir apps/dominios globalmente.
+- **FR-5.5** Configurar expiracion de reglas (30/60/90 dias o nunca; default nunca).
+- **FR-5.6** Acceso a gestion de reglas desde Settings.
 
 ## FR-6. Privacidad y Datos
 - **FR-6.1** Todos los datos se guardan localmente en almacenamiento seguro (NSUserDefaults/CoreData/SQLite).
@@ -169,22 +172,26 @@ Su objetivo es convertir ese tiempo en **progreso visible**, manteniendo los dat
 - projectId (UUID)
 - createdAt (Date)
 - lastUsedAt (Date)
+- expiracion derivada por `lastUsedAt` segun settings (default nunca)
 
-### Entidad PendingContextTime (MVP)
+### Entidad PendingTrackingSession (MVP)
 - id (UUID)
+- startDate (Date)
+- endDate (Date)
+- appName (String)
+- bundleIdentifier (String?)
+- domain (String?)
 - contextType ("app" | "domain")
 - contextValue (String)
-- totalSeconds (Int)
-- lastSeenAt (Date)
-- createdAt (Date)
 
-### Entidad ActivityRecord
+### Entidad TrackingSession
 - id (UUID)
+- startDate (Date)
+- endDate (Date)
+- appName (String)
+- bundleIdentifier (String?)
+- domain (String?)
 - projectId (UUID)
-- startTime (Date)
-- endTime (Date)
-- sourceType (“app” | “domain”)
-- sourceName (String)
 
 ### Entidad DailySummary (cache)
 - date (Date)
@@ -209,6 +216,11 @@ Su objetivo es convertir ese tiempo en **progreso visible**, manteniendo los dat
 3. Mostrar gráfico semanal  
 4. Mostrar racha (últimos días con > X min)
 
+## 6.3. Gestion de reglas (Settings)
+1. Listar reglas guardadas, con filtro por texto/proyecto  
+2. Editar proyecto asignado o eliminar regla  
+3. Expirar reglas segun umbral configurado, sin borrar pendientes
+
 ---
 
 # 🧪 7. Testing
@@ -228,6 +240,8 @@ Su objetivo es convertir ese tiempo en **progreso visible**, manteniendo los dat
 - Flujo de creación de proyectos  
 - Edición de apps/dominos  
 - Lectura de dashboards
+- Conflictos: banner, sheet y asignacion
+- Reglas: acceso desde Settings, listado y edicion basica
 
 ---
 
@@ -248,5 +262,28 @@ Su objetivo es convertir ese tiempo en **progreso visible**, manteniendo los dat
 - La app no sube nada a la nube.  
 - Consumo CPU estable (<3–5%).  
 - No crashea con cambios rápidos de aplicaciones.  
+
+---
+
+# 🧭 10. Próximas funcionalidades (post-MVP)
+
+Estas iniciativas consolidan Momentum como producto completo y escalable:
+
+## 10.1 Historial extendido + heatmap anual
+- Historial de actividad por proyecto con más de 1 semana de profundidad.  
+- Vista tipo “contributions” (mes/año) basada en actividad diaria.  
+- Construida sobre `DailySummary` con backfill desde sesiones existentes.  
+- Gráfica de tiempo con rangos mayores a una semana (mes, trimestre, año).  
+
+## 10.2 Actualizaciones automáticas + pipeline de releases
+- Detección de updates en la app (p.ej. Sparkle).  
+- Pipeline de release automatizado (build, notarization, appcast).  
+
+## 10.3 Integración headless (CLI/Raycast + export JSON)
+- Extraer lógica de dominio en un “MomentumCore” reutilizable.  
+- CLI local y export JSON para integraciones rápidas.  
+- Preparar canal de integración con Raycast sin duplicar lógica.  
+- Prioridad: Raycast como integración principal.  
+- Objetivo principal: habilitar una futura extensión de Raycast como interfaz adicional.  
 
 ---

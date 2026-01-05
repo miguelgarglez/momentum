@@ -1,0 +1,42 @@
+name: macOS CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Build for testing
+        run: |
+          BUILD_NUMBER=$(date -u +%Y%m%d%H%M%S)
+          xcodebuild \
+            -project Momentum.xcodeproj \
+            -scheme Momentum \
+            -destination 'platform=macOS' \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            build-for-testing
+
+      - name: Run unit tests
+        run: |
+          BUILD_NUMBER=$(date -u +%Y%m%d%H%M%S)
+          xcodebuild \
+            -project Momentum.xcodeproj \
+            -scheme Momentum \
+            -destination 'platform=macOS' \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            test \
+            -only-testing:MomentumTests

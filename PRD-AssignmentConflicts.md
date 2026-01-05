@@ -114,17 +114,18 @@ pendiente hasta que se resuelva.
 - [x] Regla guardada por contexto y backfill de pendientes.
 - [x] Badge en barra de menu cuando hay conflictos.
 - [x] Tests unitarios del flujo de conflicto/pending/regla.
-- [ ] Tests de UI (banner, sheet, acciones).
-- [ ] Ajuste de logs/ruido en tests (crash recovery + performance monitor).
+- [x] Tests de UI (banner, sheet, acciones).
+- [x] Ajuste de logs/ruido en tests (crash recovery + performance monitor).
 
-## 14. Testing (pendiente)
+## 14. Testing
 - UI tests basicos para:
   - Aparicion de banner cuando hay pendientes.
   - Apertura de sheet y resolucion.
+  - Verificacion de conflictos por app y dominio.
 - Validar comportamiento con dominio y app en fixtures reales.
-- Revisar el test existente `weeklyAggregationUsesDailySummaries` (falla actual).
 
 ## 15. Siguientes pasos (post-MVP)
+- Ver plan detallado de refinamiento: `PLAN-AssignmentRules.md`.
 - Expiracion automatica de reglas por inactividad (usa `lastUsedAt`).
 - Pantalla de gestion/edicion de reglas (ver/editar/eliminar).
 - Notificaciones opcionales y configurables.
@@ -135,3 +136,7 @@ pendiente hasta que se resuelva.
 - Expiracion automatica de reglas por inactividad.
 - Posibilidad de reasignar reglas manualmente.
 - Notificaciones opcionales o nudge configurable.
+
+## 17. Extensiones implementadas (post-MVP)
+- [x] Gestion de reglas desde Settings (listar, editar, eliminar).
+- [x] Expiracion configurable (default: nunca) con limpieza automatica.

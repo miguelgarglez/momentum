@@ -1,0 +1,12 @@
+{
+  "bootstrap-sha": "e49edb9f492f4066681e97145faf63d36e293072",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "version-file": "version.txt",
+      "extra-files": [
+        "Momentum.xcodeproj/project.pbxproj"
+      ]
+    }
+  }
+}
