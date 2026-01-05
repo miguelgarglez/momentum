@@ -17,21 +17,29 @@ jobs:
 
       - name: Build for testing
         run: |
+          set -euo pipefail
           BUILD_NUMBER=$(date -u +%Y%m%d%H%M%S)
+          DERIVED_DATA="$RUNNER_TEMP/DerivedData"
+          mkdir -p "$DERIVED_DATA"
           xcodebuild \
             -project Momentum.xcodeproj \
             -scheme Momentum \
             -destination 'platform=macOS' \
+            -derivedDataPath "$DERIVED_DATA" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             build-for-testing
 
       - name: Run unit tests
         run: |
+          set -euo pipefail
           BUILD_NUMBER=$(date -u +%Y%m%d%H%M%S)
+          DERIVED_DATA="$RUNNER_TEMP/DerivedData"
+          mkdir -p "$DERIVED_DATA"
           xcodebuild \
             -project Momentum.xcodeproj \
             -scheme Momentum \
             -destination 'platform=macOS' \
+            -derivedDataPath "$DERIVED_DATA" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             test \
             -only-testing:MomentumTests
