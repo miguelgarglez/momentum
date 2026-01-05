@@ -213,6 +213,7 @@ final class AppEnvironment: ObservableObject {
     private(set) var container: ModelContainer?
     @Published private(set) var tracker: ActivityTracker?
     private var dataProtection: DataProtectionCoordinator?
+    private let dailySummaryBackfill: DailySummaryBackfilling = DailySummaryBackfill()
 #if os(macOS)
     private var statusItemCoordinator = StatusItemCoordinator()
 #endif
@@ -276,6 +277,9 @@ final class AppEnvironment: ObservableObject {
 #if os(macOS)
         statusItemCoordinator.configure(with: tracker)
 #endif
+        if !isUITest {
+            dailySummaryBackfill.runIfNeeded(container: container)
+        }
     }
 }
 

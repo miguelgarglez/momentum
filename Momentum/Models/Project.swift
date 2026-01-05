@@ -192,6 +192,84 @@ extension Project {
         return days.reversed()
     }
 
+    func dailySummarySeconds(for date: Date) -> TimeInterval {
+        let normalized = DailySummary.normalize(date)
+        if let cached = dailySummaries.first(where: { $0.date == normalized }) {
+            return cached.seconds
+        }
+        guard let end = Calendar.current.date(byAdding: .day, value: 1, to: normalized) else {
+            return 0
+        }
+        return secondsSpent(in: DateInterval(start: normalized, end: end))
+    }
+
+    func dailySummaries(in interval: DateInterval) -> [DailySummaryPoint] {
+        guard interval.duration > 0 else { return [] }
+        let calendar = Calendar.current
+        let start = DailySummary.normalize(interval.start)
+        let totals = dailySummaryTotals(in: interval)
+        var points: [DailySummaryPoint] = []
+        var cursor = start
+        while cursor < interval.end {
+            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            points.append(DailySummaryPoint(date: cursor, seconds: totals[cursor, default: 0]))
+            cursor = nextDay
+        }
+        return points
+    }
+
+    private func dailySummaryTotals(in interval: DateInterval) -> [Date: TimeInterval] {
+        guard interval.duration > 0 else { return [:] }
+        let calendar = Calendar.current
+        let start = DailySummary.normalize(interval.start)
+        let end = interval.end
+
+        var totals: [Date: TimeInterval] = [:]
+        if !dailySummaries.isEmpty {
+            for summary in dailySummaries where summary.date >= start && summary.date < end {
+                totals[summary.date] = summary.seconds
+            }
+        }
+
+        let expectedDays = daysBetween(start: start, end: end, calendar: calendar)
+        guard totals.count < expectedDays else { return totals }
+
+        var sessionTotals: [Date: TimeInterval] = [:]
+        for session in sessions {
+            let sessionInterval = session.interval
+            guard sessionInterval.intersects(interval),
+                  let clipped = sessionInterval.intersection(with: interval) else {
+                continue
+            }
+            var cursor = DailySummary.normalize(clipped.start)
+            while cursor < clipped.end {
+                guard let nextDay = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+                let dayInterval = DateInterval(start: cursor, end: nextDay)
+                if let overlap = clipped.intersection(with: dayInterval) {
+                    sessionTotals[cursor, default: 0] += overlap.duration
+                }
+                cursor = nextDay
+            }
+        }
+
+        for (day, seconds) in sessionTotals where totals[day] == nil {
+            totals[day] = seconds
+        }
+
+        return totals
+    }
+
+    private func daysBetween(start: Date, end: Date, calendar: Calendar) -> Int {
+        var count = 0
+        var cursor = start
+        while cursor < end {
+            count += 1
+            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = nextDay
+        }
+        return count
+    }
+
     func contextUsageSummaries(for interval: DateInterval, limit: Int = 6) -> [ContextUsageSummary] {
         guard interval.duration > 0 else { return [] }
         var totals: [String: (title: String, subtitle: String?, seconds: TimeInterval, bundleIdentifier: String?, domain: String?)] = [:]
