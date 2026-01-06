@@ -15,6 +15,8 @@ INSTALL_DIR ?= /Applications
 ZIP_DIR ?= $(HOME)/Downloads
 VERSION ?= $(shell cat version.txt 2>/dev/null | tr -d ' \n\r\t')
 VERSION_SAFE := $(if $(strip $(VERSION)),$(strip $(VERSION)),0.0.0)
+BUILD_NUMBER_CMD := date -u +%Y%m%d%H%M%S
+RELEASE_BUILD_NUMBER_SNIPPET := BUILD_NUMBER=$$($(BUILD_NUMBER_CMD)); BUILD_NUMBER_FLAG="CURRENT_PROJECT_VERSION=$$BUILD_NUMBER"
 DMG_BACKGROUND ?= Packaging/dmg-background.png
 DMG_WINDOW_SIZE ?= 660 440
 DMG_ICON_SIZE ?= 128
@@ -43,12 +45,17 @@ help:
 
 build:
 	@set -euo pipefail; \
-	if [ -n "$(XCBEAUTIFY)" ]; then \
-		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration "$(CONFIGURATION)" build | xcbeautify; \
-	elif [ -n "$(XCPRETTY)" ]; then \
-		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration "$(CONFIGURATION)" build | xcpretty; \
+	if [ "$(CONFIGURATION)" = "Release" ]; then \
+		$(RELEASE_BUILD_NUMBER_SNIPPET); \
 	else \
-		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration "$(CONFIGURATION)" build; \
+		BUILD_NUMBER_FLAG=""; \
+	fi; \
+	if [ -n "$(XCBEAUTIFY)" ]; then \
+		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration "$(CONFIGURATION)" $$BUILD_NUMBER_FLAG build | xcbeautify; \
+	elif [ -n "$(XCPRETTY)" ]; then \
+		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration "$(CONFIGURATION)" $$BUILD_NUMBER_FLAG build | xcpretty; \
+	else \
+		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration "$(CONFIGURATION)" $$BUILD_NUMBER_FLAG build; \
 	fi
 
 build-for-testing:
@@ -118,7 +125,14 @@ reset-dev-data:
 
 install-release:
 	@set -euo pipefail; \
-	$(MAKE) build CONFIGURATION=Release; \
+	$(RELEASE_BUILD_NUMBER_SNIPPET); \
+	if [ -n "$(XCBEAUTIFY)" ]; then \
+		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration Release $$BUILD_NUMBER_FLAG build | xcbeautify; \
+	elif [ -n "$(XCPRETTY)" ]; then \
+		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration Release $$BUILD_NUMBER_FLAG build | xcpretty; \
+	else \
+		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration Release $$BUILD_NUMBER_FLAG build; \
+	fi; \
 	BUILD_DIR=$$(xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration Release -showBuildSettings | awk -F ' = ' '/BUILT_PRODUCTS_DIR/ {print $$2; exit}'); \
 	FULL_PRODUCT_NAME=$$(xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration Release -showBuildSettings | awk -F ' = ' '/FULL_PRODUCT_NAME/ {print $$2; exit}'); \
 	APP_PATH="$$BUILD_DIR/$$FULL_PRODUCT_NAME"; \
@@ -135,7 +149,8 @@ archive-release:
 	mkdir -p "$(ARCHIVE_DIR)" "$(ZIP_DIR)"; \
 	ARCHIVE_PATH="$(ARCHIVE_DIR)/$(APP_NAME)-$(VERSION_SAFE).xcarchive"; \
 	rm -rf "$$ARCHIVE_PATH"; \
-	xcodebuild archive -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration Release -archivePath "$$ARCHIVE_PATH" | { if [ -n "$(XCBEAUTIFY)" ]; then xcbeautify; elif [ -n "$(XCPRETTY)" ]; then xcpretty; else cat; fi; }; \
+	$(RELEASE_BUILD_NUMBER_SNIPPET); \
+	xcodebuild archive -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration Release $$BUILD_NUMBER_FLAG -archivePath "$$ARCHIVE_PATH" | { if [ -n "$(XCBEAUTIFY)" ]; then xcbeautify; elif [ -n "$(XCPRETTY)" ]; then xcpretty; else cat; fi; }; \
 	APP_PATH="$$ARCHIVE_PATH/Products/Applications/$(APP_NAME).app"; \
 	if [ ! -d "$$APP_PATH" ]; then \
 		echo "App not found at $$APP_PATH"; \

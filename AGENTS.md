@@ -20,6 +20,8 @@ Prefer `Makefile` targets for local development:
 - `make install-release`
 - `make archive-release`
 - `make clean`
+- For local builds in this environment, the agent needs full filesystem access (danger-full-access).
+- If builds fail with SwiftData macro errors (`swift-plugin-server` malformed response), the issue is typically the local Xcode toolchain rather than project code.
 
 ### DMG packaging note
 - The `archive-release`/`dmg` targets use `create-dmg`, which briefly opens a Finder window while applying the DMG layout (background/icon positions). This is expected for local builds.

@@ -835,6 +835,10 @@ struct ProjectDetailView: View {
     let onDelete: (Project) -> Void
     let onClearActivity: (Project) -> Void
     @State private var showClearActivityDialog = false
+    fileprivate enum MetricLayout {
+        static let minHeight: CGFloat = 110
+        static let maxWidth: CGFloat = 360
+    }
     private enum Layout {
         static let sectionSpacing: CGFloat = 24
         static let cardPadding: CGFloat = 18
@@ -842,10 +846,11 @@ struct ProjectDetailView: View {
         static let cardStrokeOpacity: Double = 0.08
         static let heroIconSize: CGFloat = 64
         static let metricColumns: [GridItem] = [
-            GridItem(.flexible()),
-            GridItem(.flexible())
+            GridItem(.flexible(minimum: 0, maximum: MetricLayout.maxWidth), alignment: .bottomLeading),
+            GridItem(.flexible(minimum: 0, maximum: MetricLayout.maxWidth), alignment: .bottomLeading)
         ]
         static let metricSpacing: CGFloat = 14
+        static let metricGridWidth: CGFloat = MetricLayout.maxWidth * 2 + metricSpacing
         static let insetCornerRadius: CGFloat = 12
     }
 
@@ -960,20 +965,25 @@ struct ProjectDetailView: View {
                     .foregroundStyle(.secondary)
             }
 
-            LazyVGrid(columns: Layout.metricColumns, spacing: Layout.metricSpacing) {
-                MetricCard(title: "Total acumulado", value: project.totalSeconds.hoursAndMinutesString, subtitle: "Tu dedicación merece ser visible.")
-                MetricCard(title: "Mes", value: project.monthlySeconds.hoursAndMinutesString, subtitle: "Progreso del mes en curso.")
-                MetricCard(title: "Semana", value: project.weeklySeconds.hoursAndMinutesString, subtitle: "Constancia en los últimos 7 días.")
-                MetricCard(title: "Hoy", value: project.dailySeconds.hoursAndMinutesString, subtitle: "Cada minuto cuenta.")
-            }
+            VStack(alignment: .leading, spacing: Layout.metricSpacing) {
+                LazyVGrid(columns: Layout.metricColumns, spacing: Layout.metricSpacing) {
+                    MetricCard(title: "Total acumulado", value: project.totalSeconds.hoursAndMinutesString, subtitle: "Tu dedicación merece ser visible.")
+                    MetricCard(title: "Mes", value: project.monthlySeconds.hoursAndMinutesString, subtitle: "Progreso del mes en curso.")
+                    MetricCard(title: "Semana", value: project.weeklySeconds.hoursAndMinutesString, subtitle: "Constancia en los últimos 7 días.")
+                    MetricCard(title: "Hoy", value: project.dailySeconds.hoursAndMinutesString, subtitle: "Cada minuto cuenta.")
+                }
+                .frame(maxWidth: Layout.metricGridWidth, alignment: .leading)
 
-            HighlightMetricRow(
-                title: "Racha",
-                value: "\(project.streakCount) días",
-                subtitle: "Días consecutivos con actividad.",
-                icon: "flame.fill",
-                tint: .orange
-            )
+                HighlightMetricRow(
+                    title: "Racha",
+                    value: "\(project.streakCount) días",
+                    subtitle: "Días consecutivos con actividad.",
+                    icon: "flame.fill",
+                    tint: .orange
+                )
+            }
+            .frame(maxWidth: Layout.metricGridWidth, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .detailCardStyle(
             padding: Layout.cardPadding,
@@ -1112,8 +1122,14 @@ struct MetricCard: View {
             Text(subtitle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(2)
         }
         .padding(12)
+        .frame(
+            maxWidth: ProjectDetailView.MetricLayout.maxWidth,
+            minHeight: ProjectDetailView.MetricLayout.minHeight,
+            alignment: .bottomLeading
+        )
         .detailInsetStyle(
             cornerRadius: 14,
             strokeOpacity: 0.12
@@ -2176,7 +2192,7 @@ private struct HighlightMetricRow: View {
     let tint: Color
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .bottom, spacing: 12) {
             Circle()
                 .fill(tint.opacity(0.18))
                 .frame(width: 36, height: 36)
