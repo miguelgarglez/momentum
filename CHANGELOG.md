@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/miguelgarglez/momentum/compare/v1.0.0...v1.0.1) (2026-01-06)
+
+
+### Refactors
+
+* **ui:** align project metrics layout ([2ceda97](https://github.com/miguelgarglez/momentum/commit/2ceda97ab1985909754222b6ee840d8c1d43fd89))
+
 ## 1.0.0 (2026-01-05)
 
 
