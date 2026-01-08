@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/miguelgarglez/momentum/compare/v1.1.0...v1.2.0) (2026-01-08)
+
+
+### Features
+
+* **onboarding:** add welcome flow and permissions ([e65f73f](https://github.com/miguelgarglez/momentum/commit/e65f73fd77bd050741d7a8ebd0970e3f0ceeac3f))
+
 ## [1.1.0](https://github.com/miguelgarglez/momentum/compare/v1.0.2...v1.1.0) (2026-01-08)
 
 
