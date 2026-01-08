@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/miguelgarglez/momentum/compare/v1.0.2...v1.1.0) (2026-01-08)
+
+
+### Features
+
+* **models:** add longest streak tracking ([910f2b5](https://github.com/miguelgarglez/momentum/commit/910f2b547a667800f709c2cef4b11e2046472e05))
+* **tracking:** add manual tracking support ([a51db66](https://github.com/miguelgarglez/momentum/commit/a51db665a45e39dfc446f1ee7818ca9894a7b31e))
+
 ## [1.0.2](https://github.com/miguelgarglez/momentum/compare/v1.0.1...v1.0.2) (2026-01-08)
 
 
