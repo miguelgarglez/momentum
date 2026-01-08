@@ -2,6 +2,14 @@
 
 ## Project Structure & Module Organization
 - `Momentum/` holds the Swift/SwiftUI app source. Core areas: `Models/`, `Services/`, `Utilities/`, and `Views/`.
+- Core areas include their own `AGENTS.md` with focused guidelines (`Models/`, `Services/`, `Utilities/`, `Views/`).
+- `Momentum/Views/` is organized by feature and shared UI:
+  - `Views/Dashboard/` (dashboard header/metrics)
+  - `Views/Projects/` (project detail, activity charts, forms, list views)
+  - `Views/Tracking/` (pending conflict resolution views)
+  - `Views/Components/` (reusable UI like `ActionPanelView`, `ToastView`, `FlowLayout`, `LTRTextField`)
+  - `Views/Styles/` (shared view modifiers/styles like `DetailCardStyles`)
+- Subfolders under `Momentum/Views/` include their own `AGENTS.md` with focused guidelines.
 - `Momentum/Assets.xcassets` stores images and color assets.
 - `Momentum/Documentation.docc` contains in-app documentation.
 - Tests live in `MomentumTests/` (unit) and `MomentumUITests/` (UI).
@@ -64,6 +72,15 @@ Raw `xcodebuild` commands are still valid and occasionally useful:
 - Types use `UpperCamelCase`; properties and methods use `lowerCamelCase`.
 - Name files after their primary type (e.g., `ProjectManager.swift`).
 - Prefer small, composable SwiftUI view structs.
+
+## Architecture & Dependencies
+- Dependency direction: `Views` → `Services` → `Models` → `Utilities`.
+- Allowed cross-usage:
+  - `Views` can use `Services`, `Models`, `Utilities`.
+  - `Services` can use `Models`, `Utilities`.
+  - `Models` can use `Utilities` only when it represents domain concepts.
+- Avoid upward dependencies (e.g., `Models` importing `Services`, `Views` inside `Services`).
+- Keep `Utilities` free of app-specific state or side effects.
 
 ## Testing Guidelines
 - Tests are written with XCTest in `MomentumTests/` and `MomentumUITests/`.
