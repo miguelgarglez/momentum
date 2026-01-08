@@ -5,9 +5,12 @@ struct ProjectDetailView: View {
     @Bindable var project: Project
     @Query private var recentSessions: [TrackingSession]
     @State private var usageWindow: UsageWindow = .hour
+    @EnvironmentObject private var tracker: ActivityTracker
+    @EnvironmentObject private var trackingSessionManager: TrackingSessionManager
     let onEdit: (Project) -> Void
     let onDelete: (Project) -> Void
     let onClearActivity: (Project) -> Void
+    let onStartTracking: (Project) -> Void
     @State private var showClearActivityDialog = false
 
     fileprivate enum MetricLayout {
@@ -34,7 +37,8 @@ struct ProjectDetailView: View {
         project: Project,
         onEdit: @escaping (Project) -> Void = { _ in },
         onDelete: @escaping (Project) -> Void = { _ in },
-        onClearActivity: @escaping (Project) -> Void = { _ in }
+        onClearActivity: @escaping (Project) -> Void = { _ in },
+        onStartTracking: @escaping (Project) -> Void = { _ in }
     ) {
         self._project = Bindable(project)
         let projectID = project.persistentModelID
@@ -47,12 +51,24 @@ struct ProjectDetailView: View {
         self.onEdit = onEdit
         self.onDelete = onDelete
         self.onClearActivity = onClearActivity
+        self.onStartTracking = onStartTracking
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
                 header
+                if isTrackingCurrentProject {
+                    TrackingActiveSummaryView(
+                        elapsed: trackingSessionManager.elapsed,
+                        apps: trackingSessionManager.recentApps,
+                        domains: trackingSessionManager.recentDomains
+                    )
+                } else if isProjectEmpty {
+                    ProjectEmptyStateView {
+                        onStartTracking(project)
+                    }
+                }
                 summarySection
                 WeeklySummaryChartView(project: project)
                 ActivityHistorySectionView(project: project)
@@ -175,6 +191,17 @@ struct ProjectDetailView: View {
             return "Mejor racha: \(longest) días"
         }
         return "Racha de \(streak) días · Mejor: \(longest) días"
+    }
+
+    private var isProjectEmpty: Bool {
+        project.sessions.isEmpty && project.dailySummaries.isEmpty
+    }
+
+    private var isTrackingCurrentProject: Bool {
+        guard tracker.statusSummary.state == .tracking || tracker.statusSummary.state == .trackingManual else {
+            return false
+        }
+        return tracker.statusSummary.projectID == project.persistentModelID
     }
 
     private var assignmentsSection: some View {

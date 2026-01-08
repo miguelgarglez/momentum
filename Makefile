@@ -1,4 +1,4 @@
-.PHONY: help build build-for-testing test test-unit test-ui run-dev run-release run reset-dev-data archive-release install-release dmg clean clean-release
+.PHONY: help build build-for-testing test test-unit test-ui run-dev run-dev-onboarding run-release run reset-dev-data archive-release install-release dmg clean clean-release
 
 PROJECT := Momentum.xcodeproj
 SCHEME := Momentum
@@ -9,7 +9,8 @@ DEV_BUNDLE_ID ?= miguelgarglez.Momentum.dev
 RELEASE_BUNDLE_ID ?= miguelgarglez.Momentum
 RUN_BUNDLE_ID ?= $(DEV_BUNDLE_ID)
 CONFIGURATION ?= Debug
-DEV_STORE_DIR ?= $(HOME)/Library/Application\ Support/MomentumStore
+DEV_STORE_DIR ?= $(HOME)/Library/Containers/$(DEV_BUNDLE_ID)/Data/Library/Application Support/MomentumStore
+LEGACY_DEV_STORE_DIR ?= $(HOME)/Library/Application Support/MomentumStore
 ARCHIVE_DIR ?= build/archives
 INSTALL_DIR ?= /Applications
 ZIP_DIR ?= $(HOME)/Downloads
@@ -35,6 +36,7 @@ help:
 	@echo "  test-unit         Run unit tests only"
 	@echo "  test-ui           Run UI tests only"
 	@echo "  run-dev           Build and launch the dev app (quits running dev app first)"
+	@echo "  run-dev-onboarding Run dev app with fresh store, no debug seed, and clean onboarding"
 	@echo "  run-release       Build and launch the release app (quits running release app first)"
 	@echo "  reset-dev-data    Remove dev store + seed flag, then run dev app"
 	@echo "  install-release   Build Release and copy app to /Applications"
@@ -114,13 +116,27 @@ run: build
 		echo "App not found at $$APP_PATH"; \
 		exit 1; \
 	fi; \
-	open "$$APP_PATH"
+	if [ -n "$(RUN_ARGS)" ]; then \
+		open "$$APP_PATH" --args $(RUN_ARGS); \
+	else \
+		open "$$APP_PATH"; \
+	fi
+
+run-dev-onboarding:
+	@set -euo pipefail; \
+	osascript -e 'tell application id "$(DEV_BUNDLE_ID)" to quit' 2>/dev/null || true; \
+	defaults delete "$(DEV_BUNDLE_ID)" Momentum.DebugSeeded >/dev/null 2>&1 || true; \
+	defaults delete "$(DEV_BUNDLE_ID)" Onboarding.hasSeenWelcome >/dev/null 2>&1 || true; \
+	defaults delete "$(DEV_BUNDLE_ID)" Onboarding.hasCreatedProject >/dev/null 2>&1 || true; \
+	defaults delete "$(DEV_BUNDLE_ID)" Onboarding.hasAccessibilityPermissionPrompted >/dev/null 2>&1 || true; \
+	rm -rf "$(DEV_STORE_DIR)" "$(LEGACY_DEV_STORE_DIR)"; \
+	$(MAKE) run-dev RUN_ARGS="--skip-debug-seed"
 
 reset-dev-data:
 	@set -euo pipefail; \
 	osascript -e 'tell application id "$(DEV_BUNDLE_ID)" to quit' 2>/dev/null || true; \
 	defaults delete "$(DEV_BUNDLE_ID)" Momentum.DebugSeeded >/dev/null 2>&1 || true; \
-	rm -rf "$(DEV_STORE_DIR)"; \
+	rm -rf "$(DEV_STORE_DIR)" "$(LEGACY_DEV_STORE_DIR)"; \
 	$(MAKE) run-dev
 
 install-release:

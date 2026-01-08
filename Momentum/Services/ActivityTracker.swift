@@ -42,6 +42,7 @@ final class ActivityTracker: ObservableObject {
         var state: State
         var appName: String?
         var domain: String?
+        var bundleIdentifier: String?
         var projectName: String?
         var projectID: PersistentIdentifier?
     }
@@ -854,6 +855,7 @@ final class ActivityTracker: ObservableObject {
                 state: .trackingManual,
                 appName: context.appName,
                 domain: context.domain,
+                bundleIdentifier: context.bundleIdentifier,
                 projectName: context.projectName,
                 projectID: context.projectID
             )
@@ -864,6 +866,7 @@ final class ActivityTracker: ObservableObject {
                 state: .pausedExcluded,
                 appName: context.appName,
                 domain: context.domain,
+                bundleIdentifier: context.bundleIdentifier,
                 projectName: nil,
                 projectID: nil
             )
@@ -874,6 +877,7 @@ final class ActivityTracker: ObservableObject {
                 state: .pendingResolution,
                 appName: context.appName,
                 domain: context.domain,
+                bundleIdentifier: context.bundleIdentifier,
                 projectName: nil,
                 projectID: nil
             )
@@ -883,6 +887,7 @@ final class ActivityTracker: ObservableObject {
             state: .tracking,
             appName: context.appName,
             domain: context.domain,
+            bundleIdentifier: context.bundleIdentifier,
             projectName: context.projectName,
             projectID: context.projectID
         )

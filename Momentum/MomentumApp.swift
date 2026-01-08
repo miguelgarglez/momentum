@@ -16,6 +16,9 @@ import AppKit
 struct MomentumApp: App {
     @StateObject private var trackerSettings: TrackerSettings
     @StateObject private var environment: AppEnvironment
+    @StateObject private var onboardingState = OnboardingState()
+    @StateObject private var automationPermissionManager = AutomationPermissionManager()
+    @StateObject private var trackingSessionManager = TrackingSessionManager()
     @StateObject private var themePreview = ThemePreviewState()
     @State private var bootstrapError: String?
     @State private var isBootstrapping = false
@@ -36,6 +39,9 @@ struct MomentumApp: App {
                         .environmentObject(tracker)
                         .environmentObject(environment.trackerSettings)
                         .environmentObject(environment.appCatalog)
+                        .environmentObject(onboardingState)
+                        .environmentObject(automationPermissionManager)
+                        .environmentObject(trackingSessionManager)
                         .environmentObject(themePreview)
                         .modelContainer(container)
                 } else if let bootstrapError {
@@ -69,6 +75,9 @@ struct MomentumApp: App {
                     TrackerSettingsView()
                         .environmentObject(environment.trackerSettings)
                         .environmentObject(environment.appCatalog)
+                        .environmentObject(onboardingState)
+                        .environmentObject(automationPermissionManager)
+                        .environmentObject(trackingSessionManager)
                         .environmentObject(themePreview)
                         .modelContainer(container)
                 } else {
@@ -88,6 +97,37 @@ struct MomentumApp: App {
         }
         .windowResizability(.contentSize)
         .defaultSize(width: 420, height: 360)
+
+#if os(macOS)
+        WindowGroup(id: OnboardingWindowID.welcome) {
+            Group {
+                if let container = environment.container,
+                   let tracker = environment.tracker {
+                    OnboardingWelcomeWindowView()
+                        .environmentObject(tracker)
+                        .environmentObject(environment.trackerSettings)
+                        .environmentObject(environment.appCatalog)
+                        .environmentObject(onboardingState)
+                        .environmentObject(automationPermissionManager)
+                        .environmentObject(trackingSessionManager)
+                        .environmentObject(themePreview)
+                        .modelContainer(container)
+                } else {
+                    ProgressView("Preparando Momentum…")
+                        .padding()
+                }
+            }
+            .task {
+                await bootstrapIfNeeded()
+            }
+            .preferredColorSchemeIfNeeded(effectiveThemePreference.colorScheme)
+            .task(id: effectiveThemePreference) {
+                applyAppearance(for: effectiveThemePreference)
+            }
+        }
+        .windowResizability(.contentSize)
+        .defaultSize(width: 480, height: 460)
+#endif
     }
 
 #if os(macOS)
@@ -151,6 +191,11 @@ private extension MomentumApp {
 
     static var shouldSeedRules: Bool {
         CommandLine.arguments.contains("--seed-rules")
+    }
+
+    static var shouldSkipDebugSeed: Bool {
+        CommandLine.arguments.contains("--skip-debug-seed")
+            || ProcessInfo.processInfo.environment["MOMENTUM_SKIP_DEBUG_SEED"] == "1"
     }
 
     static func makeStoreURL(in directory: URL) -> URL {
@@ -256,7 +301,7 @@ final class AppEnvironment: ObservableObject {
 
         let container = try ModelContainer(for: schema, configurations: [configuration])
 #if DEBUG
-        if !isUITest {
+        if !isUITest && !MomentumApp.shouldSkipDebugSeed {
             seedDebugDataIfNeeded(in: container)
         }
 #endif

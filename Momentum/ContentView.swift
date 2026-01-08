@@ -15,6 +15,9 @@ import AppKit
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var tracker: ActivityTracker
+    @EnvironmentObject private var onboardingState: OnboardingState
+    @EnvironmentObject private var automationPermissionManager: AutomationPermissionManager
+    @EnvironmentObject private var trackingSessionManager: TrackingSessionManager
     @Query(
         sort: [
             SortDescriptor(\Project.createdAt, order: .forward)
@@ -27,8 +30,13 @@ struct ContentView: View {
     @State private var activeProjectSheet: ProjectSheet?
     @State private var showConflictSheet = false
     @State private var showManualTrackingSheet = false
+    @State private var showAutomationPrompt = false
     @State private var toast: ToastMessage?
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+#if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+#endif
+    @State private var hasPresentedWelcome = false
 
     fileprivate enum Layout {
         static let actionPanelWidth: CGFloat = 84
@@ -122,6 +130,33 @@ struct ContentView: View {
             )
             .environmentObject(tracker)
         }
+        .sheet(isPresented: $showAutomationPrompt) {
+            AutomationPermissionPromptView(
+                onOpenSettings: {
+                    automationPermissionManager.openSystemSettings()
+                    showAutomationPrompt = false
+                },
+                onLater: {
+                    showAutomationPrompt = false
+                }
+            )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .onboardingProjectCreated)) { notification in
+            handleOnboardingProjectCreated(notification)
+        }
+        .onChange(of: projects.count) { _, newValue in
+            if newValue > 0 {
+                onboardingState.markProjectCreated()
+            }
+        }
+        .onReceive(tracker.$statusSummary) { summary in
+            trackingSessionManager.updateTrackingState(isActive: summary.state == .tracking || summary.state == .trackingManual)
+            trackingSessionManager.ingest(summary: summary)
+            handleBrowserPromptIfNeeded(for: summary)
+        }
+        .task {
+            showWelcomeWindowIfNeeded()
+        }
     }
 
     @ViewBuilder
@@ -131,7 +166,8 @@ struct ContentView: View {
                 project: selected,
                 onEdit: { activeProjectSheet = .edit($0) },
                 onDelete: { deleteProject($0) },
-                onClearActivity: { clearActivity(for: $0) }
+                onClearActivity: { clearActivity(for: $0) },
+                onStartTracking: { startTracking(for: $0) }
             )
         } else {
             WelcomeView()
@@ -226,6 +262,7 @@ struct ContentView: View {
                 do {
                     try modelContext.save()
                     selectedProjectID = project.persistentModelID
+                    onboardingState.markProjectCreated()
                     showToast("Proyecto creado", style: .success)
                 } catch {
                     showToast("No pudimos crear el proyecto", style: .error)
@@ -293,6 +330,7 @@ struct ContentView: View {
         do {
             try modelContext.save()
             startManualTracking(with: project)
+            onboardingState.markProjectCreated()
         } catch {
             showToast("No pudimos crear el proyecto", style: .error)
         }
@@ -399,6 +437,46 @@ struct ContentView: View {
     private var pendingConflicts: [PendingConflict] {
         PendingConflict.grouped(from: pendingSessions, projects: projects)
     }
+
+    private func startTracking(for project: Project) {
+        startManualTracking(with: project)
+    }
+
+    private func handleBrowserPromptIfNeeded(for summary: ActivityTracker.StatusSummary) {
+        guard summary.state == .tracking || summary.state == .trackingManual else { return }
+        guard !onboardingState.hasAutomationPermissionPrompted else { return }
+        guard !showAutomationPrompt else { return }
+        guard let bundleIdentifier = summary.bundleIdentifier,
+              AutomationPermissionManager.browserBundleIdentifiers.contains(bundleIdentifier) else {
+            return
+        }
+        onboardingState.markAutomationPrompted()
+        showAutomationPrompt = true
+    }
+
+    private func handleOnboardingProjectCreated(_ notification: Notification) {
+        guard let identifier = notification.userInfo?[OnboardingUserInfoKey.projectID] as? PersistentIdentifier else {
+            return
+        }
+        selectedProjectID = identifier
+        let shouldStartTracking = (notification.userInfo?[OnboardingUserInfoKey.startTracking] as? Bool) ?? false
+        if shouldStartTracking,
+           let project = projects.first(where: { $0.persistentModelID == identifier }) {
+            startTracking(for: project)
+        }
+    }
+
+#if os(macOS)
+    private func showWelcomeWindowIfNeeded() {
+        guard !onboardingState.hasSeenWelcome, !hasPresentedWelcome else { return }
+        hasPresentedWelcome = true
+        if #available(macOS 13.0, *) {
+            openWindow(id: OnboardingWindowID.welcome)
+        }
+    }
+#else
+    private func showWelcomeWindowIfNeeded() {}
+#endif
 }
 
 private enum ProjectSheet: Identifiable {
@@ -420,6 +498,9 @@ private struct ContentViewPreviewWrapper: View {
     let tracker: ActivityTracker
     let settings: TrackerSettings
     let catalog: AppCatalog
+    let onboardingState: OnboardingState
+    let automationPermissionManager: AutomationPermissionManager
+    let trackingSessionManager: TrackingSessionManager
 
     init() {
         let schemaContainer = try! ModelContainer(
@@ -453,6 +534,9 @@ private struct ContentViewPreviewWrapper: View {
         self.tracker = previewTracker
         self.settings = previewSettings
         self.catalog = previewCatalog
+        self.onboardingState = OnboardingState()
+        self.automationPermissionManager = AutomationPermissionManager()
+        self.trackingSessionManager = TrackingSessionManager()
     }
 
     var body: some View {
@@ -460,6 +544,9 @@ private struct ContentViewPreviewWrapper: View {
             .environmentObject(tracker)
             .environmentObject(settings)
             .environmentObject(catalog)
+            .environmentObject(onboardingState)
+            .environmentObject(automationPermissionManager)
+            .environmentObject(trackingSessionManager)
             .modelContainer(container)
     }
 }
