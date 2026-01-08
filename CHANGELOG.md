@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.2](https://github.com/miguelgarglez/momentum/compare/v1.0.1...v1.0.2) (2026-01-08)
+
+
+### Refactors
+
+* **ui:** split views into modules ([d3bb32e](https://github.com/miguelgarglez/momentum/commit/d3bb32ed14c2a12824658270e6fbbb8757a3450f))
+
+
+### Tests
+
+* **ui:** stabilize dashboard assertions ([40573f1](https://github.com/miguelgarglez/momentum/commit/40573f18a9ec6bc33fc26c1390f1664d1e2f9dbe))
+
 ## [1.0.1](https://github.com/miguelgarglez/momentum/compare/v1.0.0...v1.0.1) (2026-01-06)
 
 
