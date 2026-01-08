@@ -99,6 +99,34 @@ final class MomentumUITests: XCTestCase {
         XCTAssertTrue(bannerText.waitForExistence(timeout: 3))
     }
 
+    func testManualTrackingFlowFromMainWindow() throws {
+        let app = launch(reset: true)
+        createProject(named: "Manual UI", domain: nil, in: app)
+
+        let manualButton = app.buttons["Iniciar tracking manual"]
+        XCTAssertTrue(manualButton.waitForExistence(timeout: 2))
+        manualButton.click()
+
+        XCTAssertTrue(app.staticTexts["Tracking manual"].waitForExistence(timeout: 2))
+        let picker = app.popUpButtons["manual-tracking-project-picker"]
+        if picker.waitForExistence(timeout: 2) {
+            picker.click()
+            let menuItem = picker.menuItems["Manual UI"].firstMatch
+            XCTAssertTrue(menuItem.waitForExistence(timeout: 2))
+            menuItem.click()
+        }
+
+        let startButton = app.buttons["Empezar"]
+        XCTAssertTrue(startButton.waitForExistence(timeout: 2))
+        startButton.click()
+
+        let stopButton = app.buttons["Detener manual"]
+        XCTAssertTrue(stopButton.waitForExistence(timeout: 2))
+        stopButton.click()
+
+        XCTAssertTrue(app.buttons["Iniciar tracking manual"].waitForExistence(timeout: 2))
+    }
+
     func testAssignmentRulesAppearInSettings() throws {
         let app = launch(reset: true, seedRules: true)
         app.typeKey(",", modifierFlags: .command)

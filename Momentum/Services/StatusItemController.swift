@@ -11,7 +11,9 @@ final class StatusItemController: NSObject {
     private var currentTimeString: String = ""
     private var latestSummary: ActivityTracker.StatusSummary
     private var pendingConflictCount: Int
+    private var isManualTrackingActive: Bool
     private weak var badgeView: NSView?
+    private weak var manualBadgeView: NSView?
 
     private lazy var timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -25,6 +27,7 @@ final class StatusItemController: NSObject {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.latestSummary = tracker.statusSummary
         self.pendingConflictCount = tracker.pendingConflictCount
+        self.isManualTrackingActive = tracker.isManualTrackingActive
         super.init()
         configureButton()
         updateClockLabel()
@@ -42,6 +45,15 @@ final class StatusItemController: NSObject {
             .sink { [weak self] count in
                 guard let self else { return }
                 self.pendingConflictCount = count
+                self.updateButtonBadge()
+                self.rebuildMenu()
+            }
+            .store(in: &cancellables)
+        tracker.$isManualTrackingActive
+            .receive(on: RunLoop.main)
+            .sink { [weak self] isActive in
+                guard let self else { return }
+                self.isManualTrackingActive = isActive
                 self.updateButtonBadge()
                 self.rebuildMenu()
             }
@@ -66,7 +78,7 @@ final class StatusItemController: NSObject {
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
 
-        if pendingConflictCount > 0 {
+        if pendingConflictCount > 0 && !isManualTrackingActive {
             if badgeView == nil {
                 let badgeSize: CGFloat = 6
                 let dot = NSView()
@@ -86,6 +98,28 @@ final class StatusItemController: NSObject {
         } else {
             badgeView?.removeFromSuperview()
             badgeView = nil
+        }
+
+        if isManualTrackingActive {
+            if manualBadgeView == nil {
+                let badgeSize: CGFloat = 6
+                let dot = NSView()
+                dot.wantsLayer = true
+                dot.layer?.backgroundColor = NSColor.systemTeal.cgColor
+                dot.layer?.cornerRadius = badgeSize / 2
+                dot.translatesAutoresizingMaskIntoConstraints = false
+                button.addSubview(dot)
+                NSLayoutConstraint.activate([
+                    dot.widthAnchor.constraint(equalToConstant: badgeSize),
+                    dot.heightAnchor.constraint(equalToConstant: badgeSize),
+                    dot.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -7),
+                    dot.topAnchor.constraint(equalTo: button.topAnchor, constant: 4)
+                ])
+                manualBadgeView = dot
+            }
+        } else {
+            manualBadgeView?.removeFromSuperview()
+            manualBadgeView = nil
         }
     }
 
@@ -119,7 +153,17 @@ final class StatusItemController: NSObject {
         toggleItem.target = self
         menu.addItem(toggleItem)
 
-        if pendingConflictCount > 0 {
+        if tracker.isManualTrackingActive {
+            let stopManualItem = NSMenuItem(title: "Detener tracking manual", action: #selector(handleStopManualTracking), keyEquivalent: "")
+            stopManualItem.target = self
+            menu.addItem(stopManualItem)
+        } else {
+            let startManualItem = NSMenuItem(title: "Iniciar tracking manual", action: #selector(handleStartManualTracking), keyEquivalent: "")
+            startManualItem.target = self
+            menu.addItem(startManualItem)
+        }
+
+        if pendingConflictCount > 0 && !tracker.isManualTrackingActive {
             let conflictTitle = "Resolver conflictos (\(pendingConflictCount))"
             let conflictItem = NSMenuItem(title: conflictTitle, action: #selector(handleShowApp), keyEquivalent: "")
             conflictItem.target = self
@@ -161,6 +205,18 @@ final class StatusItemController: NSObject {
             }
             let projectLabel = summary.projectName ?? "Sin proyecto asignado"
             menu.addItem(disabledItem("Proyecto: \(projectLabel)"))
+        case .trackingManual:
+            if let appName = summary.appName {
+                if let domain = summary.domain {
+                    menu.addItem(disabledItem("\(appName) • \(domain)"))
+                } else {
+                    menu.addItem(disabledItem(appName))
+                }
+            } else {
+                menu.addItem(disabledItem("Tracking manual activo"))
+            }
+            let projectLabel = summary.projectName ?? "Sin proyecto asignado"
+            menu.addItem(disabledItem("Proyecto manual: \(projectLabel)"))
         case .pendingResolution:
             if let appName = summary.appName {
                 if let domain = summary.domain {
@@ -197,6 +253,8 @@ final class StatusItemController: NSObject {
         switch summary.state {
         case .tracking:
             return "Tracking activo"
+        case .trackingManual:
+            return "Tracking manual activo"
         case .pendingResolution:
             return "Pendiente de asignación"
         case .pausedManual:
@@ -222,6 +280,15 @@ final class StatusItemController: NSObject {
         tracker.toggleTracking()
     }
 
+    @objc private func handleStartManualTracking(_ sender: Any?) {
+        handleShowApp(sender)
+        NotificationCenter.default.post(name: .statusItemStartManualTracking, object: nil)
+    }
+
+    @objc private func handleStopManualTracking(_ sender: Any?) {
+        tracker.stopManualTracking(reason: .manual)
+    }
+
     @objc private func handleShowApp(_ sender: Any?) {
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
@@ -244,6 +311,7 @@ final class StatusItemController: NSObject {
 
 extension Notification.Name {
     static let statusItemOpenProject = Notification.Name("StatusItemOpenProject")
+    static let statusItemStartManualTracking = Notification.Name("StatusItemStartManualTracking")
 }
 
 enum StatusItemUserInfoKey {

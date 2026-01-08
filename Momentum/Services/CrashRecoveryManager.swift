@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import OSLog
 #if os(macOS)
 import AppKit
@@ -13,6 +14,9 @@ struct SessionSnapshot: Codable, Equatable {
     var startDate: Date
     var projectName: String?
     var isExcluded: Bool
+    var isManualTrackingActive: Bool?
+    var manualProjectID: PersistentIdentifier?
+    var manualStartDate: Date?
 }
 
 /// Abstraction for components that can persist and restore crash recovery

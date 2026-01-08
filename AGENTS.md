@@ -12,6 +12,7 @@
 - Subfolders under `Momentum/Views/` include their own `AGENTS.md` with focused guidelines.
 - `Momentum/Assets.xcassets` stores images and color assets.
 - `Momentum/Documentation.docc` contains in-app documentation.
+- `PRDs/` stores product requirement docs and plans (see `PRDs/README.md`).
 - Tests live in `MomentumTests/` (unit) and `MomentumUITests/` (UI).
 - `Momentum.xcodeproj` is the Xcode project entry point.
 

@@ -31,6 +31,7 @@ final class ActivityTracker: ObservableObject {
         enum State: Equatable {
             case inactive
             case tracking
+            case trackingManual
             case pendingResolution
             case pausedManual
             case pausedIdle
@@ -45,9 +46,22 @@ final class ActivityTracker: ObservableObject {
         var projectID: PersistentIdentifier?
     }
 
+    enum ManualStopReason: String, Equatable {
+        case manual
+        case idle
+        case screenLocked
+    }
+
+    struct ManualStopEvent: Identifiable, Equatable {
+        let id = UUID()
+        let reason: ManualStopReason
+    }
+
     @Published private(set) var isTrackingEnabled = true
     @Published private(set) var statusSummary = StatusSummary(state: .inactive)
     @Published private(set) var pendingConflictCount: Int = 0
+    @Published private(set) var isManualTrackingActive: Bool = false
+    @Published private(set) var manualStopEvent: ManualStopEvent?
 
     private let modelContainer: ModelContainer
     private let settings: TrackerSettings
@@ -77,6 +91,8 @@ final class ActivityTracker: ObservableObject {
     private var isUserIdle = false
     private var isScreenLocked = false
     private var idleBeganAt: Date?
+    private var manualProjectID: PersistentIdentifier?
+    private var manualStartDate: Date?
     private var cancellables: Set<AnyCancellable> = []
 
     init(
@@ -101,6 +117,7 @@ final class ActivityTracker: ObservableObject {
                 self?.handleAppChange(app)
             }
         }
+        recoverLastSessionIfNeeded()
         handleAppChange(NSWorkspace.shared.frontmostApplication)
         startHeartbeat()
         startDomainPolling()
@@ -109,7 +126,6 @@ final class ActivityTracker: ObservableObject {
         observeSettings()
         startRuleExpirationMonitoring()
         refreshStatusSummary()
-        recoverLastSessionIfNeeded()
         refreshPendingConflictCount()
     }
 
@@ -120,8 +136,20 @@ final class ActivityTracker: ObservableObject {
     }
 
     private func recoverLastSessionIfNeeded() {
-        guard let snapshot = crashRecovery.consumePendingSnapshot(),
-              !snapshot.isExcluded else { return }
+        guard let snapshot = crashRecovery.consumePendingSnapshot() else { return }
+        if snapshot.isManualTrackingActive ?? false {
+            if let manualProject = fetchManualProject(for: snapshot.manualProjectID) {
+                isManualTrackingActive = true
+                manualProjectID = manualProject.persistentModelID
+                manualStartDate = snapshot.manualStartDate ?? snapshot.startDate
+            } else {
+                logger.notice("Manual tracking snapshot referenced missing project; skipping manual restore")
+                isManualTrackingActive = false
+                manualProjectID = nil
+                manualStartDate = nil
+            }
+        }
+        guard !snapshot.isExcluded else { return }
         var context = AppSessionContext(
             appName: snapshot.appName,
             bundleIdentifier: snapshot.bundleIdentifier,
@@ -132,7 +160,11 @@ final class ActivityTracker: ObservableObject {
             isExcluded: snapshot.isExcluded,
             isPendingAssignment: false
         )
-        updateProjectAssociation(for: &context)
+        if isManualTrackingActive {
+            applyManualProjectAssociation(to: &context)
+        } else {
+            updateProjectAssociation(for: &context)
+        }
         let endDate = Date()
         performanceMonitor.measure("session.recover") {
             persistSession(context: context, endDate: endDate)
@@ -141,14 +173,52 @@ final class ActivityTracker: ObservableObject {
     }
 
     func toggleTracking() {
-        isTrackingEnabled.toggle()
-        logger.info("Tracking toggled. Enabled: \(self.isTrackingEnabled, privacy: .public)")
         if isTrackingEnabled {
-            restartTimersIfNeeded()
-            handleAppChange(NSWorkspace.shared.frontmostApplication)
-        } else {
+            if isManualTrackingActive {
+                stopManualTracking(reason: .manual, resumeAutomatically: false)
+            }
+            isTrackingEnabled = false
+            logger.info("Tracking toggled. Enabled: \(self.isTrackingEnabled, privacy: .public)")
             _ = flushCurrentSession()
             pauseTimers()
+        } else {
+            isTrackingEnabled = true
+            logger.info("Tracking toggled. Enabled: \(self.isTrackingEnabled, privacy: .public)")
+            restartTimersIfNeeded()
+            handleAppChange(NSWorkspace.shared.frontmostApplication)
+        }
+        refreshStatusSummary()
+    }
+
+    func startManualTracking(project: Project) {
+        _ = flushCurrentSession()
+        if !isTrackingEnabled {
+            isTrackingEnabled = true
+        }
+        isManualTrackingActive = true
+        manualProjectID = project.persistentModelID
+        manualStartDate = Date()
+        restartTimersIfNeeded()
+        handleAppChange(NSWorkspace.shared.frontmostApplication)
+        refreshStatusSummary()
+    }
+
+    func stopManualTracking(reason: ManualStopReason, resumeAutomatically: Bool = true) {
+        guard isManualTrackingActive else { return }
+        _ = flushCurrentSession()
+        isManualTrackingActive = false
+        manualProjectID = nil
+        manualStartDate = nil
+        manualStopEvent = ManualStopEvent(reason: reason)
+        if resumeAutomatically {
+            if isTrackingEnabled, !isUserIdle, !isScreenLocked {
+                restartTimersIfNeeded()
+                handleAppChange(NSWorkspace.shared.frontmostApplication)
+            } else {
+                setCurrentContext(nil)
+            }
+        } else {
+            setCurrentContext(nil)
         }
         refreshStatusSummary()
     }
@@ -162,7 +232,7 @@ final class ActivityTracker: ObservableObject {
         }
         let identifier = application.bundleIdentifier ?? application.localizedName ?? "unknown"
         logger.debug("Active app is now \(identifier, privacy: .public)")
-        let isExcludedApp = settings.isAppExcluded(application.bundleIdentifier)
+        let isExcludedApp = isManualTrackingActive ? false : settings.isAppExcluded(application.bundleIdentifier)
         var context = AppSessionContext(
             appName: application.localizedName ?? "App",
             bundleIdentifier: application.bundleIdentifier,
@@ -208,6 +278,11 @@ final class ActivityTracker: ObservableObject {
 
     private func persistSession(context: AppSessionContext, endDate: Date) {
         guard endDate > context.startDate else { return }
+        if isManualTrackingActive {
+            guard let manualProject = resolveManualProject() else { return }
+            persistManualSession(context: context, endDate: endDate, project: manualProject)
+            return
+        }
         switch assignmentResolver.resolveAssignment(for: context.bundleIdentifier, domain: context.domain) {
         case let .assigned(project, _):
             persistSession(context: context, endDate: endDate, project: project)
@@ -225,6 +300,26 @@ final class ActivityTracker: ObservableObject {
             logger.info("Logged \(endDate.timeIntervalSince(context.startDate), privacy: .public)s for \(context.appName, privacy: .public) project=\(project.name, privacy: .public)")
         } catch {
             logger.error("Failed to save session: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func persistManualSession(context: AppSessionContext, endDate: Date, project: Project) {
+        insertResolvedSession(context: context, endDate: endDate, project: project)
+        updateManualProjectAssignments(for: project, context: context)
+        do {
+            try modelContainer.mainContext.save()
+            logger.info("Logged manual \(endDate.timeIntervalSince(context.startDate), privacy: .public)s for \(context.appName, privacy: .public) project=\(project.name, privacy: .public)")
+        } catch {
+            logger.error("Failed to save manual session: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func updateManualProjectAssignments(for project: Project, context: AppSessionContext) {
+        if let bundleIdentifier = context.bundleIdentifier, !bundleIdentifier.isEmpty {
+            project.addAssignedApp(bundleIdentifier)
+        }
+        if settings.isDomainTrackingEnabled, let domain = context.domain, !domain.isEmpty {
+            project.addAssignedDomain(domain)
         }
     }
 
@@ -422,8 +517,12 @@ final class ActivityTracker: ObservableObject {
               let domain,
               var context = currentContext else { return }
         guard context.bundleIdentifier == application.bundleIdentifier else { return }
+        let ignoreExclusions = isManualTrackingActive
+        if ignoreExclusions && context.isExcluded {
+            context.isExcluded = false
+        }
 
-        if settings.isDomainExcluded(domain) {
+        if !ignoreExclusions, settings.isDomainExcluded(domain) {
             logger.debug("Domain \(domain, privacy: .public) marked as excluded. Suspending tracking.")
             let source = context
             if let (_, endDate) = flushCurrentSession() {
@@ -462,7 +561,7 @@ final class ActivityTracker: ObservableObject {
             return
         }
 
-        if context.isExcluded {
+        if !ignoreExclusions, context.isExcluded {
             logger.debug("Domain \(domain, privacy: .public) is allowed again. Resuming tracking.")
             let source = context
             if let (_, endDate) = flushCurrentSession() {
@@ -533,6 +632,7 @@ final class ActivityTracker: ObservableObject {
     }
 
     private func enforceExclusionRules() {
+        guard !isManualTrackingActive else { return }
         guard let context = currentContext else { return }
         let shouldExclude = settings.isAppExcluded(context.bundleIdentifier) || settings.isDomainExcluded(context.domain)
         if shouldExclude && !context.isExcluded {
@@ -652,8 +752,12 @@ final class ActivityTracker: ObservableObject {
                 refreshStatusSummary()
                 return
             }
-            _ = flushCurrentSession()
-            setCurrentContext(nil)
+            if isManualTrackingActive {
+                stopManualTracking(reason: .screenLocked, resumeAutomatically: false)
+            } else {
+                _ = flushCurrentSession()
+                setCurrentContext(nil)
+            }
             pauseTimers()
             refreshStatusSummary()
         } else {
@@ -688,8 +792,12 @@ final class ActivityTracker: ObservableObject {
             isUserIdle = true
             idleBeganAt = Date()
             logger.notice("User became idle after \(idleSeconds, privacy: .public)s (threshold \(threshold, privacy: .public)s)")
-            _ = flushCurrentSession()
-            setCurrentContext(nil)
+            if isManualTrackingActive {
+                stopManualTracking(reason: .idle, resumeAutomatically: false)
+            } else {
+                _ = flushCurrentSession()
+                setCurrentContext(nil)
+            }
             refreshStatusSummary()
             return
         }
@@ -741,6 +849,16 @@ final class ActivityTracker: ObservableObject {
             statusSummary = StatusSummary(state: .inactive)
             return
         }
+        if isManualTrackingActive {
+            statusSummary = StatusSummary(
+                state: .trackingManual,
+                appName: context.appName,
+                domain: context.domain,
+                projectName: context.projectName,
+                projectID: context.projectID
+            )
+            return
+        }
         if context.isExcluded {
             statusSummary = StatusSummary(
                 state: .pausedExcluded,
@@ -772,11 +890,22 @@ final class ActivityTracker: ObservableObject {
 
     private func setCurrentContext(_ context: AppSessionContext?) {
         currentContext = context
-        crashRecovery.persist(snapshot: context.map { SessionSnapshot(context: $0) })
+        crashRecovery.persist(snapshot: context.map {
+            SessionSnapshot(
+                context: $0,
+                isManualTrackingActive: isManualTrackingActive,
+                manualProjectID: manualProjectID,
+                manualStartDate: manualStartDate
+            )
+        })
         refreshStatusSummary()
     }
 
     private func updateProjectAssociation(for context: inout AppSessionContext) {
+        if isManualTrackingActive {
+            applyManualProjectAssociation(to: &context)
+            return
+        }
         switch assignmentResolver.resolveAssignment(for: context.bundleIdentifier, domain: context.domain) {
         case let .assigned(project, _):
             context.projectID = project.persistentModelID
@@ -791,6 +920,29 @@ final class ActivityTracker: ObservableObject {
             context.projectName = nil
             context.isPendingAssignment = false
         }
+    }
+
+    private func applyManualProjectAssociation(to context: inout AppSessionContext) {
+        guard let manualProject = resolveManualProject() else {
+            context.projectID = nil
+            context.projectName = nil
+            context.isPendingAssignment = false
+            return
+        }
+        context.projectID = manualProject.persistentModelID
+        context.projectName = manualProject.name
+        context.isPendingAssignment = false
+    }
+
+    private func resolveManualProject() -> Project? {
+        fetchManualProject(for: manualProjectID)
+    }
+
+    private func fetchManualProject(for identifier: PersistentIdentifier?) -> Project? {
+        guard let identifier else { return nil }
+        let descriptor = FetchDescriptor<Project>()
+        guard let projects = try? modelContainer.mainContext.fetch(descriptor) else { return nil }
+        return projects.first(where: { $0.persistentModelID == identifier })
     }
 
     private func refreshPendingConflictCount() {
@@ -918,20 +1070,36 @@ private struct AppSessionContext {
 }
 
 private extension SessionSnapshot {
-    init(context: AppSessionContext) {
+    init(
+        context: AppSessionContext,
+        isManualTrackingActive: Bool,
+        manualProjectID: PersistentIdentifier?,
+        manualStartDate: Date?
+    ) {
         self.init(
             appName: context.appName,
             bundleIdentifier: context.bundleIdentifier,
             domain: context.domain,
             startDate: context.startDate,
             projectName: context.projectName,
-            isExcluded: context.isExcluded
+            isExcluded: context.isExcluded,
+            isManualTrackingActive: isManualTrackingActive,
+            manualProjectID: manualProjectID,
+            manualStartDate: manualStartDate
         )
     }
 }
 
 #if DEBUG
 extension ActivityTracker {
+    func testing_startManualTracking(project: Project) {
+        isTrackingEnabled = true
+        isManualTrackingActive = true
+        manualProjectID = project.persistentModelID
+        manualStartDate = Date()
+        refreshStatusSummary()
+    }
+
     func testing_beginContext(
         appName: String,
         bundleIdentifier: String? = nil,

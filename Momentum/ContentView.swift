@@ -26,6 +26,7 @@ struct ContentView: View {
     @State private var selectedProjectID: PersistentIdentifier?
     @State private var activeProjectSheet: ProjectSheet?
     @State private var showConflictSheet = false
+    @State private var showManualTrackingSheet = false
     @State private var toast: ToastMessage?
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
@@ -64,6 +65,17 @@ struct ContentView: View {
                 selectedProjectID = projects.first?.persistentModelID
             }
             .sheet(item: $activeProjectSheet, content: sheetContent)
+            .sheet(isPresented: $showManualTrackingSheet) {
+                ManualTrackingSheetView(
+                    projects: projects,
+                    onStartExisting: { project in
+                        startManualTracking(with: project)
+                    },
+                    onCreateAndStart: { draft in
+                        createManualProjectAndStart(from: draft)
+                    }
+                )
+            }
             .overlay(alignment: .leading) {
                 if columnVisibility == .detailOnly {
                     sidebarChrome {
@@ -96,7 +108,13 @@ struct ContentView: View {
             guard let identifier = notification.userInfo?[StatusItemUserInfoKey.projectID] as? PersistentIdentifier else { return }
             selectedProjectID = identifier
         }
+        .onReceive(NotificationCenter.default.publisher(for: .statusItemStartManualTracking)) { _ in
+            showManualTrackingSheet = true
+        }
 #endif
+        .onReceive(tracker.$manualStopEvent.compactMap { $0 }) { event in
+            showManualStopToast(event.reason)
+        }
         .sheet(isPresented: $showConflictSheet) {
             PendingConflictResolutionView(
                 pendingSessions: pendingSessions,
@@ -124,7 +142,9 @@ struct ContentView: View {
         ActionPanelView(
             summary: tracker.statusSummary,
             isTrackingEnabled: tracker.isTrackingEnabled,
-            onToggleTracking: { tracker.toggleTracking() },
+            isManualTrackingActive: tracker.isManualTrackingActive,
+            onToggleTracking: handlePrimaryTrackingAction,
+            onStartManualTracking: { showManualTrackingSheet = true },
             onCreateProject: { activeProjectSheet = .create },
             settingsControl: settingsControlView
         )
@@ -247,6 +267,56 @@ struct ContentView: View {
         }
     }
 
+    private func handlePrimaryTrackingAction() {
+        if tracker.isManualTrackingActive {
+            tracker.stopManualTracking(reason: .manual)
+        } else {
+            tracker.toggleTracking()
+        }
+    }
+
+    private func startManualTracking(with project: Project) {
+        tracker.startManualTracking(project: project)
+        selectedProjectID = project.persistentModelID
+    }
+
+    private func createManualProjectAndStart(from draft: ManualTrackingNewProjectDraft) {
+        let trimmedName = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let projectName = manualProjectName(from: trimmedName)
+        let iconName = draft.icon?.systemName ?? randomManualProjectIcon()
+        let project = Project(
+            name: projectName,
+            colorHex: ProjectPalette.defaultColor.hex,
+            iconName: iconName
+        )
+        modelContext.insert(project)
+        do {
+            try modelContext.save()
+            startManualTracking(with: project)
+        } catch {
+            showToast("No pudimos crear el proyecto", style: .error)
+        }
+    }
+
+    private func manualProjectName(from baseName: String) -> String {
+        let seed = baseName.isEmpty ? "New cool project" : baseName
+        let existingNames = Set(projects.map { $0.name.lowercased() })
+        let needsSuffix = baseName.isEmpty || existingNames.contains(seed.lowercased())
+        guard needsSuffix else { return seed }
+        var index = 1
+        while true {
+            let candidate = "\(seed) (\(index))"
+            if !existingNames.contains(candidate.lowercased()) {
+                return candidate
+            }
+            index += 1
+        }
+    }
+
+    private func randomManualProjectIcon() -> String {
+        ProjectIcon.allCases.randomElement()?.systemName ?? ProjectIcon.spark.systemName
+    }
+
     private func clearActivity(for project: Project) {
         let sessions = project.sessions
         sessions.forEach { session in
@@ -258,6 +328,19 @@ struct ContentView: View {
         } catch {
             showToast("No pudimos limpiar la actividad", style: .error)
         }
+    }
+
+    private func showManualStopToast(_ reason: ActivityTracker.ManualStopReason) {
+        let suffix: String
+        switch reason {
+        case .idle:
+            suffix = "idle"
+        case .manual:
+            suffix = "manual"
+        case .screenLocked:
+            suffix = "bloqueo"
+        }
+        showToast("Tracking manual detenido (\(suffix))", style: .success)
     }
 
     private func showToast(_ message: String, style: ToastMessage.Style = .success) {

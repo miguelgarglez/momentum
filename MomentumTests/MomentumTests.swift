@@ -538,6 +538,96 @@ struct MomentumTests {
         #expect(sessions.count == 1)
     }
 
+    @Test("Tracking manual guarda sesiones en el proyecto manual")
+    func activityTrackerManualTrackingPersistsToManualProject() throws {
+        let container = try factory.makeContainer()
+        let settings = makeSettings()
+        let manualProject = Project(name: "Manual")
+        container.mainContext.insert(manualProject)
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: MockCrashRecoveryHandler(),
+            performanceMonitor: MockPerformanceMonitor()
+        )
+
+        tracker.testing_startManualTracking(project: manualProject)
+        tracker.testing_beginContext(
+            appName: "Xcode",
+            bundleIdentifier: "com.test.xcode",
+            domain: "docs.test",
+            startDate: Date().addingTimeInterval(-40)
+        )
+        #expect(tracker.testing_forceFlush())
+
+        let sessions = try container.mainContext.fetch(FetchDescriptor<TrackingSession>())
+        let pending = try container.mainContext.fetch(FetchDescriptor<PendingTrackingSession>())
+        #expect(sessions.count == 1)
+        #expect(sessions.first?.project === manualProject)
+        #expect(pending.isEmpty)
+        #expect(manualProject.assignedApps.contains { $0 == "com.test.xcode" })
+        #expect(manualProject.assignedDomains.contains { $0 == "docs.test" })
+    }
+
+    @Test("Tracking manual ignora conflictos de asignación")
+    func activityTrackerManualTrackingSkipsConflicts() throws {
+        let container = try factory.makeContainer()
+        let settings = makeSettings()
+        let bundleID = "com.test.conflict"
+        let manualProject = Project(name: "Manual")
+        let projectA = Project(name: "A", assignedApps: [bundleID])
+        let projectB = Project(name: "B", assignedApps: [bundleID])
+        container.mainContext.insert(manualProject)
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: MockCrashRecoveryHandler(),
+            performanceMonitor: MockPerformanceMonitor()
+        )
+
+        tracker.testing_startManualTracking(project: manualProject)
+        tracker.testing_beginContext(
+            appName: "VSCode",
+            bundleIdentifier: bundleID,
+            startDate: Date().addingTimeInterval(-40)
+        )
+        #expect(tracker.testing_forceFlush())
+
+        let sessions = try container.mainContext.fetch(FetchDescriptor<TrackingSession>())
+        let pending = try container.mainContext.fetch(FetchDescriptor<PendingTrackingSession>())
+        #expect(sessions.count == 1)
+        #expect(sessions.first?.project === manualProject)
+        #expect(pending.isEmpty)
+    }
+
+    @Test("Tracking manual no agrega dominios si la opción está desactivada")
+    func activityTrackerManualTrackingSkipsDomainWhenDisabled() throws {
+        let container = try factory.makeContainer()
+        let settings = makeSettings()
+        settings.isDomainTrackingEnabled = false
+        let manualProject = Project(name: "Manual")
+        container.mainContext.insert(manualProject)
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: MockCrashRecoveryHandler(),
+            performanceMonitor: MockPerformanceMonitor()
+        )
+
+        tracker.testing_startManualTracking(project: manualProject)
+        tracker.testing_beginContext(
+            appName: "Safari",
+            bundleIdentifier: "com.apple.Safari",
+            domain: "example.com",
+            startDate: Date().addingTimeInterval(-40)
+        )
+        #expect(tracker.testing_forceFlush())
+
+        #expect(manualProject.assignedDomains.isEmpty)
+    }
+
     @Test("El contador de pendientes refleja inserciones")
     func activityTrackerPendingCountIncrements() throws {
         let container = try factory.makeContainer()

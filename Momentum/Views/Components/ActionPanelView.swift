@@ -10,22 +10,40 @@ import SwiftUI
 struct ActionPanelView: View {
     let summary: ActivityTracker.StatusSummary
     let isTrackingEnabled: Bool
+    let isManualTrackingActive: Bool
     let onToggleTracking: () -> Void
+    let onStartManualTracking: () -> Void
     let onCreateProject: () -> Void
     let settingsControl: AnyView
 
-    private var toggleLabel: String {
-        isTrackingEnabled ? "Pausar tracking" : "Reanudar tracking"
+    private var primaryActionLabel: String {
+        if isManualTrackingActive {
+            return "Detener manual"
+        }
+        return isTrackingEnabled ? "Pausar tracking" : "Reanudar tracking"
     }
 
-    private var toggleIcon: String {
-        isTrackingEnabled ? "pause.circle.fill" : "play.circle.fill"
+    private var primaryActionIcon: String {
+        if isManualTrackingActive {
+            return "stop.circle.fill"
+        }
+        return isTrackingEnabled ? "pause.circle.fill" : "play.circle.fill"
+    }
+
+    private var manualLabel: String {
+        isManualTrackingActive ? "Tracking manual activo" : "Iniciar tracking manual"
+    }
+
+    private var manualTint: Color {
+        isManualTrackingActive ? .cyan : .primary
     }
 
     private var trackingBadgeColor: Color {
         switch summary.state {
         case .tracking:
             return .accentColor
+        case .trackingManual:
+            return .cyan
         case .pendingResolution:
             return .orange
         case .pausedManual:
@@ -47,11 +65,20 @@ struct ActionPanelView: View {
 
             VStack(alignment: .center, spacing: 10) {
                 ActionPanelIconButton(
-                    systemName: toggleIcon,
+                    systemName: primaryActionIcon,
                     tint: trackingBadgeColor,
-                    accessibilityLabel: toggleLabel,
+                    accessibilityLabel: primaryActionLabel,
                     action: onToggleTracking
                 )
+
+                ActionPanelIconButton(
+                    systemName: "record.circle",
+                    tint: manualTint,
+                    accessibilityLabel: manualLabel,
+                    action: onStartManualTracking,
+                    isActive: isManualTrackingActive
+                )
+                .disabled(isManualTrackingActive)
 
                 ActionPanelIconButton(
                     systemName: "plus",

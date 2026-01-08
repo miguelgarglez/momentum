@@ -172,6 +172,24 @@ extension Project {
         assignedDomains.contains { domain.lowercased().contains($0) }
     }
 
+    func addAssignedApp(_ bundleIdentifier: String) {
+        let normalized = bundleIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return }
+        if assignedApps.contains(where: { $0.caseInsensitiveCompare(normalized) == .orderedSame }) {
+            return
+        }
+        assignedApps.append(normalized)
+    }
+
+    func addAssignedDomain(_ domain: String) {
+        let normalized = domain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalized.isEmpty else { return }
+        if assignedDomains.contains(where: { $0.caseInsensitiveCompare(normalized) == .orderedSame }) {
+            return
+        }
+        assignedDomains.append(normalized)
+    }
+
     func apply(draft: ProjectFormDraft) {
         name = draft.name
         colorHex = draft.colorHex
