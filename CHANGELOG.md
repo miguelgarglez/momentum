@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/miguelgarglez/momentum/compare/v1.2.0...v1.2.1) (2026-01-08)
+
+
+### Tests
+
+* **ui:** document and tune ui tests ([bf5d3f8](https://github.com/miguelgarglez/momentum/commit/bf5d3f8a9e22fbe3d8e45c9142089470e66f3e87))
+
 ## [1.2.0](https://github.com/miguelgarglez/momentum/compare/v1.1.0...v1.2.0) (2026-01-08)
 
 
