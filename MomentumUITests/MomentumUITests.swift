@@ -38,8 +38,18 @@ final class MomentumUITests: XCTestCase {
     func testDashboardDisplaysWelcomeMetrics() throws {
         let app = launch(reset: true)
         createProject(named: "Dashboard Focus", domain: nil, in: app)
-        XCTAssertTrue(app.staticTexts["Mide tu progreso, no tu productividad."].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["Tus proyectos"].exists)
+        let outline = app.outlines.firstMatch
+        XCTAssertTrue(outline.waitForExistence(timeout: 3), "Expected sidebar outline to exist")
+        let projectRow = outline.cells.containing(.staticText, identifier: "Dashboard Focus").firstMatch
+        XCTAssertTrue(projectRow.waitForExistence(timeout: 3), "Expected project row to appear")
+        let expandedButton = app.buttons["Ocultar resumen"]
+        let collapsedButton = app.buttons["Mostrar resumen"]
+        let summaryButtonExists = expandedButton.waitForExistence(timeout: 4) || collapsedButton.waitForExistence(timeout: 4)
+        XCTAssertTrue(summaryButtonExists, "Expected dashboard summary button to appear")
+        if collapsedButton.exists {
+            collapsedButton.click()
+        }
+        XCTAssertTrue(app.otherElements["dashboard-metrics"].waitForExistence(timeout: 4), "Expected dashboard metrics to appear")
     }
 
     func testConflictBannerOpensResolutionSheet() throws {

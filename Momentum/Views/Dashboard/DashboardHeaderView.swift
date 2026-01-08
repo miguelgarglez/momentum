@@ -48,6 +48,7 @@ struct DashboardHeaderView: View {
                         .multilineTextAlignment(.leading)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("dashboard-welcome-text")
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.down")
                         .font(.system(size: 10, weight: .semibold))
@@ -76,6 +77,7 @@ struct DashboardHeaderView: View {
             cornerRadius: Layout.cornerRadius,
             strokeOpacity: Layout.strokeOpacity
         )
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -131,6 +133,8 @@ struct DashboardMetricsView: View {
                 compact: true
             )
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("dashboard-metrics")
     }
 
     private func metricsGrid(metrics: [MetricInfo], compact: Bool) -> some View {

@@ -155,10 +155,11 @@ struct ContentView: View {
                     DashboardHeaderView(projects: projects)
                         .listRowInsets(.init(top: 12, leading: 12, bottom: 12, trailing: 12))
                         .listRowBackground(Color.clear)
+                        .accessibilityIdentifier("dashboard-header")
                 }
             }
 
-            Section("Tus proyectos") {
+            Section {
                 if projects.isEmpty {
                     EmptyProjectsView()
                 } else {
@@ -179,6 +180,9 @@ struct ContentView: View {
                     }
                     .onDelete(perform: deleteProjects)
                 }
+            } header: {
+                Text("Tus proyectos")
+                    .accessibilityIdentifier("projects-section-header")
             }
         }
         .listStyle(.sidebar)

@@ -34,7 +34,16 @@
 		A6EFF55D2ED657EC00A298CD /* Exceptions for "Momentum" folder in "Momentum" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				AGENTS.md,
 				Info.plist,
+				Models/AGENTS.md,
+				Services/AGENTS.md,
+				Utilities/AGENTS.md,
+				Views/AGENTS.md,
+				Views/Components/AGENTS.md,
+				Views/Projects/AGENTS.md,
+				Views/Styles/AGENTS.md,
+				Views/Tracking/AGENTS.md,
 			);
 			target = A63FF0EA2ED3B686002F9FA7 /* Momentum */;
 		};
