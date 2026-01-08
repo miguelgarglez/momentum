@@ -62,6 +62,54 @@ struct MomentumTests {
         #expect(project.streakCount == 2)
     }
 
+    @Test("Mejor racha usa todo el historial")
+    func longestStreakUsesHistory() throws {
+        let container = try factory.makeContainer()
+        let project = Project(name: "Mejor racha")
+        container.mainContext.insert(project)
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+
+        func session(dayOffset: Int, startHour: Int = 2, duration: TimeInterval = 1800) {
+            guard let start = calendar.date(byAdding: .day, value: dayOffset, to: today)?.addingTimeInterval(TimeInterval(startHour) * 3600) else { return }
+            let session = TrackingSession(
+                startDate: start,
+                endDate: start.addingTimeInterval(duration),
+                appName: "Xcode",
+                bundleIdentifier: "com.test.xcode",
+                domain: nil,
+                project: project
+            )
+            container.mainContext.insert(session)
+            project.sessions.append(session)
+        }
+
+        session(dayOffset: -1)
+        session(dayOffset: -2)
+        session(dayOffset: -4)
+        session(dayOffset: -5)
+
+        #expect(project.longestStreakCount == 2)
+        #expect(project.streakCount == 0)
+    }
+
+    @Test("Mejor racha considera los daily summaries")
+    func longestStreakUsesDailySummaries() throws {
+        let container = try factory.makeContainer()
+        let project = Project(name: "Resúmenes racha")
+        container.mainContext.insert(project)
+        let calendar = Calendar.current
+
+        for offset in 1...3 {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: .now)) else { continue }
+            let summary = DailySummary(date: day, seconds: 600, project: project)
+            container.mainContext.insert(summary)
+            project.dailySummaries.append(summary)
+        }
+
+        #expect(project.longestStreakCount == 3)
+    }
+
     @Test("Agregación semanal usa DailySummary cache cuando existe")
     func weeklyAggregationUsesDailySummaries() throws {
         let container = try factory.makeContainer()

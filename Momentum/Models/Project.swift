@@ -126,6 +126,33 @@ extension Project {
         
         return streak
     }
+
+    var longestStreakCount: Int {
+        let sortedDays = activityDays().sorted()
+        guard let firstDay = sortedDays.first else { return 0 }
+        let calendar = Calendar.current
+        var best = 1
+        var current = 1
+        var previous = firstDay
+
+        for day in sortedDays.dropFirst() {
+            guard let expected = calendar.date(byAdding: .day, value: 1, to: previous) else {
+                current = 1
+                previous = day
+                best = max(best, current)
+                continue
+            }
+            if day == expected {
+                current += 1
+            } else {
+                current = 1
+            }
+            best = max(best, current)
+            previous = day
+        }
+
+        return best
+    }
     
     func hasActivity(on date: Date) -> Bool {
         let calendar = Calendar.current
@@ -151,6 +178,30 @@ extension Project {
         iconName = draft.iconName
         assignedApps = draft.assignedApps
         assignedDomains = draft.assignedDomains
+    }
+}
+
+private extension Project {
+    func activityDays() -> Set<Date> {
+        let calendar = Calendar.current
+        var days: Set<Date> = []
+
+        for summary in dailySummaries where summary.seconds > 0 {
+            days.insert(summary.date)
+        }
+
+        for session in sessions {
+            let interval = session.interval
+            guard interval.duration > 0 else { continue }
+            var cursor = calendar.startOfDay(for: interval.start)
+            while cursor < interval.end {
+                days.insert(cursor)
+                guard let nextDay = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+                cursor = nextDay
+            }
+        }
+
+        return days
     }
 }
 

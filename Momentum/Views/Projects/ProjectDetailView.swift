@@ -117,7 +117,7 @@ struct ProjectDetailView: View {
                             systemImage: "clock"
                         )
                         DetailMetaPill(
-                            text: "\(project.streakCount) días de racha",
+                            text: streakPillText,
                             systemImage: "flame.fill",
                             tint: .orange
                         )
@@ -153,7 +153,7 @@ struct ProjectDetailView: View {
                 HighlightMetricRow(
                     title: "Racha",
                     value: "\(project.streakCount) días",
-                    subtitle: "Días consecutivos con actividad.",
+                    subtitle: "Mejor racha: \(project.longestStreakCount) días.",
                     icon: "flame.fill",
                     tint: .orange
                 )
@@ -166,6 +166,15 @@ struct ProjectDetailView: View {
             cornerRadius: Layout.cardCornerRadius,
             strokeOpacity: Layout.cardStrokeOpacity
         )
+    }
+
+    private var streakPillText: String {
+        let streak = project.streakCount
+        let longest = project.longestStreakCount
+        if streak < 2 {
+            return "Mejor racha: \(longest) días"
+        }
+        return "Racha de \(streak) días · Mejor: \(longest) días"
     }
 
     private var assignmentsSection: some View {
