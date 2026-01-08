@@ -5,8 +5,6 @@ struct ProjectDetailView: View {
     @Bindable var project: Project
     @Query private var recentSessions: [TrackingSession]
     @State private var usageWindow: UsageWindow = .hour
-    @EnvironmentObject private var tracker: ActivityTracker
-    @EnvironmentObject private var trackingSessionManager: TrackingSessionManager
     let onEdit: (Project) -> Void
     let onDelete: (Project) -> Void
     let onClearActivity: (Project) -> Void
@@ -58,13 +56,7 @@ struct ProjectDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
                 header
-                if isTrackingCurrentProject {
-                    TrackingActiveSummaryView(
-                        elapsed: trackingSessionManager.elapsed,
-                        apps: trackingSessionManager.recentApps,
-                        domains: trackingSessionManager.recentDomains
-                    )
-                } else if isProjectEmpty {
+                if isProjectEmpty {
                     ProjectEmptyStateView {
                         onStartTracking(project)
                     }
@@ -195,13 +187,6 @@ struct ProjectDetailView: View {
 
     private var isProjectEmpty: Bool {
         project.sessions.isEmpty && project.dailySummaries.isEmpty
-    }
-
-    private var isTrackingCurrentProject: Bool {
-        guard tracker.statusSummary.state == .tracking || tracker.statusSummary.state == .trackingManual else {
-            return false
-        }
-        return tracker.statusSummary.projectID == project.persistentModelID
     }
 
     private var assignmentsSection: some View {

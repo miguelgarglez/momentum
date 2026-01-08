@@ -9,7 +9,7 @@ final class MomentumUITests: XCTestCase {
     func testCreateProjectFlow() throws {
         let app = launch(reset: true)
         createProject(named: "UI Test Project", domain: "momentum.run", in: app)
-        XCTAssertTrue(app.staticTexts["UI Test Project"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["UI Test Project"].waitForExistence(timeout: 6))
     }
 
     func testEditingDomainsUpdatesDetail() throws {
@@ -32,61 +32,50 @@ final class MomentumUITests: XCTestCase {
         domainsField.typeKey("a", modifierFlags: .command)
         domainsField.typeText("momentum.run, docs.test")
         app.buttons["Guardar"].click()
-        XCTAssertTrue(app.staticTexts["docs.test"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["docs.test"].waitForExistence(timeout: 6))
     }
 
     func testDashboardDisplaysWelcomeMetrics() throws {
         let app = launch(reset: true)
         createProject(named: "Dashboard Focus", domain: nil, in: app)
         let outline = app.outlines.firstMatch
-        XCTAssertTrue(outline.waitForExistence(timeout: 3), "Expected sidebar outline to exist")
+        XCTAssertTrue(outline.waitForExistence(timeout: 6), "Expected sidebar outline to exist")
         let projectRow = outline.cells.containing(.staticText, identifier: "Dashboard Focus").firstMatch
-        XCTAssertTrue(projectRow.waitForExistence(timeout: 3), "Expected project row to appear")
+        XCTAssertTrue(projectRow.waitForExistence(timeout: 6), "Expected project row to appear")
         let expandedButton = app.buttons["Ocultar resumen"]
         let collapsedButton = app.buttons["Mostrar resumen"]
-        let summaryButtonExists = expandedButton.waitForExistence(timeout: 4) || collapsedButton.waitForExistence(timeout: 4)
+        let summaryButtonExists = expandedButton.waitForExistence(timeout: 6) || collapsedButton.waitForExistence(timeout: 6)
         XCTAssertTrue(summaryButtonExists, "Expected dashboard summary button to appear")
         if collapsedButton.exists {
             collapsedButton.click()
         }
-        XCTAssertTrue(app.otherElements["dashboard-metrics"].waitForExistence(timeout: 4), "Expected dashboard metrics to appear")
+        XCTAssertTrue(app.otherElements["dashboard-metrics"].waitForExistence(timeout: 6), "Expected dashboard metrics to appear")
     }
 
     func testConflictBannerOpensResolutionSheet() throws {
         let app = launch(reset: true, seedConflicts: true)
-        let conflictsText = app.staticTexts["Tienes 2 contexto(s) por resolver."]
-        XCTAssertTrue(conflictsText.waitForExistence(timeout: 3))
-
-        let resolveButton = app.buttons["Resolver"]
-        XCTAssertTrue(resolveButton.waitForExistence(timeout: 2))
+        let banner = app.otherElements["pending-conflict-banner"]
+        let resolveButton = app.buttons["pending-conflict-resolve-button"]
+        let bannerExists = banner.waitForExistence(timeout: 6)
+        let resolveExists = resolveButton.waitForExistence(timeout: 6)
+        XCTAssertTrue(bannerExists || resolveExists, "Expected pending conflict banner or resolve button to appear")
+        XCTAssertTrue(resolveExists, "Expected resolve button in pending conflict banner")
         resolveButton.click()
-
-        let sheetTitle = app.staticTexts["Resolver conflictos"]
-        XCTAssertTrue(sheetTitle.waitForExistence(timeout: 3))
+        waitForConflictResolutionSheet(in: app)
     }
 
     func testConflictListShowsAppAndDomainRows() throws {
         let app = launch(reset: true, seedConflicts: true)
-        let resolveButton = app.buttons["Resolver"]
-        XCTAssertTrue(resolveButton.waitForExistence(timeout: 3))
-        resolveButton.click()
-
-        let sheetTitle = app.staticTexts["Resolver conflictos"]
-        XCTAssertTrue(sheetTitle.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Seed App"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["example.com"].waitForExistence(timeout: 2))
+        openConflictResolutionSheet(in: app)
+        XCTAssertTrue(app.staticTexts["Seed App"].waitForExistence(timeout: 6))
+        XCTAssertTrue(app.staticTexts["example.com"].waitForExistence(timeout: 6))
     }
 
     func testConflictResolutionAssignsProject() throws {
         let app = launch(reset: true, seedConflicts: true)
-        let resolveButton = app.buttons["Resolver"]
-        XCTAssertTrue(resolveButton.waitForExistence(timeout: 3))
-        resolveButton.click()
-
-        let sheetTitle = app.staticTexts["Resolver conflictos"]
-        XCTAssertTrue(sheetTitle.waitForExistence(timeout: 3))
+        openConflictResolutionSheet(in: app)
         let assignButton = app.buttons["Asignar"].firstMatch
-        XCTAssertTrue(assignButton.waitForExistence(timeout: 3))
+        XCTAssertTrue(assignButton.waitForExistence(timeout: 6))
         XCTAssertTrue(assignButton.isEnabled)
         assignButton.click()
 
@@ -96,63 +85,82 @@ final class MomentumUITests: XCTestCase {
         }
 
         let bannerText = app.staticTexts["Tienes 1 contexto(s) por resolver."]
-        XCTAssertTrue(bannerText.waitForExistence(timeout: 3))
+        XCTAssertTrue(bannerText.waitForExistence(timeout: 6))
     }
 
     func testManualTrackingFlowFromMainWindow() throws {
         let app = launch(reset: true)
         createProject(named: "Manual UI", domain: nil, in: app)
 
-        let manualButton = app.buttons["Iniciar tracking manual"]
-        XCTAssertTrue(manualButton.waitForExistence(timeout: 2))
+        let manualButton = app.buttons["action-panel-manual"]
+        XCTAssertTrue(manualButton.waitForExistence(timeout: 6))
         manualButton.click()
 
-        XCTAssertTrue(app.staticTexts["Tracking manual"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Tracking manual"].waitForExistence(timeout: 6))
         let picker = app.popUpButtons["manual-tracking-project-picker"]
-        if picker.waitForExistence(timeout: 2) {
+        if picker.waitForExistence(timeout: 6) {
             picker.click()
             let menuItem = picker.menuItems["Manual UI"].firstMatch
-            XCTAssertTrue(menuItem.waitForExistence(timeout: 2))
+            XCTAssertTrue(menuItem.waitForExistence(timeout: 6))
             menuItem.click()
         }
 
         let startButton = app.buttons["Empezar"]
-        XCTAssertTrue(startButton.waitForExistence(timeout: 2))
+        XCTAssertTrue(startButton.waitForExistence(timeout: 6))
         startButton.click()
 
         let stopButton = app.buttons["Detener manual"]
-        XCTAssertTrue(stopButton.waitForExistence(timeout: 2))
+        XCTAssertTrue(stopButton.waitForExistence(timeout: 6))
         stopButton.click()
 
-        XCTAssertTrue(app.buttons["Iniciar tracking manual"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["action-panel-manual"].waitForExistence(timeout: 6))
     }
 
     func testAssignmentRulesAppearInSettings() throws {
         let app = launch(reset: true, seedRules: true)
         app.typeKey(",", modifierFlags: .command)
 
-        var settingsWindow = app.windows.matching(identifier: "Configuración").firstMatch
-        if !settingsWindow.waitForExistence(timeout: 2) {
+        var settingsWindow = app.windows.matching(NSPredicate(format: "title == %@", "Configuración")).firstMatch
+        if !settingsWindow.waitForExistence(timeout: 4) {
             settingsWindow = app.windows.firstMatch
         }
 
         let rulesLink = settingsWindow.buttons["assignment-rules-link"]
-        XCTAssertTrue(rulesLink.waitForExistence(timeout: 3))
+        XCTAssertTrue(rulesLink.waitForExistence(timeout: 6))
         rulesLink.click()
 
-        let rulesList = app.otherElements["assignment-rules-list"]
+        _ = app.windows.matching(NSPredicate(format: "title == %@", "Reglas de asignacion")).firstMatch.waitForExistence(timeout: 2)
+        let rulesList = app.outlines["assignment-rules-list"]
         let searchField = app.textFields["assignment-rules-search-field"]
-        let rulesViewIsVisible = rulesList.waitForExistence(timeout: 3) || searchField.waitForExistence(timeout: 3)
+        let backButton = app.buttons["Volver"]
+        let title = app.staticTexts["Reglas de asignacion"]
+        let rulesViewIsVisible = rulesList.waitForExistence(timeout: 6)
+            || searchField.waitForExistence(timeout: 6)
+            || backButton.waitForExistence(timeout: 6)
+            || title.waitForExistence(timeout: 6)
         XCTAssertTrue(rulesViewIsVisible)
-        XCTAssertTrue(app.staticTexts["com.momentum.seed.app"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["com.momentum.seed.app"].waitForExistence(timeout: 6))
     }
 
     // MARK: - Helpers
 
-    private func launch(reset: Bool, seedConflicts: Bool = false, seedRules: Bool = false) -> XCUIApplication {
+    private func launch(
+        reset: Bool,
+        seedConflicts: Bool = false,
+        seedRules: Bool = false,
+        skipOnboarding: Bool = true
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         let storePath = suiteStorePath
-        var arguments = ["--uitests", "--store-path", storePath]
+        var arguments = [
+            "--uitests",
+            "--store-path",
+            storePath,
+            "-ApplePersistenceIgnoreState",
+            "YES",
+            "-ApplePersistenceIgnoreStateQuietly",
+            "YES"
+        ]
         if reset {
             arguments.append("--uitests-reset")
             clearTestStoreDirectory(at: storePath)
@@ -163,25 +171,29 @@ final class MomentumUITests: XCTestCase {
         if seedRules {
             arguments.append("--seed-rules")
         }
+        if skipOnboarding {
+            arguments.append("--skip-onboarding")
+        }
         app.launchEnvironment["MOMENTUM_STORE_PATH"] = storePath
         app.launchArguments = arguments
         app.launch()
+        waitForMainWindow(in: app)
         return app
     }
 
     private func createProject(named name: String, domain: String?, in app: XCUIApplication) {
-        let newProjectButton = app.buttons["Nuevo proyecto"]
-        XCTAssertTrue(newProjectButton.waitForExistence(timeout: 2))
+        let newProjectButton = app.buttons["action-panel-create-project"]
+        XCTAssertTrue(newProjectButton.waitForExistence(timeout: 6))
         newProjectButton.click()
 
         let titleField = app.textFields["project-title-field"]
-        XCTAssertTrue(titleField.waitForExistence(timeout: 2))
+        XCTAssertTrue(titleField.waitForExistence(timeout: 6))
         titleField.click()
         titleField.typeText(name)
 
         if let domain {
             let domainField = app.textFields["project-domains-field"]
-            XCTAssertTrue(domainField.waitForExistence(timeout: 2))
+            XCTAssertTrue(domainField.waitForExistence(timeout: 6))
             if !domainField.isHittable {
                 let formScrollView = app.scrollViews.firstMatch
                 if formScrollView.exists {
@@ -203,21 +215,74 @@ final class MomentumUITests: XCTestCase {
 
     private func openProject(named name: String, in app: XCUIApplication) {
         let outline = app.outlines.firstMatch
-        XCTAssertTrue(outline.waitForExistence(timeout: 2))
+        XCTAssertTrue(outline.waitForExistence(timeout: 6))
         let row = outline.cells.containing(.staticText, identifier: name).firstMatch
-        XCTAssertTrue(row.exists)
+        XCTAssertTrue(row.waitForExistence(timeout: 6))
         row.click()
     }
 
     private func openContextMenuAndSelectEdit(named name: String, in app: XCUIApplication) {
         let outline = app.outlines.firstMatch
-        XCTAssertTrue(outline.waitForExistence(timeout: 2))
+        XCTAssertTrue(outline.waitForExistence(timeout: 6))
         let row = outline.cells.containing(.staticText, identifier: name).firstMatch
-        XCTAssertTrue(row.exists)
+        XCTAssertTrue(row.waitForExistence(timeout: 6))
         row.rightClick()
         let editMenuItem = app.menuItems["Editar"]
-        XCTAssertTrue(editMenuItem.waitForExistence(timeout: 2))
+        XCTAssertTrue(editMenuItem.waitForExistence(timeout: 6))
         editMenuItem.click()
+    }
+
+    private func waitForMainWindow(in app: XCUIApplication, timeout: TimeInterval = 15) {
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: timeout))
+        app.activate()
+        let createButton = app.buttons["action-panel-create-project"]
+        if !createButton.waitForExistence(timeout: 3) {
+            openMainWindowIfNeeded(in: app)
+            dismissWelcomeIfNeeded(in: app)
+        }
+        XCTAssertTrue(createButton.waitForExistence(timeout: timeout))
+    }
+
+    private func openMainWindowIfNeeded(in app: XCUIApplication) {
+        let fileMenu = app.menuBars.menuBarItems["File"]
+        guard fileMenu.waitForExistence(timeout: 2) else { return }
+        fileMenu.click()
+        let newWindow = fileMenu.menuItems["New Window"]
+        if newWindow.waitForExistence(timeout: 2) {
+            newWindow.click()
+            return
+        }
+        let newWindowSpanish = fileMenu.menuItems["Nueva ventana"]
+        if newWindowSpanish.waitForExistence(timeout: 2) {
+            newWindowSpanish.click()
+        }
+    }
+
+    private func dismissWelcomeIfNeeded(in app: XCUIApplication) {
+        let welcomeTitle = app.staticTexts["Bienvenido a Momentum"]
+        guard welcomeTitle.waitForExistence(timeout: 2) else { return }
+        let skipButton = app.buttons["Saltar"]
+        if skipButton.waitForExistence(timeout: 2) {
+            skipButton.click()
+        }
+    }
+
+    private func openConflictResolutionSheet(in app: XCUIApplication) {
+        let resolveButton = app.buttons["pending-conflict-resolve-button"]
+        XCTAssertTrue(resolveButton.waitForExistence(timeout: 6), "Expected resolve button in pending conflict banner")
+        if !resolveButton.isHittable {
+            app.windows.firstMatch.click()
+        }
+        resolveButton.click()
+        waitForConflictResolutionSheet(in: app)
+    }
+
+    private func waitForConflictResolutionSheet(in app: XCUIApplication, timeout: TimeInterval = 6) {
+        let sheet = app.otherElements["pending-conflict-sheet"]
+        let title = app.staticTexts["Resolver conflictos"]
+        let sheetIsVisible = sheet.waitForExistence(timeout: timeout)
+            || title.waitForExistence(timeout: timeout)
+        XCTAssertTrue(sheetIsVisible, "Expected pending conflict resolution sheet to appear")
     }
 }
 

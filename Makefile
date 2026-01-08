@@ -1,4 +1,4 @@
-.PHONY: help build build-for-testing test test-unit test-ui run-dev run-dev-onboarding run-release run reset-dev-data archive-release install-release dmg clean clean-release
+.PHONY: help build build-for-testing test test-unit test-ui test-only run-dev run-dev-onboarding run-release run reset-dev-data archive-release install-release dmg clean clean-release
 
 PROJECT := Momentum.xcodeproj
 SCHEME := Momentum
@@ -35,6 +35,7 @@ help:
 	@echo "  test              Run all tests"
 	@echo "  test-unit         Run unit tests only"
 	@echo "  test-ui           Run UI tests only"
+	@echo "  test-only         Run a single test (TEST=Target/Class/testName)"
 	@echo "  run-dev           Build and launch the dev app (quits running dev app first)"
 	@echo "  run-dev-onboarding Run dev app with fresh store, no debug seed, and clean onboarding"
 	@echo "  run-release       Build and launch the release app (quits running release app first)"
@@ -98,6 +99,20 @@ test-ui:
 		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration "$(CONFIGURATION)" test -only-testing:MomentumUITests | xcpretty; \
 	else \
 		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration "$(CONFIGURATION)" test -only-testing:MomentumUITests; \
+	fi
+
+test-only:
+	@set -euo pipefail; \
+	if [ -z "$(TEST)" ]; then \
+		echo "Usage: make test-only TEST=Target/Class/testName"; \
+		exit 1; \
+	fi; \
+	if [ -n "$(XCBEAUTIFY)" ]; then \
+		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration "$(CONFIGURATION)" test -only-testing:$(TEST) | xcbeautify; \
+	elif [ -n "$(XCPRETTY)" ]; then \
+		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration "$(CONFIGURATION)" test -only-testing:$(TEST) | xcpretty; \
+	else \
+		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration "$(CONFIGURATION)" test -only-testing:$(TEST); \
 	fi
 
 run-dev:

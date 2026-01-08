@@ -68,6 +68,7 @@ struct ActionPanelView: View {
                     systemName: primaryActionIcon,
                     tint: trackingBadgeColor,
                     accessibilityLabel: primaryActionLabel,
+                    accessibilityIdentifier: "action-panel-primary",
                     action: onToggleTracking
                 )
 
@@ -75,6 +76,7 @@ struct ActionPanelView: View {
                     systemName: "record.circle",
                     tint: manualTint,
                     accessibilityLabel: manualLabel,
+                    accessibilityIdentifier: "action-panel-manual",
                     action: onStartManualTracking,
                     isActive: isManualTrackingActive
                 )
@@ -84,6 +86,7 @@ struct ActionPanelView: View {
                     systemName: "plus",
                     tint: .primary,
                     accessibilityLabel: "Nuevo proyecto",
+                    accessibilityIdentifier: "action-panel-create-project",
                     action: onCreateProject
                 )
 
@@ -102,15 +105,22 @@ private struct ActionPanelIconButton: View {
     let systemName: String
     let tint: Color
     let accessibilityLabel: String
+    let accessibilityIdentifier: String?
     let action: () -> Void
     var isActive: Bool = false
 
     var body: some View {
-        Button(action: action) {
+        let button = Button(action: action) {
             ActionPanelIcon(systemName: systemName, tint: tint, isActive: isActive)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
+
+        if let accessibilityIdentifier {
+            button.accessibilityIdentifier(accessibilityIdentifier)
+        } else {
+            button
+        }
     }
 }
 

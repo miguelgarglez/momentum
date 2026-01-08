@@ -14,6 +14,7 @@
 - `Momentum/Documentation.docc` contains in-app documentation.
 - `PRDs/` stores product requirement docs and plans (see `PRDs/README.md`).
 - Tests live in `MomentumTests/` (unit) and `MomentumUITests/` (UI).
+- `MomentumUITests/` includes its own `AGENTS.md` with UI test-specific guidance.
 - `Momentum.xcodeproj` is the Xcode project entry point.
 
 ## Build, Test, and Development Commands
@@ -23,6 +24,7 @@ Prefer `Makefile` targets for local development:
 - `make test`
 - `make test-unit`
 - `make test-ui`
+- `make test-only` (use `TEST=Target/Class/testName`)
 - `make run-dev`
 - `make run-release`
 - `make reset-dev-data`
@@ -90,6 +92,7 @@ Raw `xcodebuild` commands are still valid and occasionally useful:
 - Run the relevant test suite when a feature/fix is effectively finished to confirm behavior; avoid running tests on every tiny edit during active development.
 - For non-trivial changes (logic, persistence, tracking), run at least `make test-unit`.
 - For small UI tweaks, skip tests unless behavior could regress.
+- UI tests should disable state restoration and onboarding when they are not explicitly under test, so the main window always appears.
 
 ## Verification Expectations (local)
 - For non-trivial changes (logic, persistence, tracking), run at least `make test-unit`.

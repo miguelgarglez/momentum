@@ -25,6 +25,7 @@ Ambos servicios están aislados en `Services/` y pueden exponerse fácilmente a 
 
 - Momentum acepta una ruta personalizada para la base de datos mediante `--store-path <directorio>` o la variable `MOMENTUM_STORE_PATH`.
 - Los UITests fijan este parámetro a un directorio temporal y, si incluyen `--uitests-reset`, Momentum elimina esa carpeta antes de inicializar SwiftData.
+- Para estabilizar UITests, conviene desactivar la restauración de estado de macOS (`-ApplePersistenceIgnoreState YES` y `-ApplePersistenceIgnoreStateQuietly YES`) y omitir onboarding cuando no se está probando ese flujo (`--skip-onboarding` o `MOMENTUM_SKIP_ONBOARDING=1`).
 - Ejecutar la app sin flags utiliza el store tradicional (`~/Library/Application Support/MomentumStore`), por lo que tus datos reales no se ven afectados por las suites automatizadas.
 
 ## Flujo detallado de diagnóstico y recuperación
