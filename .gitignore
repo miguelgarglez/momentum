@@ -1,6 +1,7 @@
 # Xcode / Swift defaults
 DerivedData/
 .derivedData/
+.swiftlint-cache/
 build/
 *.pbxuser
 !default.pbxuser

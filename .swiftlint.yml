@@ -1,0 +1,38 @@
+only_rules:
+  - trailing_whitespace
+  - vertical_whitespace
+  - force_cast
+  - force_try
+  - unused_import
+  - unused_optional_binding
+
+trailing_whitespace:
+  ignores_empty_lines: true
+  ignores_comments: true
+  severity: error
+
+vertical_whitespace:
+  max_empty_lines: 1
+  severity: error
+
+force_cast:
+  severity: error
+
+force_try:
+  severity: error
+
+unused_import:
+  severity: error
+
+unused_optional_binding:
+  severity: error
+
+excluded:
+  - .build
+  - .derivedData
+  - .derivedData2
+  - .derivedData3
+  - build
+  - DerivedData
+  - Packages
+  - Carthage

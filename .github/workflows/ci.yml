@@ -25,6 +25,16 @@ jobs:
           set -euo pipefail
           rg -n "MARKETING_VERSION = .*// x-release-please-version" Momentum.xcodeproj/project.pbxproj >/dev/null
 
+      - name: Install SwiftLint
+        run: |
+          set -euo pipefail
+          brew install swiftlint
+
+      - name: Lint (SwiftLint)
+        run: |
+          set -euo pipefail
+          SWIFTLINT_CACHE_PATH=.swiftlint-cache swiftlint --config .swiftlint.yml
+
       - name: Build for testing
         run: |
           set -euo pipefail

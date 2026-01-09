@@ -25,6 +25,9 @@ Prefer `Makefile` targets for local development:
 - `make test-unit`
 - `make test-ui`
 - `make test-only` (use `TEST=Target/Class/testName`)
+- `make lint` (SwiftLint, errors only)
+- `make format` (SwiftFormat, writes changes)
+- `make format-lint` (SwiftFormat lint mode, no changes)
 - `make run-dev`
 - `make run-release`
 - `make reset-dev-data`
@@ -115,6 +118,8 @@ Raw `xcodebuild` commands are still valid and occasionally useful:
 ## Tooling Notes
 - Optional: create `.vscode/tasks.json` entries for the `xcodebuild` commands.
 - If installed, `xcpretty` can be used to format `xcodebuild` output.
+- SwiftLint config lives in `.swiftlint.yml` (rules are error-level only).
+- SwiftFormat config lives in `.swiftformat`, with Swift version set via `.swift-version`.
 
 ## Local Dev Convenience
 - For cleaner local `xcodebuild` output, use `xcbeautify` (preferred) or `xcpretty`.

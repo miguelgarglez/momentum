@@ -1,4 +1,4 @@
-.PHONY: help build build-for-testing test test-unit test-ui test-only run-dev run-dev-onboarding run-release run reset-dev-data archive-release install-release dmg clean clean-release
+.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint run-dev run-dev-onboarding run-release run reset-dev-data archive-release install-release dmg clean clean-release
 
 PROJECT := Momentum.xcodeproj
 SCHEME := Momentum
@@ -27,6 +27,8 @@ DMG_STAGING_DIR ?= $(ARCHIVE_DIR)/.dmg-staging
 
 XCBEAUTIFY := $(shell command -v xcbeautify 2>/dev/null)
 XCPRETTY := $(shell command -v xcpretty 2>/dev/null)
+SWIFTLINT := $(shell command -v swiftlint 2>/dev/null)
+SWIFTFORMAT := $(shell command -v swiftformat 2>/dev/null)
 
 help:
 	@echo "Targets:"
@@ -36,6 +38,9 @@ help:
 	@echo "  test-unit         Run unit tests only"
 	@echo "  test-ui           Run UI tests only"
 	@echo "  test-only         Run a single test (TEST=Target/Class/testName)"
+	@echo "  lint              Run SwiftLint (errors only)"
+	@echo "  format            Format Swift files with SwiftFormat"
+	@echo "  format-lint       Verify SwiftFormat formatting without changes"
 	@echo "  run-dev           Build and launch the dev app (quits running dev app first)"
 	@echo "  run-dev-onboarding Run dev app with fresh store, no debug seed, and clean onboarding"
 	@echo "  run-release       Build and launch the release app (quits running release app first)"
@@ -114,6 +119,30 @@ test-only:
 	else \
 		xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -destination "$(DESTINATION)" -derivedDataPath "$(DERIVED_DATA)" -configuration "$(CONFIGURATION)" test -only-testing:$(TEST); \
 	fi
+
+lint:
+	@set -euo pipefail; \
+	if [ -z "$(SWIFTLINT)" ]; then \
+		echo "swiftlint not found. Install with: brew install swiftlint"; \
+		exit 1; \
+	fi; \
+	SWIFTLINT_CACHE_PATH=.swiftlint-cache swiftlint --config .swiftlint.yml
+
+format:
+	@set -euo pipefail; \
+	if [ -z "$(SWIFTFORMAT)" ]; then \
+		echo "swiftformat not found. Install with: brew install swiftformat"; \
+		exit 1; \
+	fi; \
+	swiftformat .
+
+format-lint:
+	@set -euo pipefail; \
+	if [ -z "$(SWIFTFORMAT)" ]; then \
+		echo "swiftformat not found. Install with: brew install swiftformat"; \
+		exit 1; \
+	fi; \
+	swiftformat --lint .
 
 run-dev:
 	@$(MAKE) run CONFIGURATION=Debug RUN_BUNDLE_ID="$(DEV_BUNDLE_ID)"
