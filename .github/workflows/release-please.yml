@@ -15,6 +15,14 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Release Please version marker
+        run: |
+          set -euo pipefail
+          rg -n "MARKETING_VERSION = .*// x-release-please-version" Momentum.xcodeproj/project.pbxproj >/dev/null
+
       - name: Release Please
         uses: googleapis/release-please-action@v4
         with:

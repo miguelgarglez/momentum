@@ -20,6 +20,11 @@ jobs:
       - name: Xcode version
         run: xcodebuild -version
 
+      - name: Verify Release Please version marker
+        run: |
+          set -euo pipefail
+          rg -n "MARKETING_VERSION = .*// x-release-please-version" Momentum.xcodeproj/project.pbxproj >/dev/null
+
       - name: Build for testing
         run: |
           set -euo pipefail
