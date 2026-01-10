@@ -14,7 +14,6 @@ struct ProjectFormView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appCatalog: AppCatalog
     @State private var draft: ProjectFormDraft
-    @AppStorage("projectColorRecents") private var recentColorsData: String = ""
     private let mode: FormMode
 
     let onSave: (ProjectFormDraft) -> Void
@@ -51,20 +50,12 @@ struct ProjectFormView: View {
                             set: { newValue in
                                 guard let hex = newValue.hexString() else { return }
                                 draft.colorHex = hex
-                                updateRecents(with: hex)
-#if os(macOS)
-                                NSColorPanel.shared.close()
-#endif
                             }
                         ),
                         supportsOpacity: false
                     )
 
-                    colorSwatchSection(title: "Favoritos", colors: ProjectPalette.colors.map(\.hex))
-
-                    if !recentColors.isEmpty {
-                        colorSwatchSection(title: "Recientes", colors: recentColors)
-                    }
+                    colorSwatchSection(title: "Predeterminados", colors: ProjectPalette.colors.map(\.hex))
                 }
 
                 AppAutoTrackingSection(
@@ -148,28 +139,15 @@ struct ProjectFormView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(mode == .create ? "Crear" : "Guardar") {
                         onSave(draft)
+#if os(macOS)
+                        NSColorPanel.shared.close()
+#endif
                         dismiss()
                     }
                     .disabled(draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
-    }
-
-    private var recentColors: [String] {
-        recentColorsData
-            .split(separator: ",")
-            .map { String($0) }
-            .filter { $0.hasPrefix("#") && $0.count == 7 }
-    }
-
-    private func updateRecents(with hex: String) {
-        var colors = recentColors.filter { $0 != hex }
-        colors.insert(hex, at: 0)
-        if colors.count > 6 {
-            colors = Array(colors.prefix(6))
-        }
-        recentColorsData = colors.joined(separator: ",")
     }
 
     @ViewBuilder
