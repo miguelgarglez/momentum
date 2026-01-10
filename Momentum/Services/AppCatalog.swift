@@ -10,6 +10,12 @@ import Foundation
 
 @MainActor
 final class AppCatalog: ObservableObject {
+    private struct AppDescriptor: Hashable, Sendable {
+        let bundleIdentifier: String
+        let name: String
+        let url: URL
+    }
+
     @Published private(set) var apps: [InstalledApp] = []
     @Published private(set) var isLoading = false
 
@@ -27,12 +33,12 @@ final class AppCatalog: ObservableObject {
     func refresh() {
         guard !isLoading else { return }
         isLoading = true
-        Task.detached { [weak self] in
+        Task.detached { [weak self, searchPaths] in
             guard let self else { return }
-            let discovered = await Self.scanApplications(at: self.searchPaths)
+            let discovered = Self.scanApplications(at: searchPaths)
             let sorted = discovered.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             await MainActor.run {
-                self.apps = sorted
+                self.apps = Self.makeInstalledApps(from: sorted)
                 self.isLoading = false
             }
         }
@@ -44,7 +50,7 @@ final class AppCatalog: ObservableObject {
 }
 
 private extension AppCatalog {
-    static var defaultSearchPaths: [URL] {
+    nonisolated static var defaultSearchPaths: [URL] {
         var paths: [URL] = []
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser
@@ -61,8 +67,8 @@ private extension AppCatalog {
         return paths
     }
 
-    static func scanApplications(at paths: [URL]) -> [InstalledApp] {
-        var results: [String: InstalledApp] = [:]
+    nonisolated private static func scanApplications(at paths: [URL]) -> [AppDescriptor] {
+        var results: [String: AppDescriptor] = [:]
         let keys: [URLResourceKey] = [.isDirectoryKey]
         let fm = FileManager.default
         for root in paths {
@@ -82,9 +88,7 @@ private extension AppCatalog {
                 if results[identifier] != nil {
                     continue
                 }
-                let icon = NSWorkspace.shared.icon(forFile: url.path)
-                icon.size = NSSize(width: 32, height: 32)
-                let app = InstalledApp(bundleIdentifier: identifier, name: name, url: url, icon: icon)
+                let app = AppDescriptor(bundleIdentifier: identifier, name: name, url: url)
                 results[identifier] = app
             }
         }
@@ -92,7 +96,7 @@ private extension AppCatalog {
         return Array(results.values)
     }
 
-    static func ensureSystemApps(into results: inout [String: InstalledApp]) {
+    nonisolated private static func ensureSystemApps(into results: inout [String: AppDescriptor]) {
         let fm = FileManager.default
         let entries: [(String, String, String)] = [
             ("com.apple.Safari", "Safari", "/Applications/Safari.app"),
@@ -105,9 +109,21 @@ private extension AppCatalog {
             guard results[entry.0] == nil else { continue }
             let url = URL(fileURLWithPath: entry.2)
             guard fm.fileExists(atPath: url.path) else { continue }
-            let icon = NSWorkspace.shared.icon(forFile: url.path)
+            results[entry.0] = AppDescriptor(bundleIdentifier: entry.0, name: entry.1, url: url)
+        }
+    }
+
+    @MainActor
+    private static func makeInstalledApps(from descriptors: [AppDescriptor]) -> [InstalledApp] {
+        descriptors.map { descriptor in
+            let icon = NSWorkspace.shared.icon(forFile: descriptor.url.path)
             icon.size = NSSize(width: 32, height: 32)
-            results[entry.0] = InstalledApp(bundleIdentifier: entry.0, name: entry.1, url: url, icon: icon)
+            return InstalledApp(
+                bundleIdentifier: descriptor.bundleIdentifier,
+                name: descriptor.name,
+                url: descriptor.url,
+                icon: icon
+            )
         }
     }
 }

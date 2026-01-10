@@ -360,6 +360,7 @@ private struct ProjectDetailStats {
     let lastActivityText: String
     let usageSummaries: [ContextUsageSummary]
 
+    @MainActor
     init(project: Project) {
         totalSeconds = project.totalSeconds
         monthlySeconds = project.monthlySeconds
