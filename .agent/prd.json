@@ -110,7 +110,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Short intro copy, consistent with Spanish UI tone."
     },
     {

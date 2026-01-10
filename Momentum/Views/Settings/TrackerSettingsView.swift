@@ -171,6 +171,9 @@ private struct SettingsAppearanceSectionView: View {
 
     var body: some View {
         Section("Apariencia") {
+            Text("Ajusta el tema visual que verás en toda la app.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Picker("Tema", selection: $themeSelection) {
                 ForEach(AppThemePreference.allCases) { option in
                     Text(option.label)
@@ -194,6 +197,9 @@ private struct SettingsTrackingSectionView: View {
 
     var body: some View {
         Section("Tracking automático") {
+            Text("Controla qué fuentes registra Momentum y la frecuencia de detección.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Toggle("Registrar dominios web", isOn: $draft.isDomainTrackingEnabled)
             Toggle("Registrar archivos", isOn: $draft.isFileTrackingEnabled)
 
@@ -238,6 +244,9 @@ private struct SettingsIdleSectionView: View {
 
     var body: some View {
         Section("Inactividad") {
+            Text("Define cuándo considerar una sesión inactiva y pausar el registro.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 8) {
                 Stepper(
                     value: $draft.idleThresholdMinutes,
@@ -263,6 +272,9 @@ private struct SettingsExclusionSectionView: View {
 
     var body: some View {
         Section("Exclusiones globales") {
+            Text("Evita registrar apps, dominios o archivos que no quieras trackear.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             AppExclusionEditor(excludedApps: $draft.excludedApps)
 
             ExclusionListEditor(
@@ -283,6 +295,9 @@ private struct SettingsAssignmentRulesSectionView: View {
 
     var body: some View {
         Section("Reglas de asignacion") {
+            Text("Configura cómo se asignan automáticamente las sesiones a proyectos.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Picker("Expiración de reglas", selection: $draft.assignmentRuleExpiration) {
                 ForEach(AssignmentRuleExpirationOption.allCases) { option in
                     Text(option.label)
@@ -313,6 +328,9 @@ private struct SettingsPrivacySectionView: View {
 
     var body: some View {
         Section("Privacidad y datos") {
+            Text("Gestiona la protección de tu base de datos y limpieza de actividad.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Toggle(isOn: $draft.isDatabaseEncryptionEnabled) {
                 HStack(spacing: 6) {
                     Text("Cifrar base de datos")

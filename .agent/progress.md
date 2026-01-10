@@ -30,3 +30,5 @@
 2026-01-10: SET-007 passed (added section routing switch for settings detail view). verify_fast: make test-unit.
 2026-01-10: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
 2026-01-10: SET-008 passed (reordered settings sidebar sections to prioritize tracking, privacy, appearance). verify_fast: make test-unit.
+2026-01-10: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
+2026-01-10: SET-009 passed (added section intro copy across settings sections). verify_fast: make test-unit.
