@@ -1,5 +1,5 @@
 #if os(macOS)
-    import AppKit
+    @preconcurrency import AppKit
     import ApplicationServices
     import OSLog
 
@@ -22,7 +22,7 @@
             _ = FileDocumentResolver.requestAutomationPermission(for: identifier)
             let script = app.script
 
-            return await AppleScriptRunner.run(script: script, identifier: identifier, logger: logger)
+            return await DocumentAppleScriptRunner.run(script: script, identifier: identifier, logger: logger)
         }
 
         private static func requestAutomationPermission(for bundleIdentifier: String) -> Bool {
@@ -142,27 +142,10 @@
         }
     }
 
-    private nonisolated enum AppleScriptRunner {
+    private nonisolated enum DocumentAppleScriptRunner {
         @concurrent
         static func run(script: String, identifier: String, logger: Logger) async -> String? {
-            guard let appleScript = NSAppleScript(source: script) else {
-                logger.error("Failed to compile AppleScript for file lookup")
-                return nil
-            }
-            var error: NSDictionary?
-            let descriptor = appleScript.executeAndReturnError(&error)
-            if let error,
-               let errorNumber = error[NSAppleScript.errorNumber] as? Int,
-               errorNumber == -600
-            {
-                logger.debug("Document app \(identifier, privacy: .public) not ready for AppleScript (not running)")
-                return nil
-            } else if let error {
-                logger.error("AppleScript error: \(error, privacy: .public)")
-            }
-            guard let path = descriptor.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  !path.isEmpty
-            else {
+            guard let path = await AppleScriptRunner.run(script: script, identifier: identifier, logger: logger) else {
                 return nil
             }
             return path.normalizedFilePath

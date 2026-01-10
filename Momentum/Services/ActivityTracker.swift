@@ -11,7 +11,7 @@ import OSLog
 import SwiftData
 
 #if os(macOS)
-    import AppKit
+    @preconcurrency import AppKit
     import IOKit
 
     /// Central coordinator for activity tracking in Momentum.
@@ -1483,24 +1483,10 @@ import SwiftData
         private nonisolated enum BrowserScriptRunner {
             @concurrent
             static func run(script: String, identifier: String, logger: Logger) async -> String? {
-                guard let appleScript = NSAppleScript(source: script) else {
-                    logger.error("Failed to compile AppleScript for browser domain lookup")
+                guard let urlString = await AppleScriptRunner.run(script: script, identifier: identifier, logger: logger) else {
                     return nil
                 }
-                var error: NSDictionary?
-                let descriptor = appleScript.executeAndReturnError(&error)
-                if let error,
-                   let errorNumber = error[NSAppleScript.errorNumber] as? Int,
-                   errorNumber == -600
-                {
-                    logger.debug("Browser \(identifier, privacy: .public) not ready for AppleScript (not running)")
-                    return nil
-                } else if let error {
-                    logger.error("AppleScript error: \(error, privacy: .public)")
-                }
-                guard let urlString = descriptor.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
-                      !urlString.isEmpty,
-                      let domain = BrowserFamily.domain(from: urlString)
+                guard let domain = BrowserFamily.domain(from: urlString)
                 else {
                     return nil
                 }
