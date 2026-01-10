@@ -2,6 +2,7 @@
     import AppKit
     import Combine
 
+    @MainActor
     final class StatusItemController: NSObject {
         private let tracker: ActivityTracker
         private let statusItem: NSStatusItem
