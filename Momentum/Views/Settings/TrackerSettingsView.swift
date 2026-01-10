@@ -640,26 +640,17 @@ private struct ExcludedAppChip: View {
     let onRemove: () -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
-            icon
-                .resizable()
-                .frame(width: 20, height: 20)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-            Text(title)
-                .font(.caption.weight(.medium))
-                .lineLimit(1)
-            Button {
-                onRemove()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
-        .background(Color.secondary.opacity(0.12))
-        .clipShape(Capsule())
+        RemovableChip(
+            title: title,
+            removeAccessibilityLabel: "Eliminar app excluida",
+            leading: {
+                icon
+                    .resizable()
+                    .frame(width: 20, height: 20)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            },
+            onRemove: onRemove
+        )
     }
 }
 
