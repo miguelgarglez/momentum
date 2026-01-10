@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.3.0](https://github.com/miguelgarglez/momentum/compare/v1.2.1...v1.3.0) (2026-01-10)
+
+
+### Features
+
+* **tracking:** add file tracking support ([88ec98d](https://github.com/miguelgarglez/momentum/commit/88ec98d6935a0d9821544b20aa6aa989343b0f84))
+
+
+### CI
+
+* **release:** verify version marker in pbxproj ([6a506bc](https://github.com/miguelgarglez/momentum/commit/6a506bcd735a87bb76d9a78d567db5cc4dcefa51))
+* **workflows:** add SwiftLint cache ([0b41058](https://github.com/miguelgarglez/momentum/commit/0b41058ad88c252ee077ea9958e2476fe9d87907))
+
+
+### Chores
+
+* **tooling:** add SwiftLint/SwiftFormat setup ([24b3da5](https://github.com/miguelgarglez/momentum/commit/24b3da5f10fb168a404dd9ef6513683c9473999f))
+
+
+### Style
+
+* **ui:** apply swiftformat tweaks ([38647d9](https://github.com/miguelgarglez/momentum/commit/38647d96874e7397e56bf1ae8f8b039573dd0c83))
+
 ## [1.2.1](https://github.com/miguelgarglez/momentum/compare/v1.2.0...v1.2.1) (2026-01-08)
 
 
