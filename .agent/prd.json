@@ -19,7 +19,9 @@
       "title": "Create SettingsSidebarView listing sections with selection binding",
       "priority": 5,
       "risk": "high",
-      "depends_on": ["SET-001"],
+      "depends_on": [
+        "SET-001"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -31,7 +33,10 @@
       "title": "Introduce SettingsShellView using NavigationSplitView and shared selection",
       "priority": 5,
       "risk": "high",
-      "depends_on": ["SET-001", "SET-002"],
+      "depends_on": [
+        "SET-001",
+        "SET-002"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`",
         "Run `make test`"
@@ -44,7 +49,9 @@
       "title": "Refactor TrackerSettingsView into section-specific subviews",
       "priority": 5,
       "risk": "high",
-      "depends_on": ["SET-003"],
+      "depends_on": [
+        "SET-003"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`",
         "Run `make test`"
@@ -57,7 +64,10 @@
       "title": "Move save/cancel action bar into SettingsShellView and keep draft state shared",
       "priority": 5,
       "risk": "high",
-      "depends_on": ["SET-003", "SET-004"],
+      "depends_on": [
+        "SET-003",
+        "SET-004"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`",
         "Run `make test`"
@@ -70,7 +80,10 @@
       "title": "Update Settings scene in MomentumApp to present SettingsShellView",
       "priority": 4,
       "risk": "high",
-      "depends_on": ["SET-003", "SET-005"],
+      "depends_on": [
+        "SET-003",
+        "SET-005"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -82,7 +95,10 @@
       "title": "Add detail routing map from SettingsSection to section view content",
       "priority": 4,
       "risk": "med",
-      "depends_on": ["SET-001", "SET-004"],
+      "depends_on": [
+        "SET-001",
+        "SET-004"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -94,7 +110,9 @@
       "title": "Design sidebar ordering and labels to match mental model of settings",
       "priority": 4,
       "risk": "med",
-      "depends_on": ["SET-001"],
+      "depends_on": [
+        "SET-001"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -106,7 +124,9 @@
       "title": "Add section-level headers/intro text for clarity inside each detail view",
       "priority": 4,
       "risk": "med",
-      "depends_on": ["SET-004"],
+      "depends_on": [
+        "SET-004"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -118,7 +138,10 @@
       "title": "Ensure AssignmentRulesView navigation still works inside split view",
       "priority": 4,
       "risk": "med",
-      "depends_on": ["SET-004", "SET-007"],
+      "depends_on": [
+        "SET-004",
+        "SET-007"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`",
         "Run `make test`"
@@ -131,7 +154,9 @@
       "title": "Extract Appearance section into dedicated view file",
       "priority": 3,
       "risk": "med",
-      "depends_on": ["SET-004"],
+      "depends_on": [
+        "SET-004"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -143,11 +168,13 @@
       "title": "Extract Tracking section into dedicated view file",
       "priority": 3,
       "risk": "med",
-      "depends_on": ["SET-004"],
+      "depends_on": [
+        "SET-004"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Retain automation permission info and slider behavior."
     },
     {
@@ -155,7 +182,9 @@
       "title": "Extract Idle section into dedicated view file",
       "priority": 3,
       "risk": "med",
-      "depends_on": ["SET-004"],
+      "depends_on": [
+        "SET-004"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -167,7 +196,9 @@
       "title": "Extract Exclusions section into dedicated view file",
       "priority": 3,
       "risk": "med",
-      "depends_on": ["SET-004"],
+      "depends_on": [
+        "SET-004"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -179,7 +210,9 @@
       "title": "Extract Assignment Rules section into dedicated view file",
       "priority": 3,
       "risk": "med",
-      "depends_on": ["SET-004"],
+      "depends_on": [
+        "SET-004"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -191,7 +224,9 @@
       "title": "Extract Privacy & Data section into dedicated view file",
       "priority": 3,
       "risk": "med",
-      "depends_on": ["SET-004"],
+      "depends_on": [
+        "SET-004"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -203,7 +238,9 @@
       "title": "Add a reusable SettingsSectionHeader view style",
       "priority": 2,
       "risk": "low",
-      "depends_on": ["SET-009"],
+      "depends_on": [
+        "SET-009"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -215,7 +252,10 @@
       "title": "Align section spacing and form background styling with new split view",
       "priority": 2,
       "risk": "low",
-      "depends_on": ["SET-003", "SET-004"],
+      "depends_on": [
+        "SET-003",
+        "SET-004"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -227,7 +267,9 @@
       "title": "Add sidebar icons mapping to each section",
       "priority": 2,
       "risk": "low",
-      "depends_on": ["SET-001"],
+      "depends_on": [
+        "SET-001"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -239,7 +281,10 @@
       "title": "Ensure default selected section is meaningful on first open",
       "priority": 2,
       "risk": "low",
-      "depends_on": ["SET-001", "SET-003"],
+      "depends_on": [
+        "SET-001",
+        "SET-003"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -251,7 +296,9 @@
       "title": "Add keyboard focus and accessibility labels for sidebar items",
       "priority": 2,
       "risk": "low",
-      "depends_on": ["SET-002"],
+      "depends_on": [
+        "SET-002"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -263,7 +310,9 @@
       "title": "Update Settings window min width/height to fit sidebar + content",
       "priority": 2,
       "risk": "low",
-      "depends_on": ["SET-006"],
+      "depends_on": [
+        "SET-006"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -275,7 +324,9 @@
       "title": "Add section-level previews for unselected sections when no data",
       "priority": 1,
       "risk": "low",
-      "depends_on": ["SET-007"],
+      "depends_on": [
+        "SET-007"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -287,7 +338,9 @@
       "title": "Update Documentation.docc to mention new settings layout",
       "priority": 1,
       "risk": "low",
-      "depends_on": ["SET-003"],
+      "depends_on": [
+        "SET-003"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -299,7 +352,9 @@
       "title": "Add small UI regression note to PRDs/Notes if needed",
       "priority": 1,
       "risk": "low",
-      "depends_on": ["SET-024"],
+      "depends_on": [
+        "SET-024"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
@@ -311,7 +366,9 @@
       "title": "Verify no new dependencies or tooling changes were introduced",
       "priority": 1,
       "risk": "low",
-      "depends_on": ["SET-006"],
+      "depends_on": [
+        "SET-006"
+      ],
       "steps_to_verify": [
         "Run `make test-unit`"
       ],

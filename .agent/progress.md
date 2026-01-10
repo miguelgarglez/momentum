@@ -36,3 +36,5 @@
 2026-01-10: SET-010 passed (moved NavigationStack to SettingsShellView detail to keep AssignmentRules navigation working). verify_fast: make test-unit.
 2026-01-10: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
 2026-01-10: SET-011 passed (extracted appearance section view). verify_fast: make test-unit.
+2026-01-10: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
+2026-01-10: SET-012 passed (extracted tracking section view). verify_fast: make test-unit.
