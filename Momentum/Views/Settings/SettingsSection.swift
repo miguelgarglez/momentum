@@ -3,11 +3,11 @@ import Foundation
 @MainActor
 enum SettingsSection: String, CaseIterable, Identifiable {
     case tracking
+    case privacy
     case appearance
     case idle
     case exclusions
     case assignmentRules
-    case privacy
 
     var id: String { rawValue }
 
@@ -15,6 +15,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .tracking:
             return "Tracking automatico"
+        case .privacy:
+            return "Privacidad y datos"
         case .appearance:
             return "Apariencia"
         case .idle:
@@ -23,8 +25,6 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "Exclusiones globales"
         case .assignmentRules:
             return "Reglas de asignacion"
-        case .privacy:
-            return "Privacidad y datos"
         }
     }
 
@@ -32,6 +32,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .tracking:
             return "dot.scope"
+        case .privacy:
+            return "lock.shield"
         case .appearance:
             return "paintbrush"
         case .idle:
@@ -40,8 +42,6 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "line.3.horizontal.decrease.circle"
         case .assignmentRules:
             return "point.3.connected.trianglepath.dotted"
-        case .privacy:
-            return "lock.shield"
         }
     }
 }

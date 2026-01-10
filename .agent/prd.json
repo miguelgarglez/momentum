@@ -98,7 +98,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Order should prioritize tracking, privacy, and appearance."
     },
     {
