@@ -105,7 +105,7 @@ import SwiftData
             settings: TrackerSettings,
             crashRecovery: CrashRecoveryHandling? = nil,
             performanceMonitor: PerformanceBudgetMonitoring? = nil,
-            assignmentResolver: ProjectAssignmentResolving? = nil
+            assignmentResolver: ProjectAssignmentResolving? = nil,
         ) {
             self.modelContainer = modelContainer
             self.settings = settings
@@ -115,7 +115,7 @@ import SwiftData
             observer = NSWorkspace.shared.notificationCenter.addObserver(
                 forName: NSWorkspace.didActivateApplicationNotification,
                 object: nil,
-                queue: .main
+                queue: .main,
             ) { [weak self] notification in
                 guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
                 Task { @MainActor [weak self] in
@@ -165,7 +165,7 @@ import SwiftData
                 projectID: nil,
                 projectName: snapshot.projectName,
                 isExcluded: snapshot.isExcluded,
-                isPendingAssignment: false
+                isPendingAssignment: false,
             )
             if isManualTrackingActive {
                 applyManualProjectAssociation(to: &context)
@@ -249,7 +249,7 @@ import SwiftData
                 projectID: nil,
                 projectName: nil,
                 isExcluded: isExcludedApp,
-                isPendingAssignment: false
+                isPendingAssignment: false,
             )
             if !isExcludedApp {
                 updateProjectAssociation(for: &context)
@@ -297,7 +297,7 @@ import SwiftData
             switch assignmentResolver.resolveAssignment(
                 for: context.bundleIdentifier,
                 domain: context.domain,
-                filePath: context.filePath
+                filePath: context.filePath,
             ) {
             case let .assigned(project, _):
                 persistSession(context: context, endDate: endDate, project: project)
@@ -344,7 +344,7 @@ import SwiftData
         private func persistPendingSession(
             context: AppSessionContext,
             endDate: Date,
-            conflictContext: AssignmentContext
+            conflictContext: AssignmentContext,
         ) {
             let pending = PendingTrackingSession(
                 startDate: context.startDate,
@@ -354,7 +354,7 @@ import SwiftData
                 domain: context.domain,
                 filePath: context.filePath,
                 contextType: conflictContext.type.rawValue,
-                contextValue: conflictContext.value
+                contextValue: conflictContext.value,
             )
             modelContainer.mainContext.insert(pending)
             do {
@@ -369,7 +369,7 @@ import SwiftData
         private func insertResolvedSession(
             context: AppSessionContext,
             endDate: Date,
-            project: Project
+            project: Project,
         ) {
             let interval = DateInterval(start: context.startDate, end: endDate)
             let overlapResolver = SessionOverlapResolver(context: modelContainer.mainContext)
@@ -381,7 +381,7 @@ import SwiftData
                 bundleIdentifier: context.bundleIdentifier,
                 domain: context.domain,
                 filePath: context.filePath,
-                project: project
+                project: project,
             )
             modelContainer.mainContext.insert(session)
             for (project, removedInterval) in removedSegments {
@@ -436,7 +436,7 @@ import SwiftData
                         projectID: context.projectID,
                         projectName: context.projectName,
                         isExcluded: context.isExcluded,
-                        isPendingAssignment: context.isPendingAssignment
+                        isPendingAssignment: context.isPendingAssignment,
                     ))
                 }
             }
@@ -618,7 +618,7 @@ import SwiftData
                         projectID: nil,
                         projectName: nil,
                         isExcluded: true,
-                        isPendingAssignment: false
+                        isPendingAssignment: false,
                     )
                     setCurrentContext(excludedContext)
                 } else if var current = currentContext {
@@ -639,7 +639,7 @@ import SwiftData
                         projectID: nil,
                         projectName: nil,
                         isExcluded: true,
-                        isPendingAssignment: false
+                        isPendingAssignment: false,
                     )
                     setCurrentContext(excludedContext)
                 }
@@ -659,7 +659,7 @@ import SwiftData
                         projectID: nil,
                         projectName: nil,
                         isExcluded: false,
-                        isPendingAssignment: false
+                        isPendingAssignment: false,
                     )
                     updateProjectAssociation(for: &resumed)
                     setCurrentContext(resumed)
@@ -679,7 +679,7 @@ import SwiftData
                         projectID: nil,
                         projectName: nil,
                         isExcluded: false,
-                        isPendingAssignment: false
+                        isPendingAssignment: false,
                     )
                     updateProjectAssociation(for: &resumed)
                     setCurrentContext(resumed)
@@ -708,7 +708,7 @@ import SwiftData
                     projectID: previousContext.projectID,
                     projectName: previousContext.projectName,
                     isExcluded: previousContext.isExcluded,
-                    isPendingAssignment: previousContext.isPendingAssignment
+                    isPendingAssignment: previousContext.isPendingAssignment,
                 ))
             } else if var current = currentContext {
                 current.domain = domain
@@ -745,7 +745,7 @@ import SwiftData
                         projectID: nil,
                         projectName: nil,
                         isExcluded: true,
-                        isPendingAssignment: false
+                        isPendingAssignment: false,
                     )
                     setCurrentContext(excludedContext)
                 } else if var current = currentContext {
@@ -766,7 +766,7 @@ import SwiftData
                         projectID: nil,
                         projectName: nil,
                         isExcluded: true,
-                        isPendingAssignment: false
+                        isPendingAssignment: false,
                     )
                     setCurrentContext(excludedContext)
                 }
@@ -786,7 +786,7 @@ import SwiftData
                         projectID: nil,
                         projectName: nil,
                         isExcluded: false,
-                        isPendingAssignment: false
+                        isPendingAssignment: false,
                     )
                     updateProjectAssociation(for: &resumed)
                     setCurrentContext(resumed)
@@ -806,7 +806,7 @@ import SwiftData
                         projectID: nil,
                         projectName: nil,
                         isExcluded: false,
-                        isPendingAssignment: false
+                        isPendingAssignment: false,
                     )
                     updateProjectAssociation(for: &resumed)
                     setCurrentContext(resumed)
@@ -836,7 +836,7 @@ import SwiftData
                     projectID: previousContext.projectID,
                     projectName: previousContext.projectName,
                     isExcluded: previousContext.isExcluded,
-                    isPendingAssignment: previousContext.isPendingAssignment
+                    isPendingAssignment: previousContext.isPendingAssignment,
                 ))
             } else if var current = currentContext {
                 current.filePath = sanitized
@@ -866,7 +866,7 @@ import SwiftData
                         projectID: nil,
                         projectName: nil,
                         isExcluded: true,
-                        isPendingAssignment: false
+                        isPendingAssignment: false,
                     )
                     setCurrentContext(excludedContext)
                 } else if var current = currentContext {
@@ -893,7 +893,7 @@ import SwiftData
                         projectID: nil,
                         projectName: nil,
                         isExcluded: false,
-                        isPendingAssignment: false
+                        isPendingAssignment: false,
                     )
                     updateProjectAssociation(for: &resumed)
                     setCurrentContext(resumed)
@@ -932,7 +932,7 @@ import SwiftData
             screenLockObserver = center.addObserver(
                 forName: NSNotification.Name("com.apple.screenIsLocked"),
                 object: nil,
-                queue: .main
+                queue: .main,
             ) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.handleScreenLockChange(isLocked: true)
@@ -941,7 +941,7 @@ import SwiftData
             screenUnlockObserver = center.addObserver(
                 forName: NSNotification.Name("com.apple.screenIsUnlocked"),
                 object: nil,
-                queue: .main
+                queue: .main,
             ) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.handleScreenLockChange(isLocked: false)
@@ -1042,7 +1042,7 @@ import SwiftData
                 service,
                 "HIDIdleTime" as CFString,
                 kCFAllocatorDefault,
-                0
+                0,
             ) else {
                 return nil
             }
@@ -1077,7 +1077,7 @@ import SwiftData
                     filePath: context.filePath,
                     bundleIdentifier: context.bundleIdentifier,
                     projectName: context.projectName,
-                    projectID: context.projectID
+                    projectID: context.projectID,
                 )
                 return
             }
@@ -1089,7 +1089,7 @@ import SwiftData
                     filePath: context.filePath,
                     bundleIdentifier: context.bundleIdentifier,
                     projectName: nil,
-                    projectID: nil
+                    projectID: nil,
                 )
                 return
             }
@@ -1101,7 +1101,7 @@ import SwiftData
                     filePath: context.filePath,
                     bundleIdentifier: context.bundleIdentifier,
                     projectName: nil,
-                    projectID: nil
+                    projectID: nil,
                 )
                 return
             }
@@ -1112,7 +1112,7 @@ import SwiftData
                 filePath: context.filePath,
                 bundleIdentifier: context.bundleIdentifier,
                 projectName: context.projectName,
-                projectID: context.projectID
+                projectID: context.projectID,
             )
         }
 
@@ -1123,7 +1123,7 @@ import SwiftData
                     context: $0,
                     isManualTrackingActive: isManualTrackingActive,
                     manualProjectID: manualProjectID,
-                    manualStartDate: manualStartDate
+                    manualStartDate: manualStartDate,
                 )
             })
             refreshStatusSummary()
@@ -1137,7 +1137,7 @@ import SwiftData
             switch assignmentResolver.resolveAssignment(
                 for: context.bundleIdentifier,
                 domain: context.domain,
-                filePath: context.filePath
+                filePath: context.filePath,
             ) {
             case let .assigned(project, _):
                 context.projectID = project.persistentModelID
@@ -1240,7 +1240,7 @@ import SwiftData
                 predicate: #Predicate {
                     $0.contextType == typeValue &&
                         $0.contextValue == contextValue
-                }
+                },
             )
             if let rule = try? modelContainer.mainContext.fetch(ruleDescriptor).first {
                 rule.project = project
@@ -1249,7 +1249,7 @@ import SwiftData
                 let rule = AssignmentRule(
                     contextType: context.type.rawValue,
                     contextValue: context.value,
-                    project: project
+                    project: project,
                 )
                 modelContainer.mainContext.insert(rule)
             }
@@ -1258,7 +1258,7 @@ import SwiftData
                 predicate: #Predicate {
                     $0.contextType == typeValue &&
                         $0.contextValue == contextValue
-                }
+                },
             )
             guard let pendingSessions = try? modelContainer.mainContext.fetch(pendingDescriptor),
                   !pendingSessions.isEmpty
@@ -1278,7 +1278,7 @@ import SwiftData
                     projectID: nil,
                     projectName: project.name,
                     isExcluded: false,
-                    isPendingAssignment: false
+                    isPendingAssignment: false,
                 )
                 insertResolvedSession(context: sessionContext, endDate: pending.endDate, project: project)
                 modelContainer.mainContext.delete(pending)
@@ -1312,7 +1312,7 @@ import SwiftData
             context: AppSessionContext,
             isManualTrackingActive: Bool,
             manualProjectID: PersistentIdentifier?,
-            manualStartDate: Date?
+            manualStartDate: Date?,
         ) {
             self.init(
                 appName: context.appName,
@@ -1324,7 +1324,7 @@ import SwiftData
                 isExcluded: context.isExcluded,
                 isManualTrackingActive: isManualTrackingActive,
                 manualProjectID: manualProjectID,
-                manualStartDate: manualStartDate
+                manualStartDate: manualStartDate,
             )
         }
     }
@@ -1345,7 +1345,7 @@ import SwiftData
                 domain: String? = nil,
                 filePath: String? = nil,
                 startDate: Date = Date().addingTimeInterval(-20),
-                isExcluded: Bool = false
+                isExcluded: Bool = false,
             ) {
                 _ = flushCurrentSession()
                 var context = AppSessionContext(
@@ -1357,7 +1357,7 @@ import SwiftData
                     projectID: nil,
                     projectName: nil,
                     isExcluded: isExcluded,
-                    isPendingAssignment: false
+                    isPendingAssignment: false,
                 )
                 if !isExcluded {
                     updateProjectAssociation(for: &context)
@@ -1377,6 +1377,7 @@ import SwiftData
         }
     #endif
 
+    @MainActor
     private final class BrowserDomainResolver {
         private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Momentum", category: "BrowserDomainResolver")
 
@@ -1392,15 +1393,14 @@ import SwiftData
                 return nil
             }
 
-            return await Task.detached(priority: .utility) { [logger] in
-                let domain = browser.fetchCurrentURLDomain(logger: logger)
-                if let domain {
-                    logger.debug("Resolved browser domain: \(domain, privacy: .public)")
-                } else {
-                    logger.debug("Browser domain resolution returned empty result")
-                }
-                return domain
-            }.value
+            let script: String = switch browser {
+            case let .safari(bundleIdentifier):
+                BrowserFamily.safariScript(bundleIdentifier: bundleIdentifier)
+            case let .chrome(bundleIdentifier):
+                BrowserFamily.chromeScript(bundleIdentifier: bundleIdentifier)
+            }
+
+            return await BrowserScriptRunner.run(script: script, identifier: browser.identifier, logger: logger)
         }
 
         private enum BrowserFamily {
@@ -1410,7 +1410,7 @@ import SwiftData
             var identifier: String {
                 switch self {
                 case let .safari(bundleIdentifier), let .chrome(bundleIdentifier):
-                    return bundleIdentifier
+                    bundleIdentifier
                 }
             }
 
@@ -1425,14 +1425,64 @@ import SwiftData
                 }
             }
 
-            func fetchCurrentURLDomain(logger: Logger) -> String? {
-                let script: String
-                switch self {
-                case let .safari(bundleIdentifier):
-                    script = BrowserFamily.safariScript(bundleIdentifier: bundleIdentifier)
-                case let .chrome(bundleIdentifier):
-                    script = BrowserFamily.chromeScript(bundleIdentifier: bundleIdentifier)
+            fileprivate static func safariScript(bundleIdentifier: String) -> String {
+                """
+                tell application id "\(bundleIdentifier)"
+                    if (count of windows) = 0 then return ""
+                    set currentWindow to front window
+                    if currentWindow exists then
+                        set currentTab to current tab of currentWindow
+                        if currentTab exists then
+                            set theURL to URL of currentTab
+                            return theURL
+                        end if
+                    end if
+                end tell
+                return ""
+                """
+            }
+
+            fileprivate static func chromeScript(bundleIdentifier: String) -> String {
+                """
+                tell application id "\(bundleIdentifier)"
+                    if (count of windows) = 0 then return ""
+                    set currentWindow to front window
+                    if currentWindow exists then
+                        set currentTab to active tab of currentWindow
+                        if currentTab exists then
+                            set theURL to URL of currentTab
+                            return theURL
+                        end if
+                    end if
+                end tell
+                return ""
+                """
+            }
+
+            nonisolated fileprivate static func domain(from urlString: String) -> String? {
+                let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return nil }
+                var normalized = trimmed
+                if !normalized.contains("://") {
+                    normalized = "https://\(normalized)"
                 }
+                guard let url = URL(string: normalized),
+                      let scheme = url.scheme?.lowercased(),
+                      ["http", "https"].contains(scheme),
+                      var host = url.host?.lowercased()
+                else {
+                    return nil
+                }
+                if host.hasPrefix("www.") {
+                    host.removeFirst(4)
+                }
+                return host
+            }
+        }
+
+        private nonisolated struct BrowserScriptRunner {
+            @concurrent
+            static func run(script: String, identifier: String, logger: Logger) async -> String? {
                 guard let appleScript = NSAppleScript(source: script) else {
                     logger.error("Failed to compile AppleScript for browser domain lookup")
                     return nil
@@ -1454,61 +1504,8 @@ import SwiftData
                 else {
                     return nil
                 }
+                logger.debug("Resolved browser domain: \(domain, privacy: .public)")
                 return domain
-            }
-
-            private static func safariScript(bundleIdentifier: String) -> String {
-                """
-                tell application id "\(bundleIdentifier)"
-                    if (count of windows) = 0 then return ""
-                    set currentWindow to front window
-                    if currentWindow exists then
-                        set currentTab to current tab of currentWindow
-                        if currentTab exists then
-                            set theURL to URL of currentTab
-                            return theURL
-                        end if
-                    end if
-                end tell
-                return ""
-                """
-            }
-
-            private static func chromeScript(bundleIdentifier: String) -> String {
-                """
-                tell application id "\(bundleIdentifier)"
-                    if (count of windows) = 0 then return ""
-                    set currentWindow to front window
-                    if currentWindow exists then
-                        set currentTab to active tab of currentWindow
-                        if currentTab exists then
-                            set theURL to URL of currentTab
-                            return theURL
-                        end if
-                    end if
-                end tell
-                return ""
-                """
-            }
-
-            private static func domain(from urlString: String) -> String? {
-                let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { return nil }
-                var normalized = trimmed
-                if !normalized.contains("://") {
-                    normalized = "https://\(normalized)"
-                }
-                guard let url = URL(string: normalized),
-                      let scheme = url.scheme?.lowercased(),
-                      ["http", "https"].contains(scheme),
-                      var host = url.host?.lowercased()
-                else {
-                    return nil
-                }
-                if host.hasPrefix("www.") {
-                    host.removeFirst(4)
-                }
-                return host
             }
         }
     }

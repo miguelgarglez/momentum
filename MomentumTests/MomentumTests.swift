@@ -39,7 +39,7 @@ struct MomentumTests {
         let match = resolver.resolveProject(
             for: "com.apple.Preview",
             domain: "docs.test",
-            filePath: filePath
+            filePath: filePath,
         )
         #expect(match === fileProject)
     }
@@ -72,7 +72,7 @@ struct MomentumTests {
                 bundleIdentifier: "com.test.xcode",
                 domain: nil,
                 filePath: nil,
-                project: project
+                project: project,
             )
             container.mainContext.insert(session)
             project.sessions.append(session)
@@ -101,7 +101,7 @@ struct MomentumTests {
                 bundleIdentifier: "com.test.xcode",
                 domain: nil,
                 filePath: nil,
-                project: project
+                project: project,
             )
             container.mainContext.insert(session)
             project.sessions.append(session)
@@ -190,7 +190,7 @@ struct MomentumTests {
         let rule = AssignmentRule(
             contextType: AssignmentContextType.app.rawValue,
             contextValue: bundleID,
-            project: projectB
+            project: projectB,
         )
         container.mainContext.insert(rule)
 
@@ -223,7 +223,7 @@ struct MomentumTests {
             contextValue: bundleID,
             project: projectB,
             createdAt: expiredDate,
-            lastUsedAt: expiredDate
+            lastUsedAt: expiredDate,
         )
         container.mainContext.insert(rule)
 
@@ -264,7 +264,7 @@ struct MomentumTests {
             bundleIdentifier: "com.test.xcode",
             domain: nil,
             filePath: nil,
-            project: project
+            project: project,
         )
         let second = TrackingSession(
             startDate: base.addingTimeInterval(3600),
@@ -273,7 +273,7 @@ struct MomentumTests {
             bundleIdentifier: "com.test.safari",
             domain: nil,
             filePath: nil,
-            project: project
+            project: project,
         )
         container.mainContext.insert(first)
         container.mainContext.insert(second)
@@ -292,7 +292,7 @@ struct MomentumTests {
             bundleIdentifier: "com.test.pages",
             domain: nil,
             filePath: nil,
-            project: project
+            project: project,
         )
         container.mainContext.insert(third)
         let originalThirdEnd = third.endDate
@@ -351,7 +351,7 @@ struct MomentumTests {
             modelContainer: container,
             settings: settings,
             crashRecovery: MockCrashRecoveryHandler(),
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
         tracker.testing_beginContext(appName: "Momentum", bundleIdentifier: "run.momentum.app", startDate: Date().addingTimeInterval(-120))
         #expect(tracker.testing_forceFlush())
@@ -366,7 +366,7 @@ struct MomentumTests {
             appName: "Safari",
             bundleIdentifier: scenario.secondaryBundle,
             domain: "unknown.com",
-            startDate: Date().addingTimeInterval(-60)
+            startDate: Date().addingTimeInterval(-60),
         )
         #expect(scenario.tracker.statusSummary.projectName == nil)
         #expect(scenario.tracker.testing_forceFlush())
@@ -392,13 +392,13 @@ struct MomentumTests {
             modelContainer: container,
             settings: settings,
             crashRecovery: MockCrashRecoveryHandler(),
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
 
         tracker.testing_beginContext(
             appName: "VSCode",
             bundleIdentifier: bundleID,
-            startDate: Date().addingTimeInterval(-40)
+            startDate: Date().addingTimeInterval(-40),
         )
         #expect(tracker.testing_forceFlush())
 
@@ -426,7 +426,7 @@ struct MomentumTests {
             modelContainer: container,
             settings: settings,
             crashRecovery: MockCrashRecoveryHandler(),
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
 
         let pending = PendingTrackingSession(
@@ -437,14 +437,14 @@ struct MomentumTests {
             domain: nil,
             filePath: nil,
             contextType: AssignmentContextType.app.rawValue,
-            contextValue: bundleID
+            contextValue: bundleID,
         )
         container.mainContext.insert(pending)
         try container.mainContext.save()
 
         tracker.resolveConflict(
             context: AssignmentContext(type: .app, value: bundleID),
-            project: projectB
+            project: projectB,
         )
 
         let rules = try container.mainContext.fetch(FetchDescriptor<AssignmentRule>())
@@ -469,7 +469,7 @@ struct MomentumTests {
             modelContainer: container,
             settings: settings,
             crashRecovery: MockCrashRecoveryHandler(),
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
 
         let filePath = "/tmp/report.pdf".normalizedFilePath
@@ -478,7 +478,7 @@ struct MomentumTests {
             appName: "Preview",
             bundleIdentifier: "com.apple.Preview",
             filePath: filePath,
-            startDate: Date().addingTimeInterval(-40)
+            startDate: Date().addingTimeInterval(-40),
         )
         #expect(tracker.testing_forceFlush())
         #expect(project.assignedFiles.contains(filePath))
@@ -493,7 +493,7 @@ struct MomentumTests {
             modelContainer: container,
             settings: settings,
             crashRecovery: crashRecovery,
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
 
         let filePath = "/tmp/deck.key".normalizedFilePath
@@ -501,7 +501,7 @@ struct MomentumTests {
             appName: "Keynote",
             bundleIdentifier: "com.apple.iWork.Keynote",
             filePath: filePath,
-            startDate: Date().addingTimeInterval(-20)
+            startDate: Date().addingTimeInterval(-20),
         )
         #expect(crashRecovery.persistedSnapshot?.filePath == filePath)
     }
@@ -562,18 +562,18 @@ struct MomentumTests {
             modelContainer: container,
             settings: settings,
             crashRecovery: MockCrashRecoveryHandler(),
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
 
         tracker.resolveConflict(
             context: AssignmentContext(type: .app, value: bundleID),
-            project: projectA
+            project: projectA,
         )
 
         tracker.testing_beginContext(
             appName: "VSCode",
             bundleIdentifier: bundleID,
-            startDate: Date().addingTimeInterval(-40)
+            startDate: Date().addingTimeInterval(-40),
         )
         #expect(tracker.testing_forceFlush())
 
@@ -602,14 +602,14 @@ struct MomentumTests {
             modelContainer: container,
             settings: settings,
             crashRecovery: MockCrashRecoveryHandler(),
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
 
         tracker.testing_beginContext(
             appName: "Safari",
             bundleIdentifier: "com.apple.Safari",
             domain: domain,
-            startDate: Date().addingTimeInterval(-40)
+            startDate: Date().addingTimeInterval(-40),
         )
         #expect(tracker.testing_forceFlush())
 
@@ -635,13 +635,13 @@ struct MomentumTests {
             modelContainer: container,
             settings: settings,
             crashRecovery: MockCrashRecoveryHandler(),
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
 
         tracker.testing_beginContext(
             appName: "VSCode",
             bundleIdentifier: bundleID,
-            startDate: Date().addingTimeInterval(-40)
+            startDate: Date().addingTimeInterval(-40),
         )
         #expect(tracker.testing_forceFlush())
 
@@ -661,7 +661,7 @@ struct MomentumTests {
             modelContainer: container,
             settings: settings,
             crashRecovery: MockCrashRecoveryHandler(),
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
 
         tracker.testing_startManualTracking(project: manualProject)
@@ -669,7 +669,7 @@ struct MomentumTests {
             appName: "Xcode",
             bundleIdentifier: "com.test.xcode",
             domain: "docs.test",
-            startDate: Date().addingTimeInterval(-40)
+            startDate: Date().addingTimeInterval(-40),
         )
         #expect(tracker.testing_forceFlush())
 
@@ -697,14 +697,14 @@ struct MomentumTests {
             modelContainer: container,
             settings: settings,
             crashRecovery: MockCrashRecoveryHandler(),
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
 
         tracker.testing_startManualTracking(project: manualProject)
         tracker.testing_beginContext(
             appName: "VSCode",
             bundleIdentifier: bundleID,
-            startDate: Date().addingTimeInterval(-40)
+            startDate: Date().addingTimeInterval(-40),
         )
         #expect(tracker.testing_forceFlush())
 
@@ -726,7 +726,7 @@ struct MomentumTests {
             modelContainer: container,
             settings: settings,
             crashRecovery: MockCrashRecoveryHandler(),
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
 
         tracker.testing_startManualTracking(project: manualProject)
@@ -734,7 +734,7 @@ struct MomentumTests {
             appName: "Safari",
             bundleIdentifier: "com.apple.Safari",
             domain: "example.com",
-            startDate: Date().addingTimeInterval(-40)
+            startDate: Date().addingTimeInterval(-40),
         )
         #expect(tracker.testing_forceFlush())
 
@@ -759,14 +759,14 @@ struct MomentumTests {
             modelContainer: container,
             settings: settings,
             crashRecovery: MockCrashRecoveryHandler(),
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
 
         #expect(tracker.pendingConflictCount == 0)
         tracker.testing_beginContext(
             appName: "VSCode",
             bundleIdentifier: bundleID,
-            startDate: Date().addingTimeInterval(-40)
+            startDate: Date().addingTimeInterval(-40),
         )
         #expect(tracker.testing_forceFlush())
         #expect(tracker.pendingConflictCount == 1)
@@ -809,7 +809,7 @@ struct MomentumTests {
         let ignored = starter.handleNotification(
             projectID: project.persistentModelID,
             startTracking: false,
-            projects: [project]
+            projects: [project],
         )
         #expect(ignored == nil)
         #expect(starter.resolve(projects: [project]) == nil)
@@ -817,7 +817,7 @@ struct MomentumTests {
         let started = starter.handleNotification(
             projectID: project.persistentModelID,
             startTracking: true,
-            projects: [project]
+            projects: [project],
         )
         #expect(started === project)
         #expect(starter.resolve(projects: [project]) == nil)
@@ -886,7 +886,7 @@ final class InMemoryModelContainerFactory {
             modelContainer: container,
             settings: settings,
             crashRecovery: MockCrashRecoveryHandler(),
-            performanceMonitor: MockPerformanceMonitor()
+            performanceMonitor: MockPerformanceMonitor(),
         )
         return TrackerScenario(tracker: tracker, container: container, primaryProject: project, primaryBundle: primaryBundle, secondaryBundle: secondaryBundle)
     }

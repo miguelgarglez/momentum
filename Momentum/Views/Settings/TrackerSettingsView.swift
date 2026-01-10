@@ -5,6 +5,7 @@ import SwiftUI
     import AppKit
 #endif
 
+@MainActor
 struct TrackerSettingsView: View {
     @EnvironmentObject private var settings: TrackerSettings
     @EnvironmentObject private var appCatalog: AppCatalog
@@ -44,8 +45,10 @@ struct TrackerSettingsView: View {
                 HStack(spacing: 12) {
                     Spacer()
                     Button("Cerrar") {
-                        clearThemePreview()
-                        dismiss()
+                        Task { @MainActor in
+                            clearThemePreview()
+                            dismiss()
+                        }
                     }
                     Button("Guardar") {
                         applyChanges()
@@ -61,7 +64,9 @@ struct TrackerSettingsView: View {
         }
         #if os(macOS)
         .background(WindowCloseObserver {
-            clearThemePreview()
+            Task { @MainActor in
+                clearThemePreview()
+            }
         })
         #endif
         .onAppear {
@@ -113,7 +118,7 @@ struct TrackerSettingsView: View {
         .sheet(isPresented: $showingAutomationInfo) {
             AutomationPermissionPromptView(
                 onOpenSettings: automationPermissionManager.openSystemSettings,
-                onLater: { showingAutomationInfo = false }
+                onLater: { showingAutomationInfo = false },
             )
         }
         #endif
@@ -127,14 +132,14 @@ struct TrackerSettingsView: View {
     private var projectDeletionBinding: Binding<Bool> {
         Binding(
             get: { projectPendingDeletion != nil },
-            set: { if !$0 { projectPendingDeletion = nil } }
+            set: { if !$0 { projectPendingDeletion = nil } },
         )
     }
 
     private var maintenanceErrorBinding: Binding<Bool> {
         Binding(
             get: { maintenanceError != nil },
-            set: { if !$0 { maintenanceError = nil } }
+            set: { if !$0 { maintenanceError = nil } },
         )
     }
 
@@ -172,7 +177,7 @@ struct TrackerSettingsView: View {
                 Slider(
                     value: $draft.detectionInterval,
                     in: TrackerSettings.minDetectionInterval ... TrackerSettings.maxDetectionInterval,
-                    step: 1
+                    step: 1,
                 )
             }
         }
@@ -197,7 +202,7 @@ struct TrackerSettingsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Stepper(
                     value: $draft.idleThresholdMinutes,
-                    in: TrackerSettings.minIdleMinutes ... TrackerSettings.maxIdleMinutes
+                    in: TrackerSettings.minIdleMinutes ... TrackerSettings.maxIdleMinutes,
                 ) {
                     HStack {
                         Text("Umbral de inactividad")
@@ -222,7 +227,7 @@ struct TrackerSettingsView: View {
                 subtitle: "Se compara contra el dominio detectado. Puedes usar fragmentos como youtube.com.",
                 placeholder: "dominio.com",
                 lowercaseStorage: true,
-                items: $draft.excludedDomains
+                items: $draft.excludedDomains,
             )
 
             FileExclusionEditor(items: $draft.excludedFiles)
@@ -315,7 +320,7 @@ struct TrackerSettingsView: View {
     private var themeSelectionBinding: Binding<AppThemePreference> {
         Binding(
             get: { themePreview.selection ?? settings.themePreference },
-            set: { themePreview.selection = $0 }
+            set: { themePreview.selection = $0 },
         )
     }
 
@@ -348,7 +353,7 @@ struct TrackerSettingsView: View {
 
 #if os(macOS)
     private struct WindowCloseObserver: NSViewRepresentable {
-        let onClose: () -> Void
+        let onClose: @Sendable () -> Void
 
         func makeCoordinator() -> Coordinator {
             Coordinator(onClose: onClose)
@@ -368,12 +373,13 @@ struct TrackerSettingsView: View {
             }
         }
 
+        @MainActor
         final class Coordinator {
-            private let onClose: () -> Void
+            private let onClose: @Sendable () -> Void
             private weak var window: NSWindow?
             private var observer: NSObjectProtocol?
 
-            init(onClose: @escaping () -> Void) {
+            init(onClose: @escaping @Sendable () -> Void) {
                 self.onClose = onClose
             }
 
@@ -387,12 +393,13 @@ struct TrackerSettingsView: View {
                 observer = NotificationCenter.default.addObserver(
                     forName: NSWindow.willCloseNotification,
                     object: window,
-                    queue: .main
+                    queue: .main,
                 ) { [onClose] _ in
                     onClose()
                 }
             }
 
+            @MainActor
             deinit {
                 if let observer {
                     NotificationCenter.default.removeObserver(observer)
@@ -462,7 +469,7 @@ private struct AppExclusionEditor: View {
             Text("Apps")
                 .font(.headline)
 
-            if resolvedApps.isEmpty && unresolvedIDs.isEmpty {
+            if resolvedApps.isEmpty, unresolvedIDs.isEmpty {
                 Text("No hay apps excluidas. Usa el botón para añadir desde el catálogo o escribe el bundle ID.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -491,7 +498,7 @@ private struct AppExclusionEditor: View {
                 .popover(
                     isPresented: $isSelectorPresented,
                     attachmentAnchor: .rect(.bounds),
-                    arrowEdge: .top
+                    arrowEdge: .top,
                 ) {
                     AppCatalogSelectionPanel(excludedApps: $excludedApps)
                         .frame(width: 360, height: 420)
@@ -523,7 +530,7 @@ private struct AppExclusionEditor: View {
                     #if os(macOS)
                         LTRTextField(
                             text: $manualEntry,
-                            placeholder: "com.ejemplo.app"
+                            placeholder: "com.ejemplo.app",
                         )
                         .macRoundedTextFieldStyle()
                     #else
@@ -578,7 +585,7 @@ private struct AppCatalogSelectionPanel: View {
             #if os(macOS)
                 LTRTextField(
                     text: $searchText,
-                    placeholder: "Buscar apps"
+                    placeholder: "Buscar apps",
                 )
                 .macRoundedTextFieldStyle()
             #else
@@ -597,7 +604,7 @@ private struct AppCatalogSelectionPanel: View {
                         ForEach(filteredApps) { app in
                             AppSelectionRow(
                                 app: app,
-                                isSelected: contains(identifier: app.bundleIdentifier)
+                                isSelected: contains(identifier: app.bundleIdentifier),
                             ) {
                                 toggle(identifier: app.bundleIdentifier)
                             }
@@ -707,7 +714,7 @@ private struct ExclusionListEditor: View {
                 #if os(macOS)
                     LTRTextField(
                         text: $newEntry,
-                        placeholder: placeholder
+                        placeholder: placeholder,
                     )
                     .macRoundedTextFieldStyle()
                 #else
@@ -791,7 +798,7 @@ private struct FileExclusionEditor: View {
                 #if os(macOS)
                     LTRTextField(
                         text: $newEntry,
-                        placeholder: "Ruta o terminación (ej: /Users/... o .key)"
+                        placeholder: "Ruta o terminación (ej: /Users/... o .key)",
                     )
                     .macRoundedTextFieldStyle()
                 #else

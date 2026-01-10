@@ -12,26 +12,26 @@ enum AssignmentRuleExpirationOption: String, CaseIterable, Identifiable {
     var days: Int? {
         switch self {
         case .never:
-            return nil
+            nil
         case .days30:
-            return 30
+            30
         case .days60:
-            return 60
+            60
         case .days90:
-            return 90
+            90
         }
     }
 
     var label: String {
         switch self {
         case .never:
-            return "Nunca"
+            "Nunca"
         case .days30:
-            return "30 días"
+            "30 días"
         case .days60:
-            return "60 días"
+            "60 días"
         case .days90:
-            return "90 días"
+            "90 días"
         }
     }
 
@@ -51,22 +51,22 @@ enum AppThemePreference: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .system:
-            return "Sistema"
+            "Sistema"
         case .light:
-            return "Claro"
+            "Claro"
         case .dark:
-            return "Oscuro"
+            "Oscuro"
         }
     }
 
     var colorScheme: ColorScheme? {
         switch self {
         case .system:
-            return nil
+            nil
         case .light:
-            return .light
+            .light
         case .dark:
-            return .dark
+            .dark
         }
     }
 }
@@ -223,7 +223,7 @@ final class TrackerSettings: ObservableObject {
             if lowered.contains("/") || lowered.hasPrefix("~") {
                 let expanded = (lowered as NSString).expandingTildeInPath
                 let normalizedEntry = expanded.normalizedFilePath.lowercased()
-                if !normalizedEntry.isEmpty && normalizedPath == normalizedEntry {
+                if !normalizedEntry.isEmpty, normalizedPath == normalizedEntry {
                     return true
                 }
                 continue

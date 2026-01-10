@@ -24,15 +24,15 @@ struct ToastView: View {
 
     private var iconName: String {
         switch style {
-        case .success: return "checkmark.circle.fill"
-        case .error: return "exclamationmark.triangle.fill"
+        case .success: "checkmark.circle.fill"
+        case .error: "exclamationmark.triangle.fill"
         }
     }
 
     private var tint: Color {
         switch style {
-        case .success: return .green
-        case .error: return .orange
+        case .success: .green
+        case .error: .orange
         }
     }
 

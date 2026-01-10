@@ -51,7 +51,7 @@ struct SessionOverlapResolver {
             bundleIdentifier: session.bundleIdentifier,
             domain: session.domain,
             filePath: session.filePath,
-            project: session.project
+            project: session.project,
         )
         context.insert(trailingSession)
         session.endDate = interval.start

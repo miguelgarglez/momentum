@@ -3,6 +3,7 @@
     import ApplicationServices
     import OSLog
 
+    @MainActor
     final class FileDocumentResolver {
         private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Momentum", category: "FileDocumentResolver")
 
@@ -18,34 +19,10 @@
                 return nil
             }
 
-            _ = await MainActor.run {
-                FileDocumentResolver.requestAutomationPermission(for: identifier)
-            }
+            _ = FileDocumentResolver.requestAutomationPermission(for: identifier)
+            let script = app.script
 
-            return await Task.detached(priority: .utility) { [logger] in
-                let script = app.script
-                guard let appleScript = NSAppleScript(source: script) else {
-                    logger.error("Failed to compile AppleScript for file lookup")
-                    return nil
-                }
-                var error: NSDictionary?
-                let descriptor = appleScript.executeAndReturnError(&error)
-                if let error,
-                   let errorNumber = error[NSAppleScript.errorNumber] as? Int,
-                   errorNumber == -600
-                {
-                    logger.debug("Document app \(identifier, privacy: .public) not ready for AppleScript (not running)")
-                    return nil
-                } else if let error {
-                    logger.error("AppleScript error: \(error, privacy: .public)")
-                }
-                guard let path = descriptor.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
-                      !path.isEmpty
-                else {
-                    return nil
-                }
-                return path.normalizedFilePath
-            }.value
+            return await AppleScriptRunner.run(script: script, identifier: identifier, logger: logger)
         }
 
         private static func requestAutomationPermission(for bundleIdentifier: String) -> Bool {
@@ -54,7 +31,7 @@
                 target.aeDesc,
                 AEEventClass(kAECoreSuite),
                 AEEventID(kAEGetData),
-                true
+                true,
             )
             return status == noErr
         }
@@ -75,7 +52,7 @@
                      let .pages(bundleIdentifier),
                      let .keynote(bundleIdentifier),
                      let .numbers(bundleIdentifier):
-                    return bundleIdentifier
+                    bundleIdentifier
                 }
             }
 
@@ -101,17 +78,17 @@
             var script: String {
                 switch self {
                 case let .preview(bundleIdentifier):
-                    return Self.previewScript(bundleIdentifier: bundleIdentifier)
+                    Self.previewScript(bundleIdentifier: bundleIdentifier)
                 case let .word(bundleIdentifier):
-                    return Self.wordScript(bundleIdentifier: bundleIdentifier)
+                    Self.wordScript(bundleIdentifier: bundleIdentifier)
                 case let .powerpoint(bundleIdentifier):
-                    return Self.powerpointScript(bundleIdentifier: bundleIdentifier)
+                    Self.powerpointScript(bundleIdentifier: bundleIdentifier)
                 case let .pages(bundleIdentifier):
-                    return Self.iWorkScript(bundleIdentifier: bundleIdentifier)
+                    Self.iWorkScript(bundleIdentifier: bundleIdentifier)
                 case let .keynote(bundleIdentifier):
-                    return Self.iWorkScript(bundleIdentifier: bundleIdentifier)
+                    Self.iWorkScript(bundleIdentifier: bundleIdentifier)
                 case let .numbers(bundleIdentifier):
-                    return Self.iWorkScript(bundleIdentifier: bundleIdentifier)
+                    Self.iWorkScript(bundleIdentifier: bundleIdentifier)
                 }
             }
 
@@ -162,6 +139,33 @@
                 return ""
                 """
             }
+        }
+    }
+
+    private nonisolated struct AppleScriptRunner {
+        @concurrent
+        static func run(script: String, identifier: String, logger: Logger) async -> String? {
+            guard let appleScript = NSAppleScript(source: script) else {
+                logger.error("Failed to compile AppleScript for file lookup")
+                return nil
+            }
+            var error: NSDictionary?
+            let descriptor = appleScript.executeAndReturnError(&error)
+            if let error,
+               let errorNumber = error[NSAppleScript.errorNumber] as? Int,
+               errorNumber == -600
+            {
+                logger.debug("Document app \(identifier, privacy: .public) not ready for AppleScript (not running)")
+                return nil
+            } else if let error {
+                logger.error("AppleScript error: \(error, privacy: .public)")
+            }
+            guard let path = descriptor.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !path.isEmpty
+            else {
+                return nil
+            }
+            return path.normalizedFilePath
         }
     }
 #else

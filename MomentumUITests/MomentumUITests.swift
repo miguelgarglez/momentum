@@ -1,5 +1,6 @@
 import XCTest
 
+@MainActor
 final class MomentumUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -147,7 +148,7 @@ final class MomentumUITests: XCTestCase {
         reset: Bool,
         seedConflicts: Bool = false,
         seedRules: Bool = false,
-        skipOnboarding: Bool = true
+        skipOnboarding: Bool = true,
     ) -> XCUIApplication {
         let app = XCUIApplication()
         let storePath = suiteStorePath

@@ -21,7 +21,7 @@ struct ContentView: View {
     @Query(
         sort: [
             SortDescriptor(\Project.createdAt, order: .forward),
-        ]
+        ],
     ) private var projects: [Project]
     @Query(sort: [SortDescriptor(\PendingTrackingSession.endDate, order: .reverse)])
     private var pendingSessions: [PendingTrackingSession]
@@ -62,7 +62,7 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(
                     min: Layout.sidebarMinWidth,
                     ideal: Layout.sidebarIdealWidth,
-                    max: Layout.sidebarMaxWidth
+                    max: Layout.sidebarMaxWidth,
                 )
                 .background(.regularMaterial)
             } detail: {
@@ -82,7 +82,7 @@ struct ContentView: View {
                     },
                     onCreateAndStart: { draft in
                         createManualProjectAndStart(from: draft)
-                    }
+                    },
                 )
             }
             .overlay(alignment: .leading) {
@@ -121,13 +121,13 @@ struct ContentView: View {
                 showManualTrackingSheet = true
             }
         #endif
-            .onReceive(tracker.$manualStopEvent.compactMap { $0 }) { event in
+            .onReceive(tracker.$manualStopEvent.compactMap(\.self)) { event in
                 showManualStopToast(event.reason)
             }
             .sheet(isPresented: $showConflictSheet) {
                 PendingConflictResolutionView(
                     pendingSessions: pendingSessions,
-                    projects: projects
+                    projects: projects,
                 )
                 .environmentObject(tracker)
             }
@@ -139,7 +139,7 @@ struct ContentView: View {
                     },
                     onLater: {
                         showAutomationPrompt = false
-                    }
+                    },
                 )
             }
             .onReceive(NotificationCenter.default.publisher(for: .onboardingProjectCreated)) { notification in
@@ -170,7 +170,7 @@ struct ContentView: View {
                 onEdit: { activeProjectSheet = .edit($0) },
                 onDelete: { deleteProject($0) },
                 onClearActivity: { clearActivity(for: $0) },
-                onStartTracking: { startTracking(for: $0) }
+                onStartTracking: { startTracking(for: $0) },
             )
         } else {
             WelcomeView()
@@ -185,21 +185,21 @@ struct ContentView: View {
             onToggleTracking: handlePrimaryTrackingAction,
             onStartManualTracking: { showManualTrackingSheet = true },
             onCreateProject: { activeProjectSheet = .create },
-            settingsControl: settingsControlView
+            settingsControl: settingsControlView,
         )
         .frame(width: Layout.actionPanelWidth, alignment: .bottomLeading)
         .frame(maxHeight: .infinity, alignment: .bottomLeading)
     }
 
-    private func sidebarChrome<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    private func sidebarChrome(@ViewBuilder content: () -> some View) -> some View {
         content()
             .background(
                 RoundedRectangle(cornerRadius: Layout.sidebarCornerRadius, style: .continuous)
-                    .fill(.regularMaterial)
+                    .fill(.regularMaterial),
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Layout.sidebarCornerRadius, style: .continuous)
-                    .stroke(Color.primary.opacity(Layout.sidebarBorderOpacity), lineWidth: 1)
+                    .stroke(Color.primary.opacity(Layout.sidebarBorderOpacity), lineWidth: 1),
             )
             .padding(.horizontal, Layout.sidebarInset)
             .padding(.bottom, Layout.sidebarInset)
@@ -255,14 +255,14 @@ struct ContentView: View {
             ProjectFormView { draft in
                 let shouldAutoStartTracking = onboardingTrackingStarter.shouldAutoStartTracking(
                     hasCreatedProject: onboardingState.hasCreatedProject,
-                    existingProjectCount: projects.count
+                    existingProjectCount: projects.count,
                 )
                 let project = Project(
                     name: draft.name,
                     colorHex: draft.colorHex,
                     iconName: draft.iconName,
                     assignedApps: draft.assignedApps,
-                    assignedDomains: draft.assignedDomains
+                    assignedDomains: draft.assignedDomains,
                 )
                 modelContext.insert(project)
                 do {
@@ -333,7 +333,7 @@ struct ContentView: View {
         let project = Project(
             name: projectName,
             colorHex: ProjectPalette.defaultColor.hex,
-            iconName: iconName
+            iconName: iconName,
         )
         modelContext.insert(project)
         do {
@@ -378,14 +378,13 @@ struct ContentView: View {
     }
 
     private func showManualStopToast(_ reason: ActivityTracker.ManualStopReason) {
-        let suffix: String
-        switch reason {
+        let suffix = switch reason {
         case .idle:
-            suffix = "idle"
+            "idle"
         case .manual:
-            suffix = "manual"
+            "manual"
         case .screenLocked:
-            suffix = "bloqueo"
+            "bloqueo"
         }
         showToast("Tracking manual detenido (\(suffix))", style: .success)
     }
@@ -416,7 +415,7 @@ struct ContentView: View {
                         ActionPanelIcon(systemName: "gearshape", tint: .primary)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Ajustes")
+                    .accessibilityLabel("Ajustes"),
                 )
             } else {
                 return AnyView(
@@ -424,7 +423,7 @@ struct ContentView: View {
                         ActionPanelIcon(systemName: "gearshape", tint: .primary)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Ajustes")
+                    .accessibilityLabel("Ajustes"),
                 )
             }
         #else
@@ -433,7 +432,7 @@ struct ContentView: View {
                     ActionPanelIcon(systemName: "gearshape", tint: .primary)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Ajustes")
+                .accessibilityLabel("Ajustes"),
             )
         #endif
     }
@@ -486,7 +485,7 @@ struct ContentView: View {
         if let project = onboardingTrackingStarter.handleNotification(
             projectID: identifier,
             startTracking: shouldStartTracking,
-            projects: projects
+            projects: projects,
         ) {
             startTracking(for: project)
         }
@@ -517,9 +516,9 @@ private enum ProjectSheet: Identifiable {
     var id: String {
         switch self {
         case .create:
-            return "create"
+            "create"
         case let .edit(project):
-            return String(project.persistentModelID.hashValue)
+            String(project.persistentModelID.hashValue)
         }
     }
 }
@@ -537,7 +536,7 @@ private struct ContentViewPreviewWrapper: View {
         guard let schemaContainer = try? ModelContainer(
             for: Project.self,
             TrackingSession.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true),
         ) else {
             fatalError("Failed to create preview ModelContainer.")
         }
@@ -550,7 +549,7 @@ private struct ContentViewPreviewWrapper: View {
                 bundleIdentifier: "com.apple.dt.Xcode",
                 domain: nil,
                 filePath: nil,
-                project: previewProject
+                project: previewProject,
             ),
         ]
         schemaContainer.mainContext.insert(previewProject)

@@ -34,7 +34,7 @@ import SwiftUI
         var font: NSFont = .preferredFont(forTextStyle: .body)
         var style: Style = .plain
         var allowsMultiline: Bool = false
-        var accessibilityIdentifier: String? = nil
+        var accessibilityIdentifier: String?
 
         func makeCoordinator() -> Coordinator {
             Coordinator(text: $text)

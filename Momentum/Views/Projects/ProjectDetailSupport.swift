@@ -9,9 +9,9 @@ enum UsageWindow: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .hour: return "1h"
-        case .day: return "Hoy"
-        case .week: return "7 días"
+        case .hour: "1h"
+        case .day: "Hoy"
+        case .week: "7 días"
         }
     }
 

@@ -25,7 +25,7 @@ final class TrackingSession {
         bundleIdentifier: String?,
         domain: String?,
         filePath: String?,
-        project: Project?
+        project: Project?,
     ) {
         self.startDate = startDate
         self.endDate = endDate

@@ -63,7 +63,7 @@ final class AutomationPermissionManager: ObservableObject {
                 target.aeDesc,
                 AEEventClass(kAECoreSuite),
                 AEEventID(kAEGetData),
-                prompt
+                prompt,
             )
             return status == noErr
         }

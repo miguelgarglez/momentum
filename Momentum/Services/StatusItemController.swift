@@ -61,6 +61,7 @@
             startClockTimer()
         }
 
+        @MainActor
         deinit {
             clockTimer?.invalidate()
             NSStatusBar.system.removeStatusItem(statusItem)
@@ -248,21 +249,21 @@
         private func stateDescription(for summary: ActivityTracker.StatusSummary) -> String {
             switch summary.state {
             case .tracking:
-                return "Tracking activo"
+                "Tracking activo"
             case .trackingManual:
-                return "Tracking manual activo"
+                "Tracking manual activo"
             case .pendingResolution:
-                return "Pendiente de asignación"
+                "Pendiente de asignación"
             case .pausedManual:
-                return "Tracking pausado"
+                "Tracking pausado"
             case .pausedIdle:
-                return "Tracking pausado (idle)"
+                "Tracking pausado (idle)"
             case .pausedScreenLocked:
-                return "Tracking pausado (bloqueo)"
+                "Tracking pausado (bloqueo)"
             case .pausedExcluded:
-                return "Actividad excluida"
+                "Actividad excluida"
             case .inactive:
-                return "Sin tracking"
+                "Sin tracking"
             }
         }
 

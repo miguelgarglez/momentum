@@ -49,7 +49,7 @@ struct ProjectFormDraft {
     }
 
     mutating func addFiles(_ paths: [String]) {
-        let normalized = paths.map { $0.normalizedFilePath }.filter { !$0.isEmpty }
+        let normalized = paths.map(\.normalizedFilePath).filter { !$0.isEmpty }
         guard !normalized.isEmpty else { return }
         var seen: Set<String> = []
         let merged = (assignedFiles + normalized).filter { path in

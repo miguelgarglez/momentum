@@ -27,7 +27,7 @@ final class PendingTrackingSession {
         domain: String?,
         filePath: String?,
         contextType: String,
-        contextValue: String
+        contextValue: String,
     ) {
         self.startDate = startDate
         self.endDate = endDate

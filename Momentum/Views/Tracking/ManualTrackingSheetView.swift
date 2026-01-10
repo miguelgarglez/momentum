@@ -16,8 +16,8 @@ struct ManualTrackingSheetView: View {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .existing: return "Existente"
-            case .new: return "Nuevo"
+            case .existing: "Existente"
+            case .new: "Nuevo"
             }
         }
     }
@@ -36,7 +36,7 @@ struct ManualTrackingSheetView: View {
     init(
         projects: [Project],
         onStartExisting: @escaping (Project) -> Void,
-        onCreateAndStart: @escaping (ManualTrackingNewProjectDraft) -> Void
+        onCreateAndStart: @escaping (ManualTrackingNewProjectDraft) -> Void,
     ) {
         self.projects = projects
         self.onStartExisting = onStartExisting
@@ -85,7 +85,7 @@ struct ManualTrackingSheetView: View {
                                 LTRTextField(
                                     text: $newProjectName,
                                     placeholder: "New cool project",
-                                    accessibilityIdentifier: "manual-tracking-project-name"
+                                    accessibilityIdentifier: "manual-tracking-project-name",
                                 )
                                 .macRoundedTextFieldStyle()
                             #else
@@ -150,7 +150,7 @@ struct ManualTrackingSheetView: View {
     guard let container = try? ModelContainer(
         for: Project.self,
         TrackingSession.self,
-        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true),
     ) else {
         fatalError("Failed to create preview ModelContainer.")
     }
@@ -160,7 +160,7 @@ struct ManualTrackingSheetView: View {
     return ManualTrackingSheetView(
         projects: [sample],
         onStartExisting: { _ in },
-        onCreateAndStart: { _ in }
+        onCreateAndStart: { _ in },
     )
     .modelContainer(container)
 }

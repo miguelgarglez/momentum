@@ -66,7 +66,7 @@ struct DashboardHeaderView: View {
                     total: totalSeconds,
                     monthly: monthlySeconds,
                     weekly: weeklySeconds,
-                    daily: todaySeconds
+                    daily: todaySeconds,
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
             }
@@ -75,7 +75,7 @@ struct DashboardHeaderView: View {
         .detailCardStyle(
             padding: Layout.cardPadding,
             cornerRadius: Layout.cornerRadius,
-            strokeOpacity: Layout.strokeOpacity
+            strokeOpacity: Layout.strokeOpacity,
         )
         .accessibilityElement(children: .contain)
     }
@@ -102,43 +102,43 @@ struct DashboardMetricsView: View {
                 metrics: [
                     MetricInfo(
                         id: "total", title: "Total", value: total.hoursAndMinutesString,
-                        icon: "hourglass"
+                        icon: "hourglass",
                     ),
                     MetricInfo(
                         id: "monthly", title: "Este mes", value: monthly.hoursAndMinutesString,
-                        icon: "calendar.badge.clock"
+                        icon: "calendar.badge.clock",
                     ),
                     MetricInfo(
                         id: "weekly", title: "Esta semana", value: weekly.hoursAndMinutesString,
-                        icon: "chart.bar"
+                        icon: "chart.bar",
                     ),
                     MetricInfo(
                         id: "daily", title: "Hoy", value: daily.hoursAndMinutesString,
-                        icon: "sun.max"
+                        icon: "sun.max",
                     ),
                 ],
-                compact: false
+                compact: false,
             )
             metricsGrid(
                 metrics: [
                     MetricInfo(
                         id: "total", title: "Total", value: total.hoursAndMinutesString,
-                        icon: "hourglass"
+                        icon: "hourglass",
                     ),
                     MetricInfo(
                         id: "monthly", title: "Mes", value: monthly.hoursAndMinutesString,
-                        icon: "calendar.badge.clock"
+                        icon: "calendar.badge.clock",
                     ),
                     MetricInfo(
                         id: "weekly", title: "Semana", value: weekly.hoursAndMinutesString,
-                        icon: "chart.bar"
+                        icon: "chart.bar",
                     ),
                     MetricInfo(
                         id: "daily", title: "Hoy", value: daily.hoursAndMinutesString,
-                        icon: "sun.max"
+                        icon: "sun.max",
                     ),
                 ],
-                compact: true
+                compact: true,
             )
         }
         .accessibilityElement(children: .contain)
@@ -152,7 +152,7 @@ struct DashboardMetricsView: View {
                     title: metric.title,
                     value: metric.value,
                     icon: metric.icon,
-                    compact: compact
+                    compact: compact,
                 )
             }
         }
@@ -199,12 +199,12 @@ struct DashboardMetricsView: View {
             }
             .frame(
                 maxWidth: .infinity, minHeight: minHeight, maxHeight: minHeight,
-                alignment: .bottomLeading
+                alignment: .bottomLeading,
             )
             .padding(tilePadding)
             .detailInsetStyle(
                 cornerRadius: 14,
-                strokeOpacity: 0.12
+                strokeOpacity: 0.12,
             )
         }
     }

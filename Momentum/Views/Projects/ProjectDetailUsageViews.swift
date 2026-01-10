@@ -4,7 +4,7 @@ struct ContextUsageList: View {
     let summaries: [ContextUsageSummary]
 
     var body: some View {
-        let maxSeconds = summaries.map { $0.seconds }.max() ?? 1
+        let maxSeconds = summaries.map(\.seconds).max() ?? 1
         VStack(spacing: 12) {
             ForEach(summaries) { summary in
                 ContextUsageRow(summary: summary, maxSeconds: maxSeconds)
@@ -57,7 +57,7 @@ struct ContextUsageRow: View {
         .padding()
         .detailInsetStyle(
             cornerRadius: 14,
-            strokeOpacity: 0.12
+            strokeOpacity: 0.12,
         )
     }
 }
@@ -114,7 +114,7 @@ struct LastUsedCard: View {
         .padding()
         .detailInsetStyle(
             cornerRadius: 14,
-            strokeOpacity: 0.12
+            strokeOpacity: 0.12,
         )
     }
 }

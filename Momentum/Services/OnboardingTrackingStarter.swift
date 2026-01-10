@@ -10,7 +10,7 @@ struct OnboardingTrackingStarter {
     mutating func handleNotification(
         projectID: PersistentIdentifier,
         startTracking: Bool,
-        projects: [Project]
+        projects: [Project],
     ) -> Project? {
         guard startTracking else { return nil }
         pendingProjectID = projectID

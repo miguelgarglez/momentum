@@ -22,7 +22,7 @@ final class AssignmentRule {
         contextValue: String,
         project: Project?,
         createdAt: Date = .now,
-        lastUsedAt: Date = .now
+        lastUsedAt: Date = .now,
     ) {
         self.contextType = contextType
         self.contextValue = contextValue
@@ -40,13 +40,13 @@ extension AssignmentRule {
     var contextLabel: String {
         switch AssignmentContextType(rawValue: contextType) {
         case .app:
-            return "App"
+            "App"
         case .domain:
-            return "Dominio"
+            "Dominio"
         case .file:
-            return "Archivo"
+            "Archivo"
         case .none:
-            return "Contexto"
+            "Contexto"
         }
     }
 }

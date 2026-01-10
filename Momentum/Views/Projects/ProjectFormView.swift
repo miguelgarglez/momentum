@@ -68,7 +68,7 @@ struct ProjectFormView: View {
 
                 AppAutoTrackingSection(
                     selection: $draft.selectedAppIDs,
-                    manualApps: $draft.manualApps
+                    manualApps: $draft.manualApps,
                 )
 
                 Section("Dominios") {
@@ -76,7 +76,7 @@ struct ProjectFormView: View {
                         LTRTextField(
                             text: $draft.domains,
                             placeholder: "Dominios (separados por coma)",
-                            accessibilityIdentifier: "project-domains-field"
+                            accessibilityIdentifier: "project-domains-field",
                         )
                         .macRoundedTextFieldStyle()
                         .padding(.vertical, 4)
@@ -95,7 +95,7 @@ struct ProjectFormView: View {
                                 filePaths: draft.assignedFiles,
                                 onRemove: { path in
                                     draft.removeFile(path)
-                                }
+                                },
                             )
                         }
 
@@ -112,7 +112,7 @@ struct ProjectFormView: View {
                                 LTRTextField(
                                     text: $draft.manualFilesEntry,
                                     placeholder: "Rutas de archivo (separadas por coma)",
-                                    accessibilityIdentifier: "project-files-field"
+                                    accessibilityIdentifier: "project-files-field",
                                 )
                                 .macRoundedTextFieldStyle()
                                 Button("Añadir") {
@@ -173,7 +173,7 @@ struct ProjectFormView: View {
             panel.prompt = "Seleccionar"
             panel.begin { response in
                 guard response == .OK else { return }
-                let paths = panel.urls.map { $0.path }
+                let paths = panel.urls.map(\.path)
                 draft.addFiles(paths)
             }
         }
@@ -207,11 +207,11 @@ private struct FileSelectionChips: View {
                 .padding(.horizontal, 10)
                 .background(
                     Capsule()
-                        .fill(Color.secondary.opacity(0.12))
+                        .fill(Color.secondary.opacity(0.12)),
                 )
                 .overlay(
                     Capsule()
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1),
                 )
                 .help(path)
             }
@@ -229,24 +229,24 @@ struct ProjectTitleField: View {
                 placeholder: "Ej. \"Construir Momentum\"",
                 font: NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .title3).pointSize, weight: .semibold),
                 allowsMultiline: true,
-                accessibilityIdentifier: "project-title-field"
+                accessibilityIdentifier: "project-title-field",
             )
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .frame(minHeight: 60, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.secondary.opacity(0.05))
+                    .fill(Color.secondary.opacity(0.05)),
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.secondary.opacity(0.15))
+                    .stroke(Color.secondary.opacity(0.15)),
             )
         #else
             TextField(
                 "Ej. \"Construir Momentum\"",
                 text: $text,
-                axis: .vertical
+                axis: .vertical,
             )
             .accessibilityIdentifier("project-title-field")
             .font(.title3.weight(.semibold))
@@ -258,11 +258,11 @@ struct ProjectTitleField: View {
             .frame(minHeight: 60, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.secondary.opacity(0.05))
+                    .fill(Color.secondary.opacity(0.05)),
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.secondary.opacity(0.15))
+                    .stroke(Color.secondary.opacity(0.15)),
             )
         #endif
     }
@@ -307,7 +307,7 @@ struct AppAutoTrackingSection: View {
                     .popover(
                         isPresented: $isSelectorPresented,
                         attachmentAnchor: .rect(.bounds),
-                        arrowEdge: .top
+                        arrowEdge: .top,
                     ) {
                         ProjectAppCatalogSelectionPanel(selection: $selection)
                             .frame(width: 360, height: 420)
@@ -338,7 +338,7 @@ struct AppAutoTrackingSection: View {
                     #if os(macOS)
                         LTRTextField(
                             text: $manualApps,
-                            placeholder: "com.ejemplo.app, com.otro.bundle"
+                            placeholder: "com.ejemplo.app, com.otro.bundle",
                         )
                         .macRoundedTextFieldStyle()
                     #else
@@ -406,7 +406,7 @@ private struct ProjectAppCatalogSelectionPanel: View {
             #if os(macOS)
                 LTRTextField(
                     text: $searchText,
-                    placeholder: "Buscar apps"
+                    placeholder: "Buscar apps",
                 )
                 .macRoundedTextFieldStyle()
             #else
@@ -425,7 +425,7 @@ private struct ProjectAppCatalogSelectionPanel: View {
                         ForEach(filteredApps) { app in
                             AppSelectionRow(
                                 app: app,
-                                isSelected: selection.contains(app.bundleIdentifier)
+                                isSelected: selection.contains(app.bundleIdentifier),
                             ) {
                                 toggle(identifier: app.bundleIdentifier)
                             }

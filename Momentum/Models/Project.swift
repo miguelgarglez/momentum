@@ -30,7 +30,7 @@ final class Project {
         iconName: String = ProjectIcon.spark.rawValue,
         assignedApps: [String] = [],
         assignedDomains: [String] = [],
-        assignedFiles: [String] = []
+        assignedFiles: [String] = [],
     ) {
         self.name = name
         self.colorHex = colorHex
@@ -213,6 +213,7 @@ extension Project {
         assignedFiles.append(normalized)
     }
 
+    @MainActor
     func apply(draft: ProjectFormDraft) {
         name = draft.name
         colorHex = draft.colorHex
@@ -399,7 +400,7 @@ extension Project {
                 seconds: value.seconds,
                 bundleIdentifier: value.bundleIdentifier,
                 domain: value.domain,
-                filePath: value.filePath
+                filePath: value.filePath,
             )
         }
         return Array(summaries.sorted { $0.seconds > $1.seconds }.prefix(limit))
@@ -419,11 +420,11 @@ enum ProjectIcon: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .spark: return "Momentum"
-        case .book: return "Estudio"
-        case .hammer: return "Construir"
-        case .paint: return "Creativo"
-        case .bolt: return "Energía"
+        case .spark: "Momentum"
+        case .book: "Estudio"
+        case .hammer: "Construir"
+        case .paint: "Creativo"
+        case .bolt: "Energía"
         }
     }
 }
@@ -435,7 +436,7 @@ struct ProjectColor: Identifiable {
 }
 
 enum ProjectPalette {
-    static let colors: [ProjectColor] = [
+    nonisolated static let colors: [ProjectColor] = [
         ProjectColor(name: "Coral", hex: "#FE7A71"),
         ProjectColor(name: "Sunset", hex: "#FFB347"),
         ProjectColor(name: "Forest", hex: "#1F9D55"),
@@ -444,7 +445,7 @@ enum ProjectPalette {
         ProjectColor(name: "Lavender", hex: "#A78BFA"),
     ]
 
-    static var defaultColor: ProjectColor { colors[0] }
+    nonisolated static var defaultColor: ProjectColor { colors[0] }
 }
 
 struct ContextUsageSummary: Identifiable {

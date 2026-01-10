@@ -25,11 +25,11 @@ struct AssignedAppsChips: View {
         .padding(.horizontal, 10)
         .background(
             Capsule()
-                .fill(Color.secondary.opacity(0.12))
+                .fill(Color.secondary.opacity(0.12)),
         )
         .overlay(
             Capsule()
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1),
         )
         .help(app?.bundleIdentifier ?? identifier)
     }
@@ -61,11 +61,11 @@ struct AssignedFilesChips: View {
                 .padding(.horizontal, 10)
                 .background(
                     Capsule()
-                        .fill(Color.secondary.opacity(0.12))
+                        .fill(Color.secondary.opacity(0.12)),
                 )
                 .overlay(
                     Capsule()
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1),
                 )
                 .help(path)
             }
@@ -85,11 +85,11 @@ struct WrappingChips: View {
                     .padding(.horizontal, 10)
                     .background(
                         Capsule()
-                            .fill(Color.secondary.opacity(0.12))
+                            .fill(Color.secondary.opacity(0.12)),
                     )
                     .overlay(
                         Capsule()
-                            .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                            .stroke(Color.primary.opacity(0.08), lineWidth: 1),
                     )
             }
         }

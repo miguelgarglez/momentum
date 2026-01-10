@@ -17,10 +17,10 @@ enum ActivityRange: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .week: return "Semana"
-        case .month: return "Mes"
-        case .quarter: return "Trimestre"
-        case .year: return "Año"
+        case .week: "Semana"
+        case .month: "Mes"
+        case .quarter: "Trimestre"
+        case .year: "Año"
         }
     }
 
@@ -47,10 +47,10 @@ enum ActivityRange: String, CaseIterable, Identifiable {
 
     var barWidth: CGFloat {
         switch self {
-        case .week: return 28
-        case .month: return 14
-        case .quarter: return 18
-        case .year: return 24
+        case .week: 28
+        case .month: 14
+        case .quarter: 18
+        case .year: 24
         }
     }
 }
@@ -77,7 +77,7 @@ struct WeeklySummaryChartView: View {
         .detailCardStyle(
             padding: 16,
             cornerRadius: 18,
-            strokeOpacity: 0.08
+            strokeOpacity: 0.08,
         )
         .task(id: refreshKey) {
             refreshData()
@@ -133,7 +133,7 @@ struct WeeklySummaryChartView: View {
             chartHeight: chartHeight,
             maxSeconds: maxSeconds,
             hoveredDate: $hoveredDate,
-            range: range
+            range: range,
         )
     }
 
@@ -156,39 +156,39 @@ struct WeeklySummaryChartView: View {
     }
 
     private var activeDays: Int {
-        points.filter { $0.seconds > 0 }.count
+        points.count(where: { $0.seconds > 0 })
     }
 
     private var titleText: String {
         switch range {
         case .week:
-            return "Últimos 7 días"
+            "Últimos 7 días"
         case .month:
-            return "Últimos 30 días"
+            "Últimos 30 días"
         case .quarter:
-            return "Último trimestre"
+            "Último trimestre"
         case .year:
-            return "Último año"
+            "Último año"
         }
     }
 
     private var subtitleText: String {
         switch range {
         case .week:
-            return "Actividad reciente y consistencia."
+            "Actividad reciente y consistencia."
         case .month:
-            return "Últimos 30 días en detalle."
+            "Últimos 30 días en detalle."
         case .quarter:
-            return "Semanas del último trimestre."
+            "Semanas del último trimestre."
         case .year:
-            return "Meses del último año."
+            "Meses del último año."
         }
     }
 
     private func aggregate(
         points: [DailySummaryPoint],
         calendar: Calendar,
-        by component: Calendar.Component
+        by component: Calendar.Component,
     ) -> [AggregatedBucket] {
         var totals: [Date: TimeInterval] = [:]
         for point in points {
@@ -218,7 +218,7 @@ struct WeeklySummaryChartView: View {
                     date: point.date,
                     seconds: point.seconds,
                     label: point.label.uppercased(),
-                    showsLabel: true
+                    showsLabel: true,
                 )
             }
         case .month:
@@ -230,7 +230,7 @@ struct WeeklySummaryChartView: View {
                     date: point.date,
                     seconds: point.seconds,
                     label: formatter.string(from: point.date),
-                    showsLabel: index % 5 == 0 || index == points.count - 1
+                    showsLabel: index % 5 == 0 || index == points.count - 1,
                 )
             }
         case .quarter:
@@ -243,7 +243,7 @@ struct WeeklySummaryChartView: View {
                     date: entry.date,
                     seconds: entry.seconds,
                     label: formatter.string(from: entry.date),
-                    showsLabel: index == 0 || index == aggregated.count - 1 || index % 2 == 0
+                    showsLabel: index == 0 || index == aggregated.count - 1 || index % 2 == 0,
                 )
             }
         case .year:
@@ -256,7 +256,7 @@ struct WeeklySummaryChartView: View {
                     date: entry.date,
                     seconds: entry.seconds,
                     label: formatter.string(from: entry.date).uppercased(),
-                    showsLabel: true
+                    showsLabel: true,
                 )
             }
         }
@@ -267,14 +267,13 @@ struct WeeklySummaryChartView: View {
         let start = calendar.dateInterval(of: component, for: interval.start)?.start ?? interval.start
         var dates: [Date] = []
         var cursor = start
-        let step: DateComponents
-        switch component {
+        let step = switch component {
         case .weekOfYear:
-            step = DateComponents(day: 7)
+            DateComponents(day: 7)
         case .month:
-            step = DateComponents(month: 1)
+            DateComponents(month: 1)
         default:
-            step = DateComponents(day: 1)
+            DateComponents(day: 1)
         }
         while cursor < interval.end {
             dates.append(cursor)
@@ -322,7 +321,7 @@ private struct ActivityBarsRow: View {
                         isToday: isToday(summary.date),
                         barWidth: barWidth,
                         labelHeight: labelHeight,
-                        tooltipAlignment: tooltipAlignment(for: index)
+                        tooltipAlignment: tooltipAlignment(for: index),
                     )
                     .frame(width: barWidth)
                     .zIndex(hoveredDate == summary.date ? 1 : 0)
@@ -341,7 +340,7 @@ private struct ActivityBarsRow: View {
                     .onChange(of: proxy.size.width) { _, newValue in
                         availableWidth = newValue
                     }
-            }
+            },
         )
     }
 
@@ -418,7 +417,7 @@ private struct ActivityBarView: View {
                 .frame(height: height)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
-                        .stroke(barStrokeColor, lineWidth: 1)
+                        .stroke(barStrokeColor, lineWidth: 1),
                 )
                 .overlay(alignment: .top) {
                     if isHovered {

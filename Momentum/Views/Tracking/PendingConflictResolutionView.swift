@@ -42,11 +42,11 @@ struct PendingConflictBanner: View {
         .frame(maxWidth: 300, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.95))
+                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.95)),
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.orange.opacity(0.6), lineWidth: 1)
+                .stroke(Color.orange.opacity(0.6), lineWidth: 1),
         )
         .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
         .accessibilityElement(children: .contain)
@@ -89,11 +89,11 @@ struct PendingConflictResolutionView: View {
                                     conflict: conflict,
                                     selection: Binding(
                                         get: { selections[conflict.id] },
-                                        set: { selections[conflict.id] = $0 }
+                                        set: { selections[conflict.id] = $0 },
                                     ),
                                     onResolve: { project in
                                         tracker.resolveConflict(context: conflict.context, project: project)
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -160,7 +160,7 @@ private struct PendingConflictRow: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.secondary.opacity(0.08))
+                .fill(Color.secondary.opacity(0.08)),
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("pending-conflict-row-\(conflict.id)")
@@ -190,11 +190,11 @@ struct PendingConflict: Identifiable {
             let candidates = projects.filter { project in
                 switch type {
                 case .app:
-                    return project.matches(appBundleIdentifier: first.contextValue)
+                    project.matches(appBundleIdentifier: first.contextValue)
                 case .domain:
-                    return project.matches(domain: first.contextValue)
+                    project.matches(domain: first.contextValue)
                 case .file:
-                    return project.matches(filePath: first.contextValue)
+                    project.matches(filePath: first.contextValue)
                 }
             }
             guard !candidates.isEmpty else { return nil }
@@ -219,7 +219,7 @@ struct PendingConflict: Identifiable {
                 title: title,
                 subtitle: subtitle,
                 totalSeconds: totalSeconds,
-                candidates: candidates
+                candidates: candidates,
             )
         }
         .sorted { $0.totalSeconds > $1.totalSeconds }

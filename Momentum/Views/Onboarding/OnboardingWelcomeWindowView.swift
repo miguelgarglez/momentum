@@ -64,7 +64,7 @@ struct OnboardingWelcomeWindowView: View {
                     userInfo: [
                         OnboardingUserInfoKey.projectID: project.persistentModelID,
                         OnboardingUserInfoKey.startTracking: true,
-                    ]
+                    ],
                 )
                 dismiss()
             }

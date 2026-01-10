@@ -134,14 +134,13 @@ struct MomentumApp: App {
 
     #if os(macOS)
         private func applyAppearance(for preference: AppThemePreference) {
-            let appearance: NSAppearance?
-            switch preference {
+            let appearance: NSAppearance? = switch preference {
             case .system:
-                appearance = nil
+                nil
             case .light:
-                appearance = NSAppearance(named: .aqua)
+                NSAppearance(named: .aqua)
             case .dark:
-                appearance = NSAppearance(named: .darkAqua)
+                NSAppearance(named: .darkAqua)
             }
             NSApp.appearance = appearance
             for window in NSApp.windows {
@@ -298,7 +297,7 @@ final class AppEnvironment: ObservableObject {
                 schema: schema,
                 url: storeURL,
                 allowsSave: true,
-                cloudKitDatabase: .none
+                cloudKitDatabase: .none,
             )
         }
 
@@ -320,7 +319,7 @@ final class AppEnvironment: ObservableObject {
             modelContainer: container,
             settings: trackerSettings,
             crashRecovery: crashRecovery,
-            performanceMonitor: performanceMonitor
+            performanceMonitor: performanceMonitor,
         )
         let dataProtection = isUITest ? nil : DataProtectionCoordinator(container: container, settings: trackerSettings)
 
@@ -359,7 +358,7 @@ private extension AppEnvironment {
             domain: nil,
             filePath: nil,
             contextType: AssignmentContextType.app.rawValue,
-            contextValue: bundleID
+            contextValue: bundleID,
         )
         let domainSession = PendingTrackingSession(
             startDate: now.addingTimeInterval(-420),
@@ -369,7 +368,7 @@ private extension AppEnvironment {
             domain: domain,
             filePath: nil,
             contextType: AssignmentContextType.domain.rawValue,
-            contextValue: domain
+            contextValue: domain,
         )
         context.insert(appSession)
         context.insert(domainSession)
@@ -392,7 +391,7 @@ private extension AppEnvironment {
             contextValue: bundleID,
             project: project,
             createdAt: referenceDate,
-            lastUsedAt: referenceDate
+            lastUsedAt: referenceDate,
         )
         context.insert(rule)
 
@@ -423,7 +422,7 @@ private extension AppEnvironment {
                 durationMinutes: Int,
                 appName: String,
                 bundleID: String,
-                domain: String? = nil
+                domain: String? = nil,
             ) {
                 guard let start = calendar.date(byAdding: .hour, value: startHour, to: day(dayOffset)) else { return }
                 let session = TrackingSession(
@@ -433,7 +432,7 @@ private extension AppEnvironment {
                     bundleIdentifier: bundleID,
                     domain: domain,
                     filePath: nil,
-                    project: project
+                    project: project,
                 )
                 context.insert(session)
                 project.sessions.append(session)
@@ -448,17 +447,17 @@ private extension AppEnvironment {
             let deepWork = Project(
                 name: "Deep Work",
                 assignedApps: ["com.apple.dt.Xcode"],
-                assignedDomains: ["developer.apple.com"]
+                assignedDomains: ["developer.apple.com"],
             )
             let writing = Project(
                 name: "Writing",
                 assignedApps: ["com.apple.iWork.Pages"],
-                assignedDomains: ["docs.google.com"]
+                assignedDomains: ["docs.google.com"],
             )
             let admin = Project(
                 name: "Admin",
                 assignedApps: ["com.apple.Mail", "com.apple.Calendar"],
-                assignedDomains: []
+                assignedDomains: [],
             )
 
             let conflictBundle = "com.microsoft.VSCode"
@@ -494,7 +493,7 @@ private extension AppEnvironment {
                 domain: nil,
                 filePath: nil,
                 contextType: AssignmentContextType.app.rawValue,
-                contextValue: conflictBundle
+                contextValue: conflictBundle,
             )
             let pendingDomainConflict = PendingTrackingSession(
                 startDate: now.addingTimeInterval(-1800),
@@ -504,7 +503,7 @@ private extension AppEnvironment {
                 domain: conflictDomain,
                 filePath: nil,
                 contextType: AssignmentContextType.domain.rawValue,
-                contextValue: conflictDomain
+                contextValue: conflictDomain,
             )
             context.insert(pendingAppConflict)
             context.insert(pendingDomainConflict)
@@ -515,7 +514,7 @@ private extension AppEnvironment {
                 contextValue: "com.apple.dt.Xcode",
                 project: deepWork,
                 createdAt: ruleDate,
-                lastUsedAt: ruleDate
+                lastUsedAt: ruleDate,
             )
             context.insert(rule)
 

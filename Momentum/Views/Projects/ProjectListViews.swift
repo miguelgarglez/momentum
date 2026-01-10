@@ -47,7 +47,7 @@ struct ProjectRowView: View {
                 .frame(width: 32, height: 32)
                 .overlay(
                     Image(systemName: project.iconName)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.white),
                 )
 
             VStack(alignment: .leading, spacing: 4) {

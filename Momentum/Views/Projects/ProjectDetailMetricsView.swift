@@ -24,11 +24,11 @@ struct MetricCard: View {
         .frame(
             maxWidth: ProjectDetailView.MetricLayout.maxWidth,
             minHeight: ProjectDetailView.MetricLayout.minHeight,
-            alignment: .bottomLeading
+            alignment: .bottomLeading,
         )
         .detailInsetStyle(
             cornerRadius: 14,
-            strokeOpacity: 0.12
+            strokeOpacity: 0.12,
         )
     }
 }
@@ -48,7 +48,7 @@ struct HighlightMetricRow: View {
                 .overlay(
                     Image(systemName: icon)
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(tint)
+                        .foregroundStyle(tint),
                 )
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -67,7 +67,7 @@ struct HighlightMetricRow: View {
         .padding(12)
         .detailInsetStyle(
             cornerRadius: 14,
-            strokeOpacity: 0.12
+            strokeOpacity: 0.12,
         )
     }
 }
@@ -88,11 +88,11 @@ struct DetailMetaPill: View {
         .padding(.vertical, 6)
         .background(
             Capsule()
-                .fill(tint.opacity(0.12))
+                .fill(tint.opacity(0.12)),
         )
         .overlay(
             Capsule()
-                .stroke(tint.opacity(0.18), lineWidth: 1)
+                .stroke(tint.opacity(0.18), lineWidth: 1),
         )
         .foregroundStyle(tint)
     }

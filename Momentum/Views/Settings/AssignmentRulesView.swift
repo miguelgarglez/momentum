@@ -31,7 +31,7 @@ struct AssignmentRulesView: View {
                             isExpired: isExpired(rule),
                             onDelete: {
                                 pendingDeleteRule = rule
-                            }
+                            },
                         )
                     }
                 }
@@ -73,7 +73,7 @@ struct AssignmentRulesView: View {
                         .background(Color.primary.opacity(0.08), in: Circle())
                         .overlay(
                             Circle()
-                                .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                                .stroke(Color.primary.opacity(0.12), lineWidth: 1),
                         )
                 }
                 .buttonStyle(.plain)
@@ -167,18 +167,17 @@ struct AssignmentRulesView: View {
     private var deleteConfirmationBinding: Binding<Bool> {
         Binding(
             get: { pendingDeleteRule != nil },
-            set: { if !$0 { pendingDeleteRule = nil } }
+            set: { if !$0 { pendingDeleteRule = nil } },
         )
     }
 
     private var filteredRules: [AssignmentRule] {
         let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let filtered = rules.filter { rule in
-            let matchesProject: Bool
-            if let filterID = projectFilter {
-                matchesProject = rule.project?.persistentModelID == filterID
+            let matchesProject: Bool = if let filterID = projectFilter {
+                rule.project?.persistentModelID == filterID
             } else {
-                matchesProject = true
+                true
             }
 
             let matchesSearch: Bool
@@ -310,13 +309,13 @@ private struct AssignmentRuleRow: View {
     private var contextTitle: String {
         switch AssignmentContextType(rawValue: rule.contextType) {
         case .app:
-            return appCatalog.app(for: rule.contextValue)?.name ?? rule.contextValue
+            appCatalog.app(for: rule.contextValue)?.name ?? rule.contextValue
         case .domain:
-            return rule.contextValue
+            rule.contextValue
         case .file:
-            return rule.contextValue.filePathDisplayName
+            rule.contextValue.filePathDisplayName
         case .none:
-            return rule.contextValue
+            rule.contextValue
         }
     }
 

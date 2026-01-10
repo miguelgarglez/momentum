@@ -41,21 +41,21 @@ struct ActionPanelView: View {
     private var trackingBadgeColor: Color {
         switch summary.state {
         case .tracking:
-            return .accentColor
+            .accentColor
         case .trackingManual:
-            return .cyan
+            .cyan
         case .pendingResolution:
-            return .orange
+            .orange
         case .pausedManual:
-            return .orange
+            .orange
         case .pausedIdle:
-            return .yellow
+            .yellow
         case .pausedScreenLocked:
-            return .blue
+            .blue
         case .pausedExcluded:
-            return .secondary
+            .secondary
         case .inactive:
-            return .secondary
+            .secondary
         }
     }
 
@@ -69,7 +69,7 @@ struct ActionPanelView: View {
                     tint: trackingBadgeColor,
                     accessibilityLabel: primaryActionLabel,
                     accessibilityIdentifier: "action-panel-primary",
-                    action: onToggleTracking
+                    action: onToggleTracking,
                 )
 
                 ActionPanelIconButton(
@@ -78,7 +78,7 @@ struct ActionPanelView: View {
                     accessibilityLabel: manualLabel,
                     accessibilityIdentifier: "action-panel-manual",
                     action: onStartManualTracking,
-                    isActive: isManualTrackingActive
+                    isActive: isManualTrackingActive,
                 )
                 .disabled(isManualTrackingActive)
 
@@ -87,7 +87,7 @@ struct ActionPanelView: View {
                     tint: .primary,
                     accessibilityLabel: "Nuevo proyecto",
                     accessibilityIdentifier: "action-panel-create-project",
-                    action: onCreateProject
+                    action: onCreateProject,
                 )
 
                 settingsControl
@@ -137,11 +137,11 @@ struct ActionPanelIcon: View {
             .padding(6)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(isActive ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.04))
+                    .fill(isActive ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.04)),
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isActive ? Color.accentColor.opacity(0.6) : Color.primary.opacity(0.08))
+                    .stroke(isActive ? Color.accentColor.opacity(0.6) : Color.primary.opacity(0.08)),
             )
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }

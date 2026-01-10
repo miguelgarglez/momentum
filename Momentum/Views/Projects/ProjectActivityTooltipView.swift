@@ -14,7 +14,7 @@ struct ChartTooltipView: View {
             .padding(.vertical, 4)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.black.opacity(0.8))
+                    .fill(Color.black.opacity(0.8)),
             )
             .accessibilityLabel("Tiempo: \(text)")
     }

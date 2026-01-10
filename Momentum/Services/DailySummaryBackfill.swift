@@ -9,10 +9,12 @@ import Foundation
 import OSLog
 import SwiftData
 
+@MainActor
 protocol DailySummaryBackfilling {
     func runIfNeeded(container: ModelContainer)
 }
 
+@MainActor
 final class DailySummaryBackfill: DailySummaryBackfilling {
     private let defaults: UserDefaults
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Momentum", category: "DailySummaryBackfill")
@@ -25,14 +27,12 @@ final class DailySummaryBackfill: DailySummaryBackfilling {
         let storedVersion = defaults.integer(forKey: Keys.version)
         guard storedVersion < Constants.currentVersion else { return }
 
-        Task.detached(priority: .utility) { [defaults, logger] in
-            do {
-                try DailySummaryBackfill.backfill(container: container)
-                defaults.set(Constants.currentVersion, forKey: Keys.version)
-                logger.info("DailySummary backfill completed.")
-            } catch {
-                logger.error("DailySummary backfill failed: \(error.localizedDescription, privacy: .public)")
-            }
+        do {
+            try DailySummaryBackfill.backfill(container: container)
+            defaults.set(Constants.currentVersion, forKey: Keys.version)
+            logger.info("DailySummary backfill completed.")
+        } catch {
+            logger.error("DailySummary backfill failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 

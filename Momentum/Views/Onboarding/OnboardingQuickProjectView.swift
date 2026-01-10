@@ -32,7 +32,7 @@ struct OnboardingQuickProjectView: View {
                             LTRTextField(
                                 text: $name,
                                 placeholder: "New cool project",
-                                accessibilityIdentifier: "onboarding-project-name"
+                                accessibilityIdentifier: "onboarding-project-name",
                             )
                             .macRoundedTextFieldStyle()
                         #else
@@ -90,7 +90,7 @@ struct OnboardingQuickProjectView: View {
         let project = Project(
             name: projectName,
             colorHex: ProjectPalette.defaultColor.hex,
-            iconName: iconName
+            iconName: iconName,
         )
         modelContext.insert(project)
         do {

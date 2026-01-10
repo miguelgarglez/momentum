@@ -25,7 +25,7 @@ struct ActivityHistorySectionView: View {
         .detailCardStyle(
             padding: 16,
             cornerRadius: 18,
-            strokeOpacity: 0.08
+            strokeOpacity: 0.08,
         )
     }
 }
@@ -79,8 +79,8 @@ struct ActivityHeatmapView: View {
                                             RoundedRectangle(cornerRadius: 3)
                                                 .stroke(
                                                     hoveredDay == day.date && day.seconds > 0 ? project.color.opacity(0.7) : .clear,
-                                                    lineWidth: 1
-                                                )
+                                                    lineWidth: 1,
+                                                ),
                                         )
                                         .overlay(alignment: .top) {
                                             if hoveredDay == day.date, day.isInRange, day.seconds > 0 {
@@ -134,11 +134,11 @@ struct ActivityHeatmapView: View {
 
     private func color(for intensity: Int) -> Color {
         switch intensity {
-        case 0: return Color.primary.opacity(0.08)
-        case 1: return project.color.opacity(0.25)
-        case 2: return project.color.opacity(0.45)
-        case 3: return project.color.opacity(0.65)
-        default: return project.color.opacity(0.85)
+        case 0: Color.primary.opacity(0.08)
+        case 1: project.color.opacity(0.25)
+        case 2: project.color.opacity(0.45)
+        case 3: project.color.opacity(0.65)
+        default: project.color.opacity(0.85)
         }
     }
 

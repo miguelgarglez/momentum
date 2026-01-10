@@ -75,7 +75,7 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
     init(
         budget: Budget = .default,
         metricsSource: ResourceMetricsSource = MachResourceMetricsSource(),
-        pollInterval: TimeInterval = 30
+        pollInterval: TimeInterval = 30,
     ) {
         self.budget = budget
         self.metricsSource = metricsSource
@@ -83,6 +83,7 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
         schedulePolling()
     }
 
+    @MainActor
     deinit {
         pollTimer?.invalidate()
     }
@@ -136,7 +137,7 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
             duration: duration,
             cpuLoad: cpuLoad,
             ioBytesPerSecond: ioRate,
-            source: label.map { .operation($0) } ?? .poll
+            source: label.map { .operation($0) } ?? .poll,
         )
         recordSample(sample)
         evaluate(sample)

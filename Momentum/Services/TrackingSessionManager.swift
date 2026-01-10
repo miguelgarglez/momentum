@@ -17,6 +17,7 @@ final class TrackingSessionManager: ObservableObject {
     private var startDate: Date?
     private var timer: Timer?
 
+    @MainActor
     deinit {
         timer?.invalidate()
     }

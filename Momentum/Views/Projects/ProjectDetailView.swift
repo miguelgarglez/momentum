@@ -38,7 +38,7 @@ struct ProjectDetailView: View {
         onEdit: @escaping (Project) -> Void = { _ in },
         onDelete: @escaping (Project) -> Void = { _ in },
         onClearActivity: @escaping (Project) -> Void = { _ in },
-        onStartTracking: @escaping (Project) -> Void = { _ in }
+        onStartTracking: @escaping (Project) -> Void = { _ in },
     ) {
         _project = Bindable(project)
         let projectID = project.persistentModelID
@@ -46,7 +46,7 @@ struct ProjectDetailView: View {
             filter: #Predicate<TrackingSession> { session in
                 session.project?.persistentModelID == projectID
             },
-            sort: [SortDescriptor(\TrackingSession.endDate, order: .reverse)]
+            sort: [SortDescriptor(\TrackingSession.endDate, order: .reverse)],
         )
         self.isTrackingActiveForProject = isTrackingActiveForProject
         self.onEdit = onEdit
@@ -96,7 +96,7 @@ struct ProjectDetailView: View {
             .confirmationDialog(
                 "¿Quieres eliminar todas las sesiones de este proyecto?",
                 isPresented: $showClearActivityDialog,
-                titleVisibility: .visible
+                titleVisibility: .visible,
             ) {
                 Button("Limpiar actividad", role: .destructive) {
                     onClearActivity(project)
@@ -117,7 +117,7 @@ struct ProjectDetailView: View {
                     .overlay(
                         Image(systemName: project.iconName)
                             .font(.title2)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.white),
                     )
                 VStack(alignment: .leading, spacing: 6) {
                     Text(project.name)
@@ -125,12 +125,12 @@ struct ProjectDetailView: View {
                     HStack(spacing: 8) {
                         DetailMetaPill(
                             text: project.lastActivityText,
-                            systemImage: "clock"
+                            systemImage: "clock",
                         )
                         DetailMetaPill(
                             text: streakPillText,
                             systemImage: "flame.fill",
-                            tint: .orange
+                            tint: .orange,
                         )
                     }
                     .transaction { transaction in
@@ -166,7 +166,7 @@ struct ProjectDetailView: View {
                     value: "\(project.streakCount) días",
                     subtitle: "Mejor racha: \(project.longestStreakCount) días.",
                     icon: "flame.fill",
-                    tint: .orange
+                    tint: .orange,
                 )
             }
             .frame(maxWidth: Layout.metricGridWidth, alignment: .leading)
@@ -175,7 +175,7 @@ struct ProjectDetailView: View {
         .detailCardStyle(
             padding: Layout.cardPadding,
             cornerRadius: Layout.cardCornerRadius,
-            strokeOpacity: Layout.cardStrokeOpacity
+            strokeOpacity: Layout.cardStrokeOpacity,
         )
     }
 
@@ -205,7 +205,7 @@ struct ProjectDetailView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            if project.assignedApps.isEmpty && project.assignedDomains.isEmpty && project.assignedFiles.isEmpty {
+            if project.assignedApps.isEmpty, project.assignedDomains.isEmpty, project.assignedFiles.isEmpty {
                 Text("Asigna apps, dominios o archivos para que Momentum sume tiempo automáticamente.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -232,7 +232,7 @@ struct ProjectDetailView: View {
         .detailCardStyle(
             padding: Layout.cardPadding,
             cornerRadius: Layout.cardCornerRadius,
-            strokeOpacity: Layout.cardStrokeOpacity
+            strokeOpacity: Layout.cardStrokeOpacity,
         )
     }
 
@@ -261,7 +261,7 @@ struct ProjectDetailView: View {
         .detailCardStyle(
             padding: Layout.cardPadding,
             cornerRadius: Layout.cardCornerRadius,
-            strokeOpacity: Layout.cardStrokeOpacity
+            strokeOpacity: Layout.cardStrokeOpacity,
         )
     }
 
@@ -308,7 +308,7 @@ struct ProjectDetailView: View {
         .detailCardStyle(
             padding: Layout.cardPadding,
             cornerRadius: Layout.cardCornerRadius,
-            strokeOpacity: Layout.cardStrokeOpacity
+            strokeOpacity: Layout.cardStrokeOpacity,
         )
     }
 }

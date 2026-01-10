@@ -26,9 +26,9 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
     func resolveProject(for bundleIdentifier: String?, domain: String?, filePath: String?) -> Project? {
         switch resolveAssignment(for: bundleIdentifier, domain: domain, filePath: filePath) {
         case let .assigned(project, _):
-            return project
+            project
         case .conflict, .none:
-            return nil
+            nil
         }
     }
 
@@ -57,7 +57,7 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
 
     private func fetchProjects() -> [Project]? {
         let descriptor = FetchDescriptor<Project>(
-            sortBy: [SortDescriptor(\Project.createdAt, order: .forward)]
+            sortBy: [SortDescriptor(\Project.createdAt, order: .forward)],
         )
         return try? modelContainer.mainContext.fetch(descriptor)
     }
@@ -65,7 +65,7 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
     private func resolve(
         context: AssignmentContext,
         candidates: [Project],
-        allProjects _: [Project]
+        allProjects _: [Project],
     ) -> AssignmentResult {
         if let rule = fetchRule(for: context) {
             if isExpired(rule) {
@@ -92,7 +92,7 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
             predicate: #Predicate {
                 $0.contextType == typeValue &&
                     $0.contextValue == contextValue
-            }
+            },
         )
         return try? modelContainer.mainContext.fetch(descriptor).first
     }
