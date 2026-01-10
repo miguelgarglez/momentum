@@ -2,7 +2,6 @@
     import AppKit
     import Combine
 
-    @MainActor
     final class StatusItemController: NSObject {
         private let tracker: ActivityTracker
         private let statusItem: NSStatusItem
@@ -22,6 +21,7 @@
             return formatter
         }()
 
+        @MainActor
         init(tracker: ActivityTracker) {
             self.tracker = tracker
             statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -62,11 +62,6 @@
         }
 
         @MainActor
-        deinit {
-            clockTimer?.invalidate()
-            NSStatusBar.system.removeStatusItem(statusItem)
-        }
-
         private func configureButton() {
             statusItem.button?.image = NSImage(systemSymbolName: "flame", accessibilityDescription: "Momentum")
             statusItem.button?.imagePosition = .imageOnly
@@ -74,6 +69,7 @@
             updateButtonBadge()
         }
 
+        @MainActor
         private func updateButtonBadge() {
             guard let button = statusItem.button else { return }
             button.title = ""
@@ -124,6 +120,7 @@
             }
         }
 
+        @MainActor
         private func startClockTimer() {
             clockTimer?.invalidate()
             clockTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
@@ -135,6 +132,7 @@
             }
         }
 
+        @MainActor
         private func updateClockLabel() {
             currentTimeString = timeFormatter.string(from: Date())
         }

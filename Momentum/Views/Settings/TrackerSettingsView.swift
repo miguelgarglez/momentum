@@ -373,7 +373,6 @@ struct TrackerSettingsView: View {
             }
         }
 
-        @MainActor
         final class Coordinator {
             private let onClose: @Sendable () -> Void
             private weak var window: NSWindow?
@@ -399,12 +398,6 @@ struct TrackerSettingsView: View {
                 }
             }
 
-            @MainActor
-            deinit {
-                if let observer {
-                    NotificationCenter.default.removeObserver(observer)
-                }
-            }
         }
     }
 #endif

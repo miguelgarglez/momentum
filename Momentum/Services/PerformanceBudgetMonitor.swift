@@ -27,7 +27,6 @@ protocol PerformanceBudgetMonitoring: AnyObject {
 /// This monitor is designed to be safe for production, lightweight, testable via
 /// dependency injection, and replaceable with `NoopPerformanceBudgetMonitor` when
 /// measurement is not desired (e.g., in unit tests).
-@MainActor
 final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitoring {
     struct Budget {
         let cpuFraction: Double
@@ -72,6 +71,7 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
     private var pollTimer: Timer?
     private var lastPollSnapshot: ResourceSnapshot?
 
+    @MainActor
     init(
         budget: Budget = .default,
         metricsSource: ResourceMetricsSource = MachResourceMetricsSource(),
@@ -81,11 +81,6 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
         self.metricsSource = metricsSource
         self.pollInterval = pollInterval
         schedulePolling()
-    }
-
-    @MainActor
-    deinit {
-        pollTimer?.invalidate()
     }
 
     @discardableResult
@@ -104,6 +99,7 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
         }
     }
 
+    @MainActor
     private func schedulePolling() {
         pollTimer?.invalidate()
         guard pollInterval > 0 else { return }
@@ -117,6 +113,7 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
         }
     }
 
+    @MainActor
     private func handlePollTick() {
         let snapshot = metricsSource.snapshot()
         defer { lastPollSnapshot = snapshot }
@@ -124,6 +121,7 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
         recordSnapshot(start: previous, end: snapshot, label: nil)
     }
 
+    @MainActor
     private func recordSnapshot(start: ResourceSnapshot, end: ResourceSnapshot, label: String?) {
         guard end.timestamp > start.timestamp else { return }
         let duration = end.timestamp.timeIntervalSince(start.timestamp)

@@ -7,7 +7,6 @@
 
 import Foundation
 
-@MainActor
 final class TrackingSessionManager: ObservableObject {
     @Published private(set) var isTrackingActive: Bool = false
     @Published private(set) var elapsed: TimeInterval = 0
@@ -18,10 +17,6 @@ final class TrackingSessionManager: ObservableObject {
     private var timer: Timer?
 
     @MainActor
-    deinit {
-        timer?.invalidate()
-    }
-
     func updateTrackingState(isActive: Bool) {
         guard isActive != isTrackingActive else { return }
         isTrackingActive = isActive
@@ -37,6 +32,7 @@ final class TrackingSessionManager: ObservableObject {
         }
     }
 
+    @MainActor
     func ingest(summary: ActivityTracker.StatusSummary) {
         guard isTrackingActive else { return }
         if let appName = summary.appName, !appName.isEmpty {
@@ -47,6 +43,7 @@ final class TrackingSessionManager: ObservableObject {
         }
     }
 
+    @MainActor
     private func startTimer() {
         stopTimer()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -60,11 +57,13 @@ final class TrackingSessionManager: ObservableObject {
         updateElapsed()
     }
 
+    @MainActor
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
     }
 
+    @MainActor
     private func updateElapsed() {
         guard let startDate else { return }
         elapsed = Date().timeIntervalSince(startDate)
