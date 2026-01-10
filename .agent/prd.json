@@ -62,7 +62,7 @@
         "Run `make test-unit`",
         "Run `make test`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Ensure actions apply across sections and dismissal clears theme preview."
     },
     {
