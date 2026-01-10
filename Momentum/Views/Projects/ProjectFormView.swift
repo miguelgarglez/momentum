@@ -224,8 +224,8 @@ private struct FileSelectionChips: View {
                     Button {
                         onRemove(path)
                     } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 9, weight: .bold))
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -233,14 +233,8 @@ private struct FileSelectionChips: View {
                 }
                 .padding(.vertical, 6)
                 .padding(.horizontal, 10)
-                .background(
-                    Capsule()
-                        .fill(Color.secondary.opacity(0.12)),
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1),
-                )
+                .background(Color.secondary.opacity(0.12))
+                .clipShape(Capsule())
                 .help(path)
             }
         }
