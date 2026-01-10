@@ -86,7 +86,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Single switch that returns the correct view for each section."
     },
     {

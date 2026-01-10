@@ -11,88 +11,40 @@ struct TrackerSettingsView: View {
     @EnvironmentObject private var appCatalog: AppCatalog
     @EnvironmentObject private var themePreview: ThemePreviewState
     @EnvironmentObject private var automationPermissionManager: AutomationPermissionManager
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Project.name, order: .forward) private var projects: [Project]
 
-    @State private var draft = TrackerSettingsDraft()
+    @Binding var draft: TrackerSettingsDraft
+    let section: SettingsSection?
     @State private var showEraseAllConfirmation = false
     @State private var projectPendingDeletion: Project?
     @State private var maintenanceError: String?
     @State private var showingEncryptionInfo = false
     @State private var showingAutomationInfo = false
-    @State private var hasLoadedDraft = false
 
-    init() {}
+    init(draft: Binding<TrackerSettingsDraft>, section: SettingsSection? = nil) {
+        _draft = draft
+        self.section = section
+    }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 Form {
-                    SettingsAppearanceSectionView(themeSelection: themeSelectionBinding)
-                    SettingsTrackingSectionView(
-                        draft: $draft,
-                        showingAutomationInfo: $showingAutomationInfo,
-                    )
-                    SettingsIdleSectionView(draft: $draft)
-                    SettingsExclusionSectionView(draft: $draft)
-                    SettingsAssignmentRulesSectionView(draft: $draft)
-                    SettingsPrivacySectionView(
-                        draft: $draft,
-                        projects: projects,
-                        showEraseAllConfirmation: $showEraseAllConfirmation,
-                        showingEncryptionInfo: $showingEncryptionInfo,
-                        projectPendingDeletion: $projectPendingDeletion,
-                    )
+                    if let section {
+                        sectionView(for: section)
+                    } else {
+                        ForEach(SettingsSection.allCases) { section in
+                            sectionView(for: section)
+                        }
+                    }
                 }
                 .formStyle(.grouped)
                 .scrollContentBackground(.hidden)
                 .background(Color(nsColor: .windowBackgroundColor))
-
-                Divider()
-
-                HStack(spacing: 12) {
-                    Spacer()
-                    Button("Cerrar") {
-                        Task { @MainActor in
-                            clearThemePreview()
-                            dismiss()
-                        }
-                    }
-                    Button("Guardar") {
-                        applyChanges()
-                        dismiss()
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 12)
             }
             .navigationTitle("Configuración")
             .frame(minWidth: 360)
-        }
-        #if os(macOS)
-        .background(WindowCloseObserver {
-            Task { @MainActor in
-                clearThemePreview()
-            }
-        })
-        #endif
-        .onAppear {
-            if !hasLoadedDraft {
-                draft = TrackerSettingsDraft(from: settings)
-                hasLoadedDraft = true
-            }
-            if themePreview.selection == nil {
-                themePreview.selection = settings.themePreference
-            }
-        }
-        .task(id: themePreview.selection) {
-            try? await Task.sleep(nanoseconds: 450_000_000)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                themePreview.previewPreference = themePreview.selection
-            }
         }
         .confirmationDialog("¿Borrar todos los datos?", isPresented: $showEraseAllConfirmation, titleVisibility: .visible) {
             Button("Borrar todo", role: .destructive) { deleteAllData() }
@@ -159,24 +111,31 @@ struct TrackerSettingsView: View {
         )
     }
 
-    @MainActor
-    private func applyChanges() {
-        settings.isDomainTrackingEnabled = draft.isDomainTrackingEnabled
-        settings.isFileTrackingEnabled = draft.isFileTrackingEnabled
-        settings.detectionInterval = draft.detectionInterval
-        settings.idleThresholdMinutes = draft.idleThresholdMinutes
-        settings.excludedApps = draft.excludedApps
-        settings.excludedDomains = draft.excludedDomains
-        settings.excludedFiles = draft.excludedFiles
-        settings.isDatabaseEncryptionEnabled = draft.isDatabaseEncryptionEnabled
-        settings.assignmentRuleExpiration = draft.assignmentRuleExpiration
-        settings.themePreference = themeSelectionBinding.wrappedValue
-        clearThemePreview()
-    }
-
-    private func clearThemePreview() {
-        themePreview.selection = nil
-        themePreview.previewPreference = nil
+    @ViewBuilder
+    private func sectionView(for section: SettingsSection) -> some View {
+        switch section {
+        case .tracking:
+            SettingsTrackingSectionView(
+                draft: $draft,
+                showingAutomationInfo: $showingAutomationInfo,
+            )
+        case .appearance:
+            SettingsAppearanceSectionView(themeSelection: themeSelectionBinding)
+        case .idle:
+            SettingsIdleSectionView(draft: $draft)
+        case .exclusions:
+            SettingsExclusionSectionView(draft: $draft)
+        case .assignmentRules:
+            SettingsAssignmentRulesSectionView(draft: $draft)
+        case .privacy:
+            SettingsPrivacySectionView(
+                draft: $draft,
+                projects: projects,
+                showEraseAllConfirmation: $showEraseAllConfirmation,
+                showingEncryptionInfo: $showingEncryptionInfo,
+                projectPendingDeletion: $projectPendingDeletion,
+            )
+        }
     }
 
     @MainActor
@@ -395,7 +354,7 @@ private struct SettingsPrivacySectionView: View {
 }
 
 #if os(macOS)
-    private struct WindowCloseObserver: NSViewRepresentable {
+    struct WindowCloseObserver: NSViewRepresentable {
         let onClose: @Sendable () -> Void
 
         func makeCoordinator() -> Coordinator {
@@ -446,7 +405,7 @@ private struct SettingsPrivacySectionView: View {
 #endif
 
 @MainActor
-private struct TrackerSettingsDraft {
+struct TrackerSettingsDraft {
     var detectionInterval: Double
     var idleThresholdMinutes: Int
     var isDomainTrackingEnabled: Bool

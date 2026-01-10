@@ -26,3 +26,5 @@
 2026-01-10: SET-005 passed (discard draft + theme preview on settings close). verify_fast: make test-unit. verify_full: make test-unit.
 2026-01-10: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
 2026-01-10: SET-006 passed (updated Settings window default size for split view). verify_fast: make test-unit.
+2026-01-10: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
+2026-01-10: SET-007 passed (added section routing switch for settings detail view). verify_fast: make test-unit.
