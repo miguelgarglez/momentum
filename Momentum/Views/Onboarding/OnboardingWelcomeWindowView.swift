@@ -7,7 +7,7 @@
 
 import SwiftUI
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 struct OnboardingWelcomeWindowView: View {
@@ -51,9 +51,9 @@ struct OnboardingWelcomeWindowView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .onboardingProjectCreated)) { _ in
             showQuickCreate = false
-#if os(macOS)
-            closeWelcomeWindow()
-#endif
+            #if os(macOS)
+                closeWelcomeWindow()
+            #endif
             dismiss()
         }
         .sheet(isPresented: $showQuickCreate) {
@@ -63,7 +63,7 @@ struct OnboardingWelcomeWindowView: View {
                     object: nil,
                     userInfo: [
                         OnboardingUserInfoKey.projectID: project.persistentModelID,
-                        OnboardingUserInfoKey.startTracking: true
+                        OnboardingUserInfoKey.startTracking: true,
                     ]
                 )
                 dismiss()
@@ -71,16 +71,16 @@ struct OnboardingWelcomeWindowView: View {
         }
     }
 
-#if os(macOS)
-    private func closeWelcomeWindow() {
-        if let window = NSApp.keyWindow {
-            window.close()
-            return
+    #if os(macOS)
+        private func closeWelcomeWindow() {
+            if let window = NSApp.keyWindow {
+                window.close()
+                return
+            }
+            for window in NSApp.windows where window.isVisible {
+                window.close()
+                break
+            }
         }
-        for window in NSApp.windows where window.isVisible {
-            window.close()
-            break
-        }
-    }
-#endif
+    #endif
 }

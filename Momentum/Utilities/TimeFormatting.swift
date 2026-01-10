@@ -10,7 +10,7 @@ import Foundation
 extension TimeInterval {
     var hoursAndMinutesString: String {
         if self < 60 {
-            let seconds = max(0, Int(self.rounded()))
+            let seconds = max(0, Int(rounded()))
             return "\(seconds)s"
         }
 

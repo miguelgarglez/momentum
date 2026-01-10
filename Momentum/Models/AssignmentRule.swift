@@ -43,6 +43,8 @@ extension AssignmentRule {
             return "App"
         case .domain:
             return "Dominio"
+        case .file:
+            return "Archivo"
         case .none:
             return "Contexto"
         }

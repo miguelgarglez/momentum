@@ -10,6 +10,7 @@
 - Keep service APIs cohesive and task‑oriented.
 - Avoid leaking UI‑specific details into service interfaces.
 - Be explicit about threading and `@MainActor` usage when needed.
+- Global exclusions live in `TrackerSettings` (`excludedApps`, `excludedDomains`, `excludedFiles`) and should be enforced in `ActivityTracker` when context changes.
 
 ## Observability
 - Use `@Published`/`Observable` where state drives UI.

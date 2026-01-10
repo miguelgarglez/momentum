@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 @Model
 final class Project {
@@ -16,6 +16,7 @@ final class Project {
     var iconName: String
     var assignedAppsRaw: String = "[]"
     var assignedDomainsRaw: String = "[]"
+    var assignedFilesRaw: String = "[]"
     var createdAt: Date
 
     @Relationship(deleteRule: .cascade, inverse: \TrackingSession.project)
@@ -28,14 +29,16 @@ final class Project {
         colorHex: String = ProjectPalette.defaultColor.hex,
         iconName: String = ProjectIcon.spark.rawValue,
         assignedApps: [String] = [],
-        assignedDomains: [String] = []
+        assignedDomains: [String] = [],
+        assignedFiles: [String] = []
     ) {
         self.name = name
         self.colorHex = colorHex
         self.iconName = iconName
-        self.assignedAppsRaw = Project.encode(strings: assignedApps)
-        self.assignedDomainsRaw = Project.encode(strings: assignedDomains.map { $0.lowercased() })
-        self.createdAt = Date()
+        assignedAppsRaw = Project.encode(strings: assignedApps)
+        assignedDomainsRaw = Project.encode(strings: assignedDomains.map { $0.lowercased() })
+        assignedFilesRaw = Project.encode(strings: Project.normalizeFiles(assignedFiles))
+        createdAt = Date()
     }
 }
 
@@ -50,17 +53,22 @@ extension Project {
         set { assignedDomainsRaw = Project.encode(strings: newValue.map { $0.lowercased() }) }
     }
 
+    var assignedFiles: [String] {
+        get { Project.decodeStrings(from: assignedFilesRaw) }
+        set { assignedFilesRaw = Project.encode(strings: Project.normalizeFiles(newValue)) }
+    }
+
     var color: Color { Color(hex: colorHex) ?? .accentColor }
-    
+
     var lastActivityDate: Date? {
         sessions.sorted(by: { $0.endDate > $1.endDate }).first?.endDate
     }
-    
+
     var lastActivityText: String {
         guard let last = lastActivityDate else { return "Sin datos recientes" }
         return RelativeDateTimeFormatter().localizedString(for: last, relativeTo: .now)
     }
-    
+
     func secondsSpent(in interval: DateInterval) -> TimeInterval {
         sessions.reduce(0) { partialResult, session in
             guard let overlap = session.interval.intersection(with: interval) else {
@@ -69,11 +77,11 @@ extension Project {
             return partialResult + overlap.duration
         }
     }
-    
+
     var totalSeconds: TimeInterval {
         sessions.reduce(0) { $0 + $1.duration }
     }
-    
+
     var weeklySeconds: TimeInterval {
         let calendar = Calendar.current
         let end = Date()
@@ -110,12 +118,12 @@ extension Project {
             summary.date >= startOfMonth ? partial + summary.seconds : partial
         }
     }
-    
+
     var streakCount: Int {
         let calendar = Calendar.current
         var streak = 0
         var date = calendar.startOfDay(for: .now)
-        
+
         while hasActivity(on: date) {
             streak += 1
             guard let previous = calendar.date(byAdding: .day, value: -1, to: date) else {
@@ -123,7 +131,7 @@ extension Project {
             }
             date = previous
         }
-        
+
         return streak
     }
 
@@ -153,7 +161,7 @@ extension Project {
 
         return best
     }
-    
+
     func hasActivity(on date: Date) -> Bool {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: date)
@@ -163,13 +171,19 @@ extension Project {
         let interval = DateInterval(start: start, end: end)
         return !sessions.filter { $0.interval.intersects(interval) }.isEmpty
     }
-    
+
     func matches(appBundleIdentifier: String) -> Bool {
         assignedApps.contains { $0.caseInsensitiveCompare(appBundleIdentifier) == .orderedSame }
     }
-    
+
     func matches(domain: String) -> Bool {
         assignedDomains.contains { domain.lowercased().contains($0) }
+    }
+
+    func matches(filePath: String) -> Bool {
+        let normalized = filePath.normalizedFilePath
+        guard !normalized.isEmpty else { return false }
+        return assignedFiles.contains { $0.caseInsensitiveCompare(normalized) == .orderedSame }
     }
 
     func addAssignedApp(_ bundleIdentifier: String) {
@@ -190,12 +204,22 @@ extension Project {
         assignedDomains.append(normalized)
     }
 
+    func addAssignedFile(_ filePath: String) {
+        let normalized = filePath.normalizedFilePath
+        guard !normalized.isEmpty else { return }
+        if assignedFiles.contains(where: { $0.caseInsensitiveCompare(normalized) == .orderedSame }) {
+            return
+        }
+        assignedFiles.append(normalized)
+    }
+
     func apply(draft: ProjectFormDraft) {
         name = draft.name
         colorHex = draft.colorHex
         iconName = draft.iconName
         assignedApps = draft.assignedApps
         assignedDomains = draft.assignedDomains
+        assignedFiles = draft.assignedFiles
     }
 }
 
@@ -226,7 +250,8 @@ private extension Project {
 private extension Project {
     static func encode(strings: [String]) -> String {
         guard let data = try? JSONEncoder().encode(strings),
-              let string = String(data: data, encoding: .utf8) else {
+              let string = String(data: data, encoding: .utf8)
+        else {
             return "[]"
         }
         return string
@@ -234,10 +259,25 @@ private extension Project {
 
     static func decodeStrings(from string: String) -> [String] {
         guard let data = string.data(using: .utf8),
-              let array = try? JSONDecoder().decode([String].self, from: data) else {
+              let array = try? JSONDecoder().decode([String].self, from: data)
+        else {
             return []
         }
         return array
+    }
+
+    static func normalizeFiles(_ files: [String]) -> [String] {
+        var seen: Set<String> = []
+        var result: [String] = []
+        for file in files {
+            let normalized = file.normalizedFilePath
+            guard !normalized.isEmpty else { continue }
+            let key = normalized.lowercased()
+            if seen.insert(key).inserted {
+                result.append(normalized)
+            }
+        }
+        return result
     }
 }
 
@@ -249,9 +289,10 @@ extension Project {
         let cached = dailySummaries.reduce(into: [Date: TimeInterval]()) { partial, summary in
             partial[summary.date] = summary.seconds
         }
-        let days = (0..<limit).compactMap { offset -> DailySummaryPoint? in
+        let days = (0 ..< limit).compactMap { offset -> DailySummaryPoint? in
             guard let day = calendar.date(byAdding: .day, value: -offset, to: today),
-                  let end = calendar.date(byAdding: .day, value: 1, to: day) else {
+                  let end = calendar.date(byAdding: .day, value: 1, to: day)
+            else {
                 return nil
             }
             let normalized = calendar.startOfDay(for: day)
@@ -307,7 +348,8 @@ extension Project {
         for session in sessions {
             let sessionInterval = session.interval
             guard sessionInterval.intersects(interval),
-                  let clipped = sessionInterval.intersection(with: interval) else {
+                  let clipped = sessionInterval.intersection(with: interval)
+            else {
                 continue
             }
             var cursor = DailySummary.normalize(clipped.start)
@@ -341,13 +383,13 @@ extension Project {
 
     func contextUsageSummaries(for interval: DateInterval, limit: Int = 6) -> [ContextUsageSummary] {
         guard interval.duration > 0 else { return [] }
-        var totals: [String: (title: String, subtitle: String?, seconds: TimeInterval, bundleIdentifier: String?, domain: String?)] = [:]
+        var totals: [String: (title: String, subtitle: String?, seconds: TimeInterval, bundleIdentifier: String?, domain: String?, filePath: String?)] = [:]
         for session in sessions {
             let duration = session.duration(in: interval)
             guard duration > 0 else { continue }
             let key = session.contextKey
-            let info = totals[key] ?? (session.primaryContextLabel, session.secondaryContextLabel, 0, session.bundleIdentifier, session.domain)
-            totals[key] = (info.title, info.subtitle, info.seconds + duration, session.bundleIdentifier, session.domain)
+            let info = totals[key] ?? (session.primaryContextLabel, session.secondaryContextLabel, 0, session.bundleIdentifier, session.domain, session.filePath)
+            totals[key] = (info.title, info.subtitle, info.seconds + duration, session.bundleIdentifier, session.domain, session.filePath)
         }
         let summaries = totals.map { key, value in
             ContextUsageSummary(
@@ -356,20 +398,20 @@ extension Project {
                 subtitle: value.subtitle,
                 seconds: value.seconds,
                 bundleIdentifier: value.bundleIdentifier,
-                domain: value.domain
+                domain: value.domain,
+                filePath: value.filePath
             )
         }
         return Array(summaries.sorted { $0.seconds > $1.seconds }.prefix(limit))
     }
-
 }
 
 enum ProjectIcon: String, CaseIterable {
     case spark = "sparkles"
-    case book = "book"
-    case hammer = "hammer"
+    case book
+    case hammer
     case paint = "paintbrush"
-    case bolt = "bolt"
+    case bolt
 
     var systemName: String {
         rawValue
@@ -399,7 +441,7 @@ enum ProjectPalette {
         ProjectColor(name: "Forest", hex: "#1F9D55"),
         ProjectColor(name: "Ocean", hex: "#009FB7"),
         ProjectColor(name: "Indigo", hex: "#5C6AC4"),
-        ProjectColor(name: "Lavender", hex: "#A78BFA")
+        ProjectColor(name: "Lavender", hex: "#A78BFA"),
     ]
 
     static var defaultColor: ProjectColor { colors[0] }
@@ -412,4 +454,5 @@ struct ContextUsageSummary: Identifiable {
     let seconds: TimeInterval
     let bundleIdentifier: String?
     let domain: String?
+    let filePath: String?
 }

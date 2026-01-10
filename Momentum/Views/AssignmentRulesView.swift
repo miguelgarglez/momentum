@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct AssignmentRulesView: View {
     @EnvironmentObject private var settings: TrackerSettings
@@ -15,9 +15,9 @@ struct AssignmentRulesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-#if os(macOS)
-            backButtonRow
-#endif
+            #if os(macOS)
+                backButtonRow
+            #endif
             filterHeader
 
             if filteredRules.isEmpty {
@@ -43,46 +43,46 @@ struct AssignmentRulesView: View {
         .padding(.horizontal)
         .padding(.bottom, 12)
         .navigationTitle("Reglas de asignacion")
-#if os(macOS)
-        .navigationBarBackButtonHidden(true)
-#endif
-        .confirmationDialog("¿Eliminar regla?", isPresented: deleteConfirmationBinding, titleVisibility: .visible) {
-            Button("Eliminar", role: .destructive) {
-                deletePendingRule()
+        #if os(macOS)
+            .navigationBarBackButtonHidden(true)
+        #endif
+            .confirmationDialog("¿Eliminar regla?", isPresented: deleteConfirmationBinding, titleVisibility: .visible) {
+                Button("Eliminar", role: .destructive) {
+                    deletePendingRule()
+                }
+                Button("Cancelar", role: .cancel) {
+                    pendingDeleteRule = nil
+                }
+            } message: {
+                if let pendingDeleteRule {
+                    Text("Eliminar la regla para \(pendingDeleteRule.contextLabel.lowercased()) \(pendingDeleteRule.contextValue)?")
+                }
             }
-            Button("Cancelar", role: .cancel) {
-                pendingDeleteRule = nil
-            }
-        } message: {
-            if let pendingDeleteRule {
-                Text("Eliminar la regla para \(pendingDeleteRule.contextLabel.lowercased()) \(pendingDeleteRule.contextValue)?")
-            }
-        }
     }
 
-#if os(macOS)
-    private var backButtonRow: some View {
-        HStack {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 28, height: 28)
-                    .background(Color.primary.opacity(0.08), in: Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(Color.primary.opacity(0.12), lineWidth: 1)
-                    )
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Volver")
+    #if os(macOS)
+        private var backButtonRow: some View {
+            HStack {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 28, height: 28)
+                        .background(Color.primary.opacity(0.08), in: Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Volver")
 
-            Spacer()
+                Spacer()
+            }
         }
-    }
-#endif
+    #endif
 
     private var filterHeader: some View {
         ViewThatFits(in: .horizontal) {
@@ -127,21 +127,21 @@ struct AssignmentRulesView: View {
     }
 
     private var searchField: some View {
-#if os(macOS)
-        LTRTextField(text: $searchText, placeholder: "Contexto o proyecto")
-            .macRoundedTextFieldStyle()
-            .accessibilityIdentifier("assignment-rules-search-field")
-#else
-        TextField("Contexto o proyecto", text: $searchText)
-            .textFieldStyle(.roundedBorder)
-            .accessibilityIdentifier("assignment-rules-search-field")
-#endif
+        #if os(macOS)
+            LTRTextField(text: $searchText, placeholder: "Contexto o proyecto")
+                .macRoundedTextFieldStyle()
+                .accessibilityIdentifier("assignment-rules-search-field")
+        #else
+            TextField("Contexto o proyecto", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("assignment-rules-search-field")
+        #endif
     }
 
     private var projectFilterPicker: some View {
         Picker("Filtrar por proyecto", selection: $projectFilter) {
             Text("Todos los proyectos")
-                .tag(Optional<PersistentIdentifier>.none)
+                .tag(PersistentIdentifier?.none)
             ForEach(projects) { project in
                 Text(project.name)
                     .tag(Optional(project.persistentModelID))
@@ -259,7 +259,7 @@ private struct AssignmentRuleRow: View {
 
                 Picker("Proyecto", selection: $selectedProjectID) {
                     Text("Sin proyecto")
-                        .tag(Optional<PersistentIdentifier>.none)
+                        .tag(PersistentIdentifier?.none)
                     ForEach(projects) { project in
                         Text(project.name)
                             .tag(Optional(project.persistentModelID))
@@ -313,6 +313,8 @@ private struct AssignmentRuleRow: View {
             return appCatalog.app(for: rule.contextValue)?.name ?? rule.contextValue
         case .domain:
             return rule.contextValue
+        case .file:
+            return rule.contextValue.filePathDisplayName
         case .none:
             return rule.contextValue
         }
@@ -323,26 +325,31 @@ private struct AssignmentRuleRow: View {
         let size: CGFloat = 30
         switch AssignmentContextType(rawValue: rule.contextType) {
         case .app:
-#if os(macOS)
-            if let app = appCatalog.app(for: rule.contextValue) {
-                app.icon
-                    .resizable()
-                    .frame(width: size, height: size)
-                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            } else {
+            #if os(macOS)
+                if let app = appCatalog.app(for: rule.contextValue) {
+                    app.icon
+                        .resizable()
+                        .frame(width: size, height: size)
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                } else {
+                    Image(systemName: "app.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(width: size, height: size)
+                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                }
+            #else
                 Image(systemName: "app.fill")
                     .font(.system(size: 16, weight: .semibold))
                     .frame(width: size, height: size)
                     .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-            }
-#else
-            Image(systemName: "app.fill")
+            #endif
+        case .domain:
+            Image(systemName: "globe")
                 .font(.system(size: 16, weight: .semibold))
                 .frame(width: size, height: size)
                 .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-#endif
-        case .domain:
-            Image(systemName: "globe")
+        case .file:
+            Image(systemName: "doc.text")
                 .font(.system(size: 16, weight: .semibold))
                 .frame(width: size, height: size)
                 .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))

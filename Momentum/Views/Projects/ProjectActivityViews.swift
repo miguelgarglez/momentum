@@ -205,7 +205,7 @@ struct WeeklySummaryChartView: View {
     private func refreshData() {
         let points = project.dailySummaries(in: range.interval)
         self.points = points
-        self.buckets = buildBuckets(from: points)
+        buckets = buildBuckets(from: points)
     }
 
     private func buildBuckets(from points: [DailySummaryPoint]) -> [ActivityBucket] {
@@ -518,7 +518,7 @@ struct ActivityHeatmapView: View {
 
     private var weeks: [[HeatmapDay]] {
         stride(from: 0, to: days.count, by: 7).map { index in
-            Array(days[index..<min(index + 7, days.count)])
+            Array(days[index ..< min(index + 7, days.count)])
         }
     }
 
@@ -584,7 +584,7 @@ struct ActivityHeatmapView: View {
                 Text("Menos")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                ForEach(0..<5, id: \.self) { index in
+                ForEach(0 ..< 5, id: \.self) { index in
                     RoundedRectangle(cornerRadius: 3)
                         .fill(color(for: index))
                         .frame(width: cellSize, height: cellSize)
@@ -646,7 +646,7 @@ struct ActivityHeatmapView: View {
 
         self.days = days
         let values = days.filter { $0.isInRange && $0.seconds > 0 }.map(\.seconds)
-        self.thresholds = HeatmapIntensityCalculator.thresholds(for: values)
+        thresholds = HeatmapIntensityCalculator.thresholds(for: values)
     }
 
     private func startOfWeek(for date: Date, calendar: Calendar) -> Date {

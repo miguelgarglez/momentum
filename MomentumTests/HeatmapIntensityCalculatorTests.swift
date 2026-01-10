@@ -1,5 +1,5 @@
-import XCTest
 @testable import Momentum
+import XCTest
 
 final class HeatmapIntensityCalculatorTests: XCTestCase {
     func testThresholdsEmptyWhenNoValues() {

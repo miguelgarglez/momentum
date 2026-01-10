@@ -5,8 +5,8 @@
 //  Created by Miguel García González on 23/11/25.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct PendingConflictBanner: View {
     let count: Int
@@ -193,6 +193,8 @@ struct PendingConflict: Identifiable {
                     return project.matches(appBundleIdentifier: first.contextValue)
                 case .domain:
                     return project.matches(domain: first.contextValue)
+                case .file:
+                    return project.matches(filePath: first.contextValue)
                 }
             }
             guard !candidates.isEmpty else { return nil }
@@ -206,6 +208,9 @@ struct PendingConflict: Identifiable {
             case .domain:
                 title = first.contextValue
                 subtitle = first.appName
+            case .file:
+                title = first.contextValue.filePathDisplayName
+                subtitle = first.contextValue
             }
 
             return PendingConflict(

@@ -29,7 +29,7 @@ struct SessionOverlapResolver {
     }
 
     private func adjust(session: TrackingSession, removing interval: DateInterval) {
-        if interval.start <= session.startDate && interval.end >= session.endDate {
+        if interval.start <= session.startDate, interval.end >= session.endDate {
             context.delete(session)
             return
         }
@@ -50,6 +50,7 @@ struct SessionOverlapResolver {
             appName: session.appName,
             bundleIdentifier: session.bundleIdentifier,
             domain: session.domain,
+            filePath: session.filePath,
             project: session.project
         )
         context.insert(trailingSession)

@@ -19,14 +19,13 @@ extension View {
         cornerRadius: CGFloat = 12,
         strokeOpacity: Double = 0.12
     ) -> some View {
-        self
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.secondary.opacity(0.12))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.primary.opacity(strokeOpacity), lineWidth: 1)
-            )
+        background(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.secondary.opacity(0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(Color.primary.opacity(strokeOpacity), lineWidth: 1)
+        )
     }
 }

@@ -3,8 +3,8 @@ import SwiftData
 
 @MainActor
 protocol ProjectAssignmentResolving {
-    func resolveProject(for bundleIdentifier: String?, domain: String?) -> Project?
-    func resolveAssignment(for bundleIdentifier: String?, domain: String?) -> AssignmentResult
+    func resolveProject(for bundleIdentifier: String?, domain: String?, filePath: String?) -> Project?
+    func resolveAssignment(for bundleIdentifier: String?, domain: String?, filePath: String?) -> AssignmentResult
 }
 
 /// Encapsulates the rules for routing tracked sessions to projects.
@@ -23,8 +23,8 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
         self.settings = settings
     }
 
-    func resolveProject(for bundleIdentifier: String?, domain: String?) -> Project? {
-        switch resolveAssignment(for: bundleIdentifier, domain: domain) {
+    func resolveProject(for bundleIdentifier: String?, domain: String?, filePath: String?) -> Project? {
+        switch resolveAssignment(for: bundleIdentifier, domain: domain, filePath: filePath) {
         case let .assigned(project, _):
             return project
         case .conflict, .none:
@@ -32,9 +32,14 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
         }
     }
 
-    func resolveAssignment(for bundleIdentifier: String?, domain: String?) -> AssignmentResult {
+    func resolveAssignment(for bundleIdentifier: String?, domain: String?, filePath: String?) -> AssignmentResult {
         guard let projects = fetchProjects() else {
             return .none
+        }
+
+        if let context = normalizedFileContext(from: filePath) {
+            let candidates = projects.filter { $0.matches(filePath: context.value) }
+            return resolve(context: context, candidates: candidates, allProjects: projects)
         }
 
         if let context = normalizedDomainContext(from: domain) {
@@ -60,7 +65,7 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
     private func resolve(
         context: AssignmentContext,
         candidates: [Project],
-        allProjects: [Project]
+        allProjects _: [Project]
     ) -> AssignmentResult {
         if let rule = fetchRule(for: context) {
             if isExpired(rule) {
@@ -86,7 +91,7 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
         let descriptor = FetchDescriptor<AssignmentRule>(
             predicate: #Predicate {
                 $0.contextType == typeValue &&
-                $0.contextValue == contextValue
+                    $0.contextValue == contextValue
             }
         )
         return try? modelContainer.mainContext.fetch(descriptor).first
@@ -103,6 +108,12 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
             .lowercased()
         guard let normalized, !normalized.isEmpty else { return nil }
         return AssignmentContext(type: .domain, value: normalized)
+    }
+
+    private func normalizedFileContext(from filePath: String?) -> AssignmentContext? {
+        let normalized = filePath?.normalizedFilePath
+        guard let normalized, !normalized.isEmpty else { return nil }
+        return AssignmentContext(type: .file, value: normalized)
     }
 
     private func normalizedAppContext(from bundleIdentifier: String?) -> AssignmentContext? {

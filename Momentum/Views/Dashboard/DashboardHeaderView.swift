@@ -102,16 +102,20 @@ struct DashboardMetricsView: View {
                 metrics: [
                     MetricInfo(
                         id: "total", title: "Total", value: total.hoursAndMinutesString,
-                        icon: "hourglass"),
+                        icon: "hourglass"
+                    ),
                     MetricInfo(
                         id: "monthly", title: "Este mes", value: monthly.hoursAndMinutesString,
-                        icon: "calendar.badge.clock"),
+                        icon: "calendar.badge.clock"
+                    ),
                     MetricInfo(
                         id: "weekly", title: "Esta semana", value: weekly.hoursAndMinutesString,
-                        icon: "chart.bar"),
+                        icon: "chart.bar"
+                    ),
                     MetricInfo(
                         id: "daily", title: "Hoy", value: daily.hoursAndMinutesString,
-                        icon: "sun.max"),
+                        icon: "sun.max"
+                    ),
                 ],
                 compact: false
             )
@@ -119,16 +123,20 @@ struct DashboardMetricsView: View {
                 metrics: [
                     MetricInfo(
                         id: "total", title: "Total", value: total.hoursAndMinutesString,
-                        icon: "hourglass"),
+                        icon: "hourglass"
+                    ),
                     MetricInfo(
                         id: "monthly", title: "Mes", value: monthly.hoursAndMinutesString,
-                        icon: "calendar.badge.clock"),
+                        icon: "calendar.badge.clock"
+                    ),
                     MetricInfo(
                         id: "weekly", title: "Semana", value: weekly.hoursAndMinutesString,
-                        icon: "chart.bar"),
+                        icon: "chart.bar"
+                    ),
                     MetricInfo(
                         id: "daily", title: "Hoy", value: daily.hoursAndMinutesString,
-                        icon: "sun.max"),
+                        icon: "sun.max"
+                    ),
                 ],
                 compact: true
             )

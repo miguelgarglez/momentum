@@ -7,7 +7,7 @@
 
 import SwiftUI
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 struct ProjectFormDraft {
@@ -17,6 +17,8 @@ struct ProjectFormDraft {
     var selectedAppIDs: Set<String>
     var manualApps: String
     var domains: String
+    var assignedFiles: [String]
+    var manualFilesEntry: String
 
     init(project: Project? = nil) {
         if let project {
@@ -26,6 +28,8 @@ struct ProjectFormDraft {
             selectedAppIDs = Set(project.assignedApps)
             manualApps = ""
             domains = project.assignedDomains.joined(separator: ", ")
+            assignedFiles = project.assignedFiles
+            manualFilesEntry = ""
         } else {
             name = ""
             colorHex = ProjectPalette.defaultColor.hex
@@ -33,6 +37,8 @@ struct ProjectFormDraft {
             selectedAppIDs = []
             manualApps = ""
             domains = ""
+            assignedFiles = []
+            manualFilesEntry = ""
         }
     }
 
@@ -51,6 +57,30 @@ struct ProjectFormDraft {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
             .filter { !$0.isEmpty }
     }
+
+    mutating func addFiles(_ paths: [String]) {
+        let normalized = paths.map { $0.normalizedFilePath }.filter { !$0.isEmpty }
+        guard !normalized.isEmpty else { return }
+        var seen: Set<String> = []
+        let merged = (assignedFiles + normalized).filter { path in
+            let key = path.lowercased()
+            return seen.insert(key).inserted
+        }
+        assignedFiles = merged.sorted()
+    }
+
+    mutating func removeFile(_ path: String) {
+        assignedFiles.removeAll { $0.caseInsensitiveCompare(path) == .orderedSame }
+    }
+
+    mutating func addManualFilesEntry() {
+        let entries = manualFilesEntry
+            .split(separator: ",")
+            .map { String($0).normalizedFilePath }
+            .filter { !$0.isEmpty }
+        addFiles(entries)
+        manualFilesEntry = ""
+    }
 }
 
 struct ProjectFormView: View {
@@ -63,8 +93,8 @@ struct ProjectFormView: View {
 
     init(project: Project? = nil, onSave: @escaping (ProjectFormDraft) -> Void) {
         self.onSave = onSave
-        self.mode = project == nil ? .create : .edit
-        self._draft = State(initialValue: ProjectFormDraft(project: project))
+        mode = project == nil ? .create : .edit
+        _draft = State(initialValue: ProjectFormDraft(project: project))
     }
 
     var body: some View {
@@ -115,20 +145,64 @@ struct ProjectFormView: View {
                 )
 
                 Section("Dominios") {
+                    #if os(macOS)
+                        LTRTextField(
+                            text: $draft.domains,
+                            placeholder: "Dominios (separados por coma)",
+                            accessibilityIdentifier: "project-domains-field"
+                        )
+                        .macRoundedTextFieldStyle()
+                        .padding(.vertical, 4)
+                    #else
+                        TextField("Dominios (separados por coma)", text: $draft.domains)
+                            .accessibilityIdentifier("project-domains-field")
+                            .textFieldStyle(.roundedBorder)
+                            .padding(.vertical, 4)
+                    #endif
+                }
+
+                Section("Archivos") {
 #if os(macOS)
-                    LTRTextField(
-                        text: $draft.domains,
-                        placeholder: "Dominios (separados por coma)",
-                        accessibilityIdentifier: "project-domains-field"
-                    )
-                    .macRoundedTextFieldStyle()
-                    .padding(.vertical, 4)
+                    if !draft.assignedFiles.isEmpty {
+                        FileSelectionChips(
+                            filePaths: draft.assignedFiles,
+                            onRemove: { path in
+                                draft.removeFile(path)
+                            }
+                        )
+                    }
+
+                    Button("Seleccionar archivos…") {
+                        selectFiles()
+                    }
+                    .buttonStyle(.bordered)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Añadir rutas manualmente")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            LTRTextField(
+                                text: $draft.manualFilesEntry,
+                                placeholder: "Rutas de archivo (separadas por coma)",
+                                accessibilityIdentifier: "project-files-field"
+                            )
+                            .macRoundedTextFieldStyle()
+                            Button("Añadir") {
+                                draft.addManualFilesEntry()
+                            }
+                            .disabled(draft.manualFilesEntry.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
 #else
-                    TextField("Dominios (separados por coma)", text: $draft.domains)
-                        .accessibilityIdentifier("project-domains-field")
+                    TextField("Rutas de archivo (separadas por coma)", text: $draft.manualFilesEntry)
+                        .accessibilityIdentifier("project-files-field")
                         .textFieldStyle(.roundedBorder)
                         .padding(.vertical, 4)
 #endif
+                    Text("Guardamos la ruta del archivo para reconocerlo en el tracking.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             .formStyle(.grouped)
@@ -160,18 +234,76 @@ struct ProjectFormView: View {
     }
 }
 
+#if os(macOS)
+private extension ProjectFormView {
+    @MainActor
+    func selectFiles() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.canCreateDirectories = false
+        panel.prompt = "Seleccionar"
+        panel.begin { response in
+            guard response == .OK else { return }
+            let paths = panel.urls.map { $0.path }
+            draft.addFiles(paths)
+        }
+    }
+}
+#endif
+
+private struct FileSelectionChips: View {
+    let filePaths: [String]
+    let onRemove: (String) -> Void
+
+    var body: some View {
+        FlowLayout(spacing: 8) {
+            ForEach(filePaths, id: \.self) { path in
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text(path.filePathDisplayName)
+                        .font(.caption.weight(.medium))
+                        .lineLimit(1)
+                    Button {
+                        onRemove(path)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Eliminar archivo")
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.12))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
+                .help(path)
+            }
+        }
+    }
+}
+
 struct ProjectTitleField: View {
     @Binding var text: String
 
     var body: some View {
-#if os(macOS)
-        LTRTextField(
-            text: $text,
-            placeholder: "Ej. \"Construir Momentum\"",
-            font: NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .title3).pointSize, weight: .semibold),
-            allowsMultiline: true,
-            accessibilityIdentifier: "project-title-field"
-        )
+        #if os(macOS)
+            LTRTextField(
+                text: $text,
+                placeholder: "Ej. \"Construir Momentum\"",
+                font: NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .title3).pointSize, weight: .semibold),
+                allowsMultiline: true,
+                accessibilityIdentifier: "project-title-field"
+            )
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .frame(minHeight: 60, alignment: .leading)
@@ -183,29 +315,29 @@ struct ProjectTitleField: View {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(Color.secondary.opacity(0.15))
             )
-#else
-        TextField(
-            "Ej. \"Construir Momentum\"",
-            text: $text,
-            axis: .vertical
-        )
-        .accessibilityIdentifier("project-title-field")
-        .font(.title3.weight(.semibold))
-        .textFieldStyle(.plain)
-        .multilineTextAlignment(.leading)
-        .tint(.accentColor)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .frame(minHeight: 60, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.secondary.opacity(0.05))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.secondary.opacity(0.15))
-        )
-#endif
+        #else
+            TextField(
+                "Ej. \"Construir Momentum\"",
+                text: $text,
+                axis: .vertical
+            )
+            .accessibilityIdentifier("project-title-field")
+            .font(.title3.weight(.semibold))
+            .textFieldStyle(.plain)
+            .multilineTextAlignment(.leading)
+            .tint(.accentColor)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(minHeight: 60, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.secondary.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.secondary.opacity(0.15))
+            )
+        #endif
     }
 }
 
@@ -276,22 +408,21 @@ struct AppAutoTrackingSection: View {
                     Text("Bundle IDs adicionales")
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(.secondary)
-#if os(macOS)
-                    LTRTextField(
-                        text: $manualApps,
-                        placeholder: "com.ejemplo.app, com.otro.bundle"
-                    )
-                    .macRoundedTextFieldStyle()
-#else
-                    TextField("com.ejemplo.app, com.otro.bundle", text: $manualApps)
-                        .textFieldStyle(.roundedBorder)
-#endif
+                    #if os(macOS)
+                        LTRTextField(
+                            text: $manualApps,
+                            placeholder: "com.ejemplo.app, com.otro.bundle"
+                        )
+                        .macRoundedTextFieldStyle()
+                    #else
+                        TextField("com.ejemplo.app, com.otro.bundle", text: $manualApps)
+                            .textFieldStyle(.roundedBorder)
+                    #endif
                 }
             }
             .padding(.vertical, 4)
         }
     }
-
 }
 
 struct SelectedAppChips: View {
@@ -336,7 +467,7 @@ private struct ProjectAppCatalogSelectionPanel: View {
         guard !searchText.isEmpty else { return appCatalog.apps }
         return appCatalog.apps.filter { app in
             app.name.localizedCaseInsensitiveContains(searchText) ||
-            app.bundleIdentifier.localizedCaseInsensitiveContains(searchText)
+                app.bundleIdentifier.localizedCaseInsensitiveContains(searchText)
         }
     }
 
@@ -345,16 +476,16 @@ private struct ProjectAppCatalogSelectionPanel: View {
             Text("Selecciona apps a incluir")
                 .font(.headline)
 
-#if os(macOS)
-            LTRTextField(
-                text: $searchText,
-                placeholder: "Buscar apps"
-            )
-            .macRoundedTextFieldStyle()
-#else
-            TextField("Buscar apps", text: $searchText)
-                .textFieldStyle(.roundedBorder)
-#endif
+            #if os(macOS)
+                LTRTextField(
+                    text: $searchText,
+                    placeholder: "Buscar apps"
+                )
+                .macRoundedTextFieldStyle()
+            #else
+                TextField("Buscar apps", text: $searchText)
+                    .textFieldStyle(.roundedBorder)
+            #endif
 
             if filteredApps.isEmpty {
                 Text("No encontramos apps que coincidan con la búsqueda.")

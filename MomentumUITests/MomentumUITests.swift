@@ -1,7 +1,6 @@
 import XCTest
 
 final class MomentumUITests: XCTestCase {
-
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
@@ -23,7 +22,7 @@ final class MomentumUITests: XCTestCase {
         let formScrollView = app.scrollViews.firstMatch
         if formScrollView.exists {
             var attempts = 0
-            while !domainsField.isHittable && attempts < 3 {
+            while !domainsField.isHittable, attempts < 3 {
                 formScrollView.swipeUp()
                 attempts += 1
             }
@@ -159,7 +158,7 @@ final class MomentumUITests: XCTestCase {
             "-ApplePersistenceIgnoreState",
             "YES",
             "-ApplePersistenceIgnoreStateQuietly",
-            "YES"
+            "YES",
         ]
         if reset {
             arguments.append("--uitests-reset")
@@ -198,7 +197,7 @@ final class MomentumUITests: XCTestCase {
                 let formScrollView = app.scrollViews.firstMatch
                 if formScrollView.exists {
                     var attempts = 0
-                    while !domainField.isHittable && attempts < 3 {
+                    while !domainField.isHittable, attempts < 3 {
                         formScrollView.swipeUp()
                         attempts += 1
                     }

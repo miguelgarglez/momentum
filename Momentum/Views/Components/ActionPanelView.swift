@@ -92,7 +92,6 @@ struct ActionPanelView: View {
 
                 settingsControl
             }
-
         }
         .padding(.vertical, 20)
         .padding(.horizontal, 12)

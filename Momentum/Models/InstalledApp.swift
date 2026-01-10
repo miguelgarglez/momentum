@@ -5,8 +5,8 @@
 //  Created by Codex on 24/11/25.
 //
 
-import Foundation
 import AppKit
+import Foundation
 import SwiftUI
 
 struct InstalledApp: Identifiable, Hashable {
@@ -19,7 +19,7 @@ struct InstalledApp: Identifiable, Hashable {
         self.bundleIdentifier = bundleIdentifier
         self.name = name
         self.url = url
-        self.iconImage = icon
+        iconImage = icon
     }
 
     var id: String { bundleIdentifier }

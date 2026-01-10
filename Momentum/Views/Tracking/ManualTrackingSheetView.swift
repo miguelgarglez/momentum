@@ -5,8 +5,8 @@
 //  Created by Codex on 23/11/25.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct ManualTrackingNewProjectDraft {
     var name: String
@@ -86,22 +86,22 @@ struct ManualTrackingSheetView: View {
                             Text("Nombre opcional")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-#if os(macOS)
-                            LTRTextField(
-                                text: $newProjectName,
-                                placeholder: "New cool project",
-                                accessibilityIdentifier: "manual-tracking-project-name"
-                            )
-                            .macRoundedTextFieldStyle()
-#else
-                            TextField("New cool project", text: $newProjectName)
-                                .textFieldStyle(.roundedBorder)
-#endif
+                            #if os(macOS)
+                                LTRTextField(
+                                    text: $newProjectName,
+                                    placeholder: "New cool project",
+                                    accessibilityIdentifier: "manual-tracking-project-name"
+                                )
+                                .macRoundedTextFieldStyle()
+                            #else
+                                TextField("New cool project", text: $newProjectName)
+                                    .textFieldStyle(.roundedBorder)
+                            #endif
                         }
 
                         Picker("Icono", selection: $newProjectIcon) {
                             Text("Aleatorio")
-                                .tag(Optional<ProjectIcon>.none)
+                                .tag(ProjectIcon?.none)
                             ForEach(ProjectIcon.allCases, id: \.self) { icon in
                                 Label(icon.displayName, systemImage: icon.systemName)
                                     .tag(Optional(icon))
@@ -138,7 +138,8 @@ struct ManualTrackingSheetView: View {
         switch mode {
         case .existing:
             guard let selectedProjectID,
-                  let project = projects.first(where: { $0.persistentModelID == selectedProjectID }) else {
+                  let project = projects.first(where: { $0.persistentModelID == selectedProjectID })
+            else {
                 return
             }
             onStartExisting(project)
@@ -151,11 +152,13 @@ struct ManualTrackingSheetView: View {
 }
 
 #Preview {
-    let container = try! ModelContainer(
+    guard let container = try? ModelContainer(
         for: Project.self,
         TrackingSession.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-    )
+    ) else {
+        fatalError("Failed to create preview ModelContainer.")
+    }
     let sample = Project(name: "Proyecto Manual")
     container.mainContext.insert(sample)
 

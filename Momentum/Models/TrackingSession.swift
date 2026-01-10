@@ -15,6 +15,7 @@ final class TrackingSession {
     var appName: String
     var bundleIdentifier: String?
     var domain: String?
+    var filePath: String?
     var project: Project?
 
     init(
@@ -23,6 +24,7 @@ final class TrackingSession {
         appName: String,
         bundleIdentifier: String?,
         domain: String?,
+        filePath: String?,
         project: Project?
     ) {
         self.startDate = startDate
@@ -30,6 +32,7 @@ final class TrackingSession {
         self.appName = appName
         self.bundleIdentifier = bundleIdentifier
         self.domain = domain
+        self.filePath = filePath
         self.project = project
     }
 }
@@ -44,6 +47,9 @@ extension TrackingSession {
     }
 
     var sourceLabel: String {
+        if let filePath {
+            return filePath.filePathDisplayName
+        }
         if let domain {
             return domain
         }
@@ -51,6 +57,10 @@ extension TrackingSession {
     }
 
     var contextKey: String {
+        if let filePath {
+            let normalized = filePath.normalizedFilePath.lowercased()
+            return "file::\(normalized)"
+        }
         if let domain {
             return "domain::\(domain.lowercased())"
         }
@@ -61,11 +71,17 @@ extension TrackingSession {
     }
 
     var primaryContextLabel: String {
-        domain ?? appName
+        if let filePath {
+            return filePath.filePathDisplayName
+        }
+        return domain ?? appName
     }
 
     var secondaryContextLabel: String? {
-        domain == nil ? nil : appName
+        if filePath != nil {
+            return appName
+        }
+        return domain == nil ? nil : appName
     }
 
     func duration(in interval: DateInterval) -> TimeInterval {

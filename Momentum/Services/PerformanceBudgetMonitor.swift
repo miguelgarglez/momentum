@@ -1,6 +1,6 @@
+import Darwin
 import Foundation
 import OSLog
-import Darwin
 
 @MainActor
 protocol PerformanceBudgetMonitoring: AnyObject {
@@ -33,7 +33,7 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
         let cpuFraction: Double
         let ioBytesPerSecond: Double
 
-        static let `default` = Budget(cpuFraction: 0.03, ioBytesPerSecond: 32_000)
+        static let `default` = Budget(cpuFraction: 0.03, ioBytesPerSecond: 32000)
     }
 
     struct MetricSample: Identifiable, Equatable {
@@ -201,11 +201,11 @@ struct MachResourceMetricsSource: ResourceMetricsSource {
 
 @MainActor
 final class NoopPerformanceBudgetMonitor: PerformanceBudgetMonitoring {
-    func measure<T>(_ operation: String, work: () throws -> T) rethrows -> T {
+    func measure<T>(_: String, work: () throws -> T) rethrows -> T {
         try work()
     }
 
-    func recordSample(_ sample: PerformanceBudgetMonitor.MetricSample) {
+    func recordSample(_: PerformanceBudgetMonitor.MetricSample) {
         // no-op
     }
 }

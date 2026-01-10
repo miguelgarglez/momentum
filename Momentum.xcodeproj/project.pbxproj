@@ -26,15 +26,15 @@
 /* Begin PBXFileReference section */
 		A63FF0EB2ED3B686002F9FA7 /* Momentum.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Momentum.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A63FF0FB2ED3B689002F9FA7 /* MomentumTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MomentumTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A63FF1052ED3B689002F9FA7 /* MomentumUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MomentumUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A6F18FA62EF9F1A700E8572C /* Momentum.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Momentum.xctestplan; sourceTree = "<group>"; };
+	A63FF1052ED3B689002F9FA7 /* MomentumUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MomentumUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+	A6F18FA62EF9F1A700E8572C /* Momentum.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Momentum.xctestplan; sourceTree = "<group>"; };
+	501F092844214DF78C47D25D /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configs/Version.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		A6EFF55D2ED657EC00A298CD /* Exceptions for "Momentum" folder in "Momentum" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				AGENTS.md,
 				Info.plist,
 				Models/AGENTS.md,
 				Services/AGENTS.md,
@@ -95,12 +95,13 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		A63FF0E22ED3B686002F9FA7 = {
-			isa = PBXGroup;
-			children = (
-				A6F18FA62EF9F1A700E8572C /* Momentum.xctestplan */,
-				A63FF0ED2ED3B686002F9FA7 /* Momentum */,
-				A63FF0FE2ED3B689002F9FA7 /* MomentumTests */,
+			A63FF0E22ED3B686002F9FA7 = {
+				isa = PBXGroup;
+				children = (
+					501F092844214DF78C47D25D /* Version.xcconfig */,
+					A6F18FA62EF9F1A700E8572C /* Momentum.xctestplan */,
+					A63FF0ED2ED3B686002F9FA7 /* Momentum */,
+					A63FF0FE2ED3B689002F9FA7 /* MomentumTests */,
 				A63FF1082ED3B689002F9FA7 /* MomentumUITests */,
 				A63FF0EC2ED3B686002F9FA7 /* Products */,
 			);
@@ -295,6 +296,7 @@
 /* Begin XCBuildConfiguration section */
 		A63FF10D2ED3B689002F9FA7 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 501F092844214DF78C47D25D /* Version.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -359,6 +361,7 @@
 		};
 		A63FF10E2ED3B689002F9FA7 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 501F092844214DF78C47D25D /* Version.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -415,6 +418,7 @@
 		};
 		A63FF1102ED3B689002F9FA7 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 501F092844214DF78C47D25D /* Version.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = Momentum;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -433,7 +437,6 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0.1; // x-release-please-version
 				PRODUCT_BUNDLE_IDENTIFIER = miguelgarglez.Momentum.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -444,6 +447,7 @@
 		};
 		A63FF1112ED3B689002F9FA7 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 501F092844214DF78C47D25D /* Version.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = Momentum;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -462,7 +466,6 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0.1; // x-release-please-version
 				PRODUCT_BUNDLE_IDENTIFIER = miguelgarglez.Momentum;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -473,6 +476,7 @@
 		};
 		A63FF1132ED3B689002F9FA7 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 501F092844214DF78C47D25D /* Version.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -480,7 +484,6 @@
 				DEVELOPMENT_TEAM = 5V7PA2543K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0.1; // x-release-please-version
 				PRODUCT_BUNDLE_IDENTIFIER = miguelgarglez.MomentumTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -491,6 +494,7 @@
 		};
 		A63FF1142ED3B689002F9FA7 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 501F092844214DF78C47D25D /* Version.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -498,7 +502,6 @@
 				DEVELOPMENT_TEAM = 5V7PA2543K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0.1; // x-release-please-version
 				PRODUCT_BUNDLE_IDENTIFIER = miguelgarglez.MomentumTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -509,13 +512,13 @@
 		};
 		A63FF1162ED3B689002F9FA7 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 501F092844214DF78C47D25D /* Version.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 5V7PA2543K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.0.1; // x-release-please-version
 				PRODUCT_BUNDLE_IDENTIFIER = miguelgarglez.MomentumUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -526,13 +529,13 @@
 		};
 		A63FF1172ED3B689002F9FA7 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 501F092844214DF78C47D25D /* Version.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 5V7PA2543K;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.0.1; // x-release-please-version
 				PRODUCT_BUNDLE_IDENTIFIER = miguelgarglez.MomentumUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;

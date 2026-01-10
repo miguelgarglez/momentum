@@ -5,8 +5,8 @@
 //  Created by Codex on 24/11/25.
 //
 
-import Foundation
 import AppKit
+import Foundation
 
 @MainActor
 final class AppCatalog: ObservableObject {
@@ -18,7 +18,7 @@ final class AppCatalog: ObservableObject {
     init(searchPaths: [URL]? = nil, initialApps: [InstalledApp]? = nil) {
         self.searchPaths = searchPaths ?? AppCatalog.defaultSearchPaths
         if let initialApps {
-            self.apps = initialApps
+            apps = initialApps
         } else {
             refresh()
         }
@@ -51,7 +51,7 @@ private extension AppCatalog {
         [
             "/Applications",
             "\(home.path)/Applications",
-            "\(home.path)/Library/Application Support/Setapp/Applications"
+            "\(home.path)/Library/Application Support/Setapp/Applications",
         ].forEach { path in
             let url = URL(fileURLWithPath: path, isDirectory: true)
             if fm.fileExists(atPath: url.path) {
@@ -74,8 +74,9 @@ private extension AppCatalog {
                 guard let bundle = Bundle(url: url),
                       let identifier = bundle.bundleIdentifier,
                       let name = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ??
-                        bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ??
-                        url.deletingPathExtension().lastPathComponent as String? else {
+                      bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ??
+                      url.deletingPathExtension().lastPathComponent as String?
+                else {
                     continue
                 }
                 if results[identifier] != nil {
@@ -98,7 +99,7 @@ private extension AppCatalog {
             ("com.apple.mail", "Mail", "/System/Applications/Mail.app"),
             ("com.apple.iCal", "Calendario", "/System/Applications/Calendar.app"),
             ("com.apple.Notes", "Notas", "/System/Applications/Notes.app"),
-            ("com.apple.Terminal", "Terminal", "/System/Applications/Utilities/Terminal.app")
+            ("com.apple.Terminal", "Terminal", "/System/Applications/Utilities/Terminal.app"),
         ]
         for entry in entries {
             guard results[entry.0] == nil else { continue }

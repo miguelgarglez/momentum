@@ -15,6 +15,7 @@ final class PendingTrackingSession {
     var appName: String
     var bundleIdentifier: String?
     var domain: String?
+    var filePath: String?
     var contextType: String
     var contextValue: String
 
@@ -24,6 +25,7 @@ final class PendingTrackingSession {
         appName: String,
         bundleIdentifier: String?,
         domain: String?,
+        filePath: String?,
         contextType: String,
         contextValue: String
     ) {
@@ -32,6 +34,7 @@ final class PendingTrackingSession {
         self.appName = appName
         self.bundleIdentifier = bundleIdentifier
         self.domain = domain
+        self.filePath = filePath
         self.contextType = contextType
         self.contextValue = contextValue
     }

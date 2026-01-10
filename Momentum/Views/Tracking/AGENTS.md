@@ -13,3 +13,4 @@
 ## UX
 - Provide clear empty states and concise guidance text.
 - Preserve existing layout and tone; avoid large visual changes without intent.
+- When requesting tracking-related permissions, state that data is stored locally on the user's device.

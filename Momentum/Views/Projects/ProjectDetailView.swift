@@ -5,6 +5,7 @@ struct ProjectDetailView: View {
     @Bindable var project: Project
     @Query private var recentSessions: [TrackingSession]
     @State private var usageWindow: UsageWindow = .hour
+    let isTrackingActiveForProject: Bool
     let onEdit: (Project) -> Void
     let onDelete: (Project) -> Void
     let onClearActivity: (Project) -> Void
@@ -33,19 +34,21 @@ struct ProjectDetailView: View {
 
     init(
         project: Project,
+        isTrackingActiveForProject: Bool = false,
         onEdit: @escaping (Project) -> Void = { _ in },
         onDelete: @escaping (Project) -> Void = { _ in },
         onClearActivity: @escaping (Project) -> Void = { _ in },
         onStartTracking: @escaping (Project) -> Void = { _ in }
     ) {
-        self._project = Bindable(project)
+        _project = Bindable(project)
         let projectID = project.persistentModelID
-        self._recentSessions = Query(
+        _recentSessions = Query(
             filter: #Predicate<TrackingSession> { session in
                 session.project?.persistentModelID == projectID
             },
             sort: [SortDescriptor(\TrackingSession.endDate, order: .reverse)]
         )
+        self.isTrackingActiveForProject = isTrackingActiveForProject
         self.onEdit = onEdit
         self.onDelete = onDelete
         self.onClearActivity = onClearActivity
@@ -56,7 +59,7 @@ struct ProjectDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
                 header
-                if isProjectEmpty {
+                if shouldShowEmptyState {
                     ProjectEmptyStateView {
                         onStartTracking(project)
                     }
@@ -189,17 +192,21 @@ struct ProjectDetailView: View {
         project.sessions.isEmpty && project.dailySummaries.isEmpty
     }
 
+    private var shouldShowEmptyState: Bool {
+        isProjectEmpty && !isTrackingActiveForProject
+    }
+
     private var assignmentsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Contexto asignado")
                     .font(.headline)
-                Text("Apps y dominios que suman tiempo automáticamente.")
+                Text("Apps, dominios y archivos que suman tiempo automáticamente.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            if project.assignedApps.isEmpty && project.assignedDomains.isEmpty {
-                Text("Asigna apps o dominios para que Momentum sume tiempo automáticamente.")
+            if project.assignedApps.isEmpty && project.assignedDomains.isEmpty && project.assignedFiles.isEmpty {
+                Text("Asigna apps, dominios o archivos para que Momentum sume tiempo automáticamente.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -213,6 +220,11 @@ struct ProjectDetailView: View {
                         Label("Dominios", systemImage: "globe")
                             .font(.subheadline.weight(.medium))
                         WrappingChips(items: project.assignedDomains)
+                    }
+                    if !project.assignedFiles.isEmpty {
+                        Label("Archivos", systemImage: "doc.text")
+                            .font(.subheadline.weight(.medium))
+                        AssignedFilesChips(filePaths: project.assignedFiles)
                     }
                 }
             }
@@ -353,8 +365,12 @@ struct ContextUsageRow: View {
     let maxSeconds: TimeInterval
 
     private var icon: Image {
+        if summary.filePath != nil {
+            return Image(systemName: "doc.text")
+        }
         if let bundle = summary.bundleIdentifier,
-           let app = appCatalog.app(for: bundle) {
+           let app = appCatalog.app(for: bundle)
+        {
             return app.icon
         }
         return Image(systemName: summary.domain == nil ? "app" : "globe")
@@ -400,8 +416,12 @@ struct LastUsedCard: View {
     private var subtitle: String? { session.secondaryContextLabel }
 
     private var icon: Image {
+        if session.filePath != nil {
+            return Image(systemName: "doc.text")
+        }
         if let bundle = session.bundleIdentifier,
-           let app = appCatalog.app(for: bundle) {
+           let app = appCatalog.app(for: bundle)
+        {
             return app.icon
         }
         return Image(systemName: session.domain == nil ? "app" : "globe")
@@ -486,6 +506,35 @@ struct AssignedAppsChips: View {
             .scaledToFit()
             .frame(width: 18, height: 18)
             .clipShape(RoundedRectangle(cornerRadius: 4))
+    }
+}
+
+struct AssignedFilesChips: View {
+    let filePaths: [String]
+
+    var body: some View {
+        FlowLayout(spacing: 8) {
+            ForEach(filePaths, id: \.self) { path in
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text(path.filePathDisplayName)
+                        .font(.caption.weight(.medium))
+                        .lineLimit(1)
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.12))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
+                .help(path)
+            }
+        }
     }
 }
 

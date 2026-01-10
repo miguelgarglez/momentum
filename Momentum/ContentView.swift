@@ -5,11 +5,11 @@
 //  Created by Miguel García González on 23/11/25.
 //
 
-import SwiftUI
-import SwiftData
 import Combine
+import SwiftData
+import SwiftUI
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 struct ContentView: View {
@@ -20,7 +20,7 @@ struct ContentView: View {
     @EnvironmentObject private var trackingSessionManager: TrackingSessionManager
     @Query(
         sort: [
-            SortDescriptor(\Project.createdAt, order: .forward)
+            SortDescriptor(\Project.createdAt, order: .forward),
         ]
     ) private var projects: [Project]
     @Query(sort: [SortDescriptor(\PendingTrackingSession.endDate, order: .reverse)])
@@ -33,10 +33,11 @@ struct ContentView: View {
     @State private var showAutomationPrompt = false
     @State private var toast: ToastMessage?
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-#if os(macOS)
-    @Environment(\.openWindow) private var openWindow
-#endif
+    #if os(macOS)
+        @Environment(\.openWindow) private var openWindow
+    #endif
     @State private var hasPresentedWelcome = false
+    @State private var onboardingTrackingStarter = OnboardingTrackingStarter()
 
     fileprivate enum Layout {
         static let actionPanelWidth: CGFloat = 84
@@ -89,7 +90,7 @@ struct ContentView: View {
                     sidebarChrome {
                         actionPanel
                     }
-                        .transition(.move(edge: .leading).combined(with: .opacity))
+                    .transition(.move(edge: .leading).combined(with: .opacity))
                 }
             }
 
@@ -111,52 +112,53 @@ struct ContentView: View {
             }
         }
         .animation(Layout.toastAnimation, value: toast)
-#if os(macOS)
-        .onReceive(NotificationCenter.default.publisher(for: .statusItemOpenProject)) { notification in
-            guard let identifier = notification.userInfo?[StatusItemUserInfoKey.projectID] as? PersistentIdentifier else { return }
-            selectedProjectID = identifier
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .statusItemStartManualTracking)) { _ in
-            showManualTrackingSheet = true
-        }
-#endif
-        .onReceive(tracker.$manualStopEvent.compactMap { $0 }) { event in
-            showManualStopToast(event.reason)
-        }
-        .sheet(isPresented: $showConflictSheet) {
-            PendingConflictResolutionView(
-                pendingSessions: pendingSessions,
-                projects: projects
-            )
-            .environmentObject(tracker)
-        }
-        .sheet(isPresented: $showAutomationPrompt) {
-            AutomationPermissionPromptView(
-                onOpenSettings: {
-                    automationPermissionManager.openSystemSettings()
-                    showAutomationPrompt = false
-                },
-                onLater: {
-                    showAutomationPrompt = false
-                }
-            )
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .onboardingProjectCreated)) { notification in
-            handleOnboardingProjectCreated(notification)
-        }
-        .onChange(of: projects.count) { _, newValue in
-            if newValue > 0 {
-                onboardingState.markProjectCreated()
+        #if os(macOS)
+            .onReceive(NotificationCenter.default.publisher(for: .statusItemOpenProject)) { notification in
+                guard let identifier = notification.userInfo?[StatusItemUserInfoKey.projectID] as? PersistentIdentifier else { return }
+                selectedProjectID = identifier
             }
-        }
-        .onReceive(tracker.$statusSummary) { summary in
-            trackingSessionManager.updateTrackingState(isActive: summary.state == .tracking || summary.state == .trackingManual)
-            trackingSessionManager.ingest(summary: summary)
-            handleBrowserPromptIfNeeded(for: summary)
-        }
-        .task {
-            showWelcomeWindowIfNeeded()
-        }
+            .onReceive(NotificationCenter.default.publisher(for: .statusItemStartManualTracking)) { _ in
+                showManualTrackingSheet = true
+            }
+        #endif
+            .onReceive(tracker.$manualStopEvent.compactMap { $0 }) { event in
+                showManualStopToast(event.reason)
+            }
+            .sheet(isPresented: $showConflictSheet) {
+                PendingConflictResolutionView(
+                    pendingSessions: pendingSessions,
+                    projects: projects
+                )
+                .environmentObject(tracker)
+            }
+            .sheet(isPresented: $showAutomationPrompt) {
+                AutomationPermissionPromptView(
+                    onOpenSettings: {
+                        automationPermissionManager.openSystemSettings()
+                        showAutomationPrompt = false
+                    },
+                    onLater: {
+                        showAutomationPrompt = false
+                    }
+                )
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .onboardingProjectCreated)) { notification in
+                handleOnboardingProjectCreated(notification)
+            }
+            .onChange(of: projects.count) { _, newValue in
+                if newValue > 0 {
+                    onboardingState.markProjectCreated()
+                }
+                startPendingOnboardingTrackingIfNeeded()
+            }
+            .onReceive(tracker.$statusSummary) { summary in
+                trackingSessionManager.updateTrackingState(isActive: summary.state == .tracking || summary.state == .trackingManual)
+                trackingSessionManager.ingest(summary: summary)
+                handleAutomationPromptIfNeeded(for: summary)
+            }
+            .task {
+                showWelcomeWindowIfNeeded()
+            }
     }
 
     @ViewBuilder
@@ -164,6 +166,7 @@ struct ContentView: View {
         if let selected = selectedProject {
             ProjectDetailView(
                 project: selected,
+                isTrackingActiveForProject: isTrackingActiveForSelectedProject,
                 onEdit: { activeProjectSheet = .edit($0) },
                 onDelete: { deleteProject($0) },
                 onClearActivity: { clearActivity(for: $0) },
@@ -245,12 +248,15 @@ struct ContentView: View {
         .scrollContentBackground(.hidden)
     }
 
-
     @ViewBuilder
     private func sheetContent(for sheet: ProjectSheet) -> some View {
         switch sheet {
         case .create:
             ProjectFormView { draft in
+                let shouldAutoStartTracking = onboardingTrackingStarter.shouldAutoStartTracking(
+                    hasCreatedProject: onboardingState.hasCreatedProject,
+                    existingProjectCount: projects.count
+                )
                 let project = Project(
                     name: draft.name,
                     colorHex: draft.colorHex,
@@ -262,13 +268,16 @@ struct ContentView: View {
                 do {
                     try modelContext.save()
                     selectedProjectID = project.persistentModelID
+                    if shouldAutoStartTracking {
+                        startTracking(for: project)
+                    }
                     onboardingState.markProjectCreated()
                     showToast("Proyecto creado", style: .success)
                 } catch {
                     showToast("No pudimos crear el proyecto", style: .error)
                 }
             }
-        case .edit(let project):
+        case let .edit(project):
             ProjectFormView(project: project) { draft in
                 project.apply(draft: draft)
                 do {
@@ -357,7 +366,7 @@ struct ContentView: View {
 
     private func clearActivity(for project: Project) {
         let sessions = project.sessions
-        sessions.forEach { session in
+        for session in sessions {
             modelContext.delete(session)
         }
         do {
@@ -391,25 +400,34 @@ struct ContentView: View {
         }
     }
 
-#if os(macOS)
-    private func openSettingsWindow() {
-        NSApplication.shared.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-    }
-#else
-    private func openSettingsWindow() {}
-#endif
+    #if os(macOS)
+        private func openSettingsWindow() {
+            NSApplication.shared.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        }
+    #else
+        private func openSettingsWindow() {}
+    #endif
 
     private var settingsControlView: AnyView {
-#if os(macOS)
-        if #available(macOS 14.0, *) {
-            return AnyView(
-                SettingsLink {
-                    ActionPanelIcon(systemName: "gearshape", tint: .primary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Ajustes")
-            )
-        } else {
+        #if os(macOS)
+            if #available(macOS 14.0, *) {
+                return AnyView(
+                    SettingsLink {
+                        ActionPanelIcon(systemName: "gearshape", tint: .primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Ajustes")
+                )
+            } else {
+                return AnyView(
+                    Button(action: openSettingsWindow) {
+                        ActionPanelIcon(systemName: "gearshape", tint: .primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Ajustes")
+                )
+            }
+        #else
             return AnyView(
                 Button(action: openSettingsWindow) {
                     ActionPanelIcon(systemName: "gearshape", tint: .primary)
@@ -417,21 +435,19 @@ struct ContentView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Ajustes")
             )
-        }
-#else
-        return AnyView(
-            Button(action: openSettingsWindow) {
-                ActionPanelIcon(systemName: "gearshape", tint: .primary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Ajustes")
-        )
-#endif
+        #endif
     }
 
     private var selectedProject: Project? {
         guard let selectedProjectID else { return projects.first }
         return projects.first(where: { $0.persistentModelID == selectedProjectID })
+    }
+
+    private var isTrackingActiveForSelectedProject: Bool {
+        guard let selected = selectedProject else { return false }
+        let summary = tracker.statusSummary
+        let isTrackingState = summary.state == .tracking || summary.state == .trackingManual
+        return isTrackingState && summary.projectID == selected.persistentModelID
     }
 
     private var pendingConflicts: [PendingConflict] {
@@ -442,16 +458,23 @@ struct ContentView: View {
         startManualTracking(with: project)
     }
 
-    private func handleBrowserPromptIfNeeded(for summary: ActivityTracker.StatusSummary) {
+    private func handleAutomationPromptIfNeeded(for summary: ActivityTracker.StatusSummary) {
         guard summary.state == .tracking || summary.state == .trackingManual else { return }
-        guard !onboardingState.hasAutomationPermissionPrompted else { return }
         guard !showAutomationPrompt else { return }
-        guard let bundleIdentifier = summary.bundleIdentifier,
-              AutomationPermissionManager.browserBundleIdentifiers.contains(bundleIdentifier) else {
+        guard let bundleIdentifier = summary.bundleIdentifier else { return }
+
+        if AutomationPermissionManager.browserBundleIdentifiers.contains(bundleIdentifier) {
+            guard !onboardingState.hasAutomationPermissionPrompted else { return }
+            onboardingState.markAutomationPrompted()
+            showAutomationPrompt = true
             return
         }
-        onboardingState.markAutomationPrompted()
-        showAutomationPrompt = true
+
+        if AutomationPermissionManager.documentBundleIdentifiers.contains(bundleIdentifier) {
+            guard !onboardingState.hasDocumentAutomationPermissionPrompted else { return }
+            onboardingState.markDocumentAutomationPrompted()
+            showAutomationPrompt = true
+        }
     }
 
     private func handleOnboardingProjectCreated(_ notification: Notification) {
@@ -460,23 +483,31 @@ struct ContentView: View {
         }
         selectedProjectID = identifier
         let shouldStartTracking = (notification.userInfo?[OnboardingUserInfoKey.startTracking] as? Bool) ?? false
-        if shouldStartTracking,
-           let project = projects.first(where: { $0.persistentModelID == identifier }) {
+        if let project = onboardingTrackingStarter.handleNotification(
+            projectID: identifier,
+            startTracking: shouldStartTracking,
+            projects: projects
+        ) {
             startTracking(for: project)
         }
     }
 
-#if os(macOS)
-    private func showWelcomeWindowIfNeeded() {
-        guard !onboardingState.hasSeenWelcome, !hasPresentedWelcome else { return }
-        hasPresentedWelcome = true
-        if #available(macOS 13.0, *) {
-            openWindow(id: OnboardingWindowID.welcome)
-        }
+    private func startPendingOnboardingTrackingIfNeeded() {
+        guard let project = onboardingTrackingStarter.resolve(projects: projects) else { return }
+        startTracking(for: project)
     }
-#else
-    private func showWelcomeWindowIfNeeded() {}
-#endif
+
+    #if os(macOS)
+        private func showWelcomeWindowIfNeeded() {
+            guard !onboardingState.hasSeenWelcome, !hasPresentedWelcome else { return }
+            hasPresentedWelcome = true
+            if #available(macOS 13.0, *) {
+                openWindow(id: OnboardingWindowID.welcome)
+            }
+        }
+    #else
+        private func showWelcomeWindowIfNeeded() {}
+    #endif
 }
 
 private enum ProjectSheet: Identifiable {
@@ -487,7 +518,7 @@ private enum ProjectSheet: Identifiable {
         switch self {
         case .create:
             return "create"
-        case .edit(let project):
+        case let .edit(project):
             return String(project.persistentModelID.hashValue)
         }
     }
@@ -503,11 +534,13 @@ private struct ContentViewPreviewWrapper: View {
     let trackingSessionManager: TrackingSessionManager
 
     init() {
-        let schemaContainer = try! ModelContainer(
+        guard let schemaContainer = try? ModelContainer(
             for: Project.self,
-                 TrackingSession.self,
+            TrackingSession.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        )
+        ) else {
+            fatalError("Failed to create preview ModelContainer.")
+        }
         let previewProject = Project(name: "Certificación UX", colorHex: "#A78BFA", iconName: ProjectIcon.book.systemName)
         previewProject.sessions = [
             TrackingSession(
@@ -516,8 +549,9 @@ private struct ContentViewPreviewWrapper: View {
                 appName: "Xcode",
                 bundleIdentifier: "com.apple.dt.Xcode",
                 domain: nil,
+                filePath: nil,
                 project: previewProject
-            )
+            ),
         ]
         schemaContainer.mainContext.insert(previewProject)
 
@@ -526,17 +560,17 @@ private struct ContentViewPreviewWrapper: View {
         let sampleApps = [
             InstalledApp(bundleIdentifier: "com.apple.dt.Xcode", name: "Xcode", url: URL(fileURLWithPath: "/Applications/Xcode.app"), icon: nil),
             InstalledApp(bundleIdentifier: "com.microsoft.VSCode", name: "Visual Studio Code", url: URL(fileURLWithPath: "/Applications/Visual Studio Code.app"), icon: nil),
-            InstalledApp(bundleIdentifier: "com.apple.Safari", name: "Safari", url: URL(fileURLWithPath: "/Applications/Safari.app"), icon: nil)
+            InstalledApp(bundleIdentifier: "com.apple.Safari", name: "Safari", url: URL(fileURLWithPath: "/Applications/Safari.app"), icon: nil),
         ]
         let previewCatalog = AppCatalog(searchPaths: [], initialApps: sampleApps)
 
-        self.container = schemaContainer
-        self.tracker = previewTracker
-        self.settings = previewSettings
-        self.catalog = previewCatalog
-        self.onboardingState = OnboardingState()
-        self.automationPermissionManager = AutomationPermissionManager()
-        self.trackingSessionManager = TrackingSessionManager()
+        container = schemaContainer
+        tracker = previewTracker
+        settings = previewSettings
+        catalog = previewCatalog
+        onboardingState = OnboardingState()
+        automationPermissionManager = AutomationPermissionManager()
+        trackingSessionManager = TrackingSessionManager()
     }
 
     var body: some View {

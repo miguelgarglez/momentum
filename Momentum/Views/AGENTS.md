@@ -11,6 +11,8 @@
 - Avoid feature-specific logic in `Views/Components/` and `Views/Styles/`.
 - Use `LTRTextField` + `macRoundedTextFieldStyle()` for macOS editable fields.
 - Reuse shared styles via `DetailCardStyles` instead of duplicating modifiers.
+- Tracker settings exclusions should cover apps, domains, and file patterns (exact paths or suffixes) with concise helper text.
+- Automation permission guidance should reuse `AutomationPermissionPromptView` (e.g., from Settings) for consistent user education.
 
 ## Layout
 - `Views/Dashboard/`: dashboard header/metrics and related UI.

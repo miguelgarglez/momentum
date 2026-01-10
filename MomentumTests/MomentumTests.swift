@@ -1,7 +1,7 @@
 import Foundation
+@testable import Momentum
 import SwiftData
 import Testing
-@testable import Momentum
 
 @MainActor
 struct MomentumTests {
@@ -17,10 +17,31 @@ struct MomentumTests {
         container.mainContext.insert(safari)
 
         let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
-        let domainMatch = resolver.resolveProject(for: "com.apple.Safari", domain: "notion.so/wiki/page")
+        let domainMatch = resolver.resolveProject(for: "com.apple.Safari", domain: "notion.so/wiki/page", filePath: nil)
         #expect(domainMatch === focus)
-        let bundleMatch = resolver.resolveProject(for: "com.apple.Safari", domain: nil)
+        let bundleMatch = resolver.resolveProject(for: "com.apple.Safari", domain: nil, filePath: nil)
         #expect(bundleMatch === safari)
+    }
+
+    @Test("Resolver prioriza archivos sobre dominios y apps")
+    func projectAssignmentPrefersFiles() throws {
+        let container = try factory.makeContainer()
+        let settings = makeSettings()
+        let filePath = "/tmp/plan.pdf".normalizedFilePath
+        let fileProject = Project(name: "File Focus", assignedFiles: [filePath])
+        let domainProject = Project(name: "Docs", assignedDomains: ["docs.test"])
+        let appProject = Project(name: "Preview", assignedApps: ["com.apple.Preview"])
+        container.mainContext.insert(fileProject)
+        container.mainContext.insert(domainProject)
+        container.mainContext.insert(appProject)
+
+        let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
+        let match = resolver.resolveProject(
+            for: "com.apple.Preview",
+            domain: "docs.test",
+            filePath: filePath
+        )
+        #expect(match === fileProject)
     }
 
     @Test("Resolver ignora el bundle si el dominio no coincide")
@@ -30,7 +51,7 @@ struct MomentumTests {
         let browsing = Project(name: "Browsing", assignedApps: ["com.apple.Safari"], assignedDomains: ["docs.test"])
         container.mainContext.insert(browsing)
         let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
-        let noMatch = resolver.resolveProject(for: "com.apple.Safari", domain: "medium.com")
+        let noMatch = resolver.resolveProject(for: "com.apple.Safari", domain: "medium.com", filePath: nil)
         #expect(noMatch == nil)
     }
 
@@ -50,6 +71,7 @@ struct MomentumTests {
                 appName: "Xcode",
                 bundleIdentifier: "com.test.xcode",
                 domain: nil,
+                filePath: nil,
                 project: project
             )
             container.mainContext.insert(session)
@@ -78,6 +100,7 @@ struct MomentumTests {
                 appName: "Xcode",
                 bundleIdentifier: "com.test.xcode",
                 domain: nil,
+                filePath: nil,
                 project: project
             )
             container.mainContext.insert(session)
@@ -100,7 +123,7 @@ struct MomentumTests {
         container.mainContext.insert(project)
         let calendar = Calendar.current
 
-        for offset in 1...3 {
+        for offset in 1 ... 3 {
             guard let day = calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: .now)) else { continue }
             let summary = DailySummary(date: day, seconds: 600, project: project)
             container.mainContext.insert(summary)
@@ -116,7 +139,7 @@ struct MomentumTests {
         let project = Project(name: "Resúmenes")
         container.mainContext.insert(project)
         let calendar = Calendar.current
-        for offset in 0..<3 {
+        for offset in 0 ..< 3 {
             guard let day = calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: .now)) else { continue }
             let summary = DailySummary(date: day, seconds: TimeInterval(600 * (offset + 1)), project: project)
             container.mainContext.insert(summary)
@@ -129,7 +152,7 @@ struct MomentumTests {
     func projectAssignmentReturnsNilWhenNoMatch() throws {
         let container = try factory.makeContainer()
         let resolver = ProjectAssignmentResolver(modelContainer: container, settings: makeSettings())
-        let result = resolver.resolveProject(for: "com.unknown.app", domain: "unknown.site")
+        let result = resolver.resolveProject(for: "com.unknown.app", domain: "unknown.site", filePath: nil)
         #expect(result == nil)
     }
 
@@ -144,7 +167,7 @@ struct MomentumTests {
         container.mainContext.insert(projectB)
 
         let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
-        let result = resolver.resolveAssignment(for: bundleID, domain: nil)
+        let result = resolver.resolveAssignment(for: bundleID, domain: nil, filePath: nil)
         switch result {
         case let .conflict(context, candidates):
             #expect(context.type == .app)
@@ -172,7 +195,7 @@ struct MomentumTests {
         container.mainContext.insert(rule)
 
         let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
-        let result = resolver.resolveAssignment(for: bundleID, domain: nil)
+        let result = resolver.resolveAssignment(for: bundleID, domain: nil, filePath: nil)
         switch result {
         case let .assigned(project, usedRule):
             #expect(usedRule)
@@ -205,7 +228,7 @@ struct MomentumTests {
         container.mainContext.insert(rule)
 
         let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
-        let result = resolver.resolveAssignment(for: bundleID, domain: nil)
+        let result = resolver.resolveAssignment(for: bundleID, domain: nil, filePath: nil)
         switch result {
         case let .conflict(context, candidates):
             #expect(context.type == .app)
@@ -240,6 +263,7 @@ struct MomentumTests {
             appName: "Xcode",
             bundleIdentifier: "com.test.xcode",
             domain: nil,
+            filePath: nil,
             project: project
         )
         let second = TrackingSession(
@@ -248,6 +272,7 @@ struct MomentumTests {
             appName: "Safari",
             bundleIdentifier: "com.test.safari",
             domain: nil,
+            filePath: nil,
             project: project
         )
         container.mainContext.insert(first)
@@ -266,6 +291,7 @@ struct MomentumTests {
             appName: "Pages",
             bundleIdentifier: "com.test.pages",
             domain: nil,
+            filePath: nil,
             project: project
         )
         container.mainContext.insert(third)
@@ -276,7 +302,7 @@ struct MomentumTests {
         let sessions = try container.mainContext.fetch(FetchDescriptor<TrackingSession>())
         #expect(sessions.contains {
             abs($0.startDate.timeIntervalSince(base.addingTimeInterval(8100))) < 1 &&
-            abs($0.endDate.timeIntervalSince(originalThirdEnd)) < 1
+                abs($0.endDate.timeIntervalSince(originalThirdEnd)) < 1
         })
     }
 
@@ -409,6 +435,7 @@ struct MomentumTests {
             appName: "VSCode",
             bundleIdentifier: bundleID,
             domain: nil,
+            filePath: nil,
             contextType: AssignmentContextType.app.rawValue,
             contextValue: bundleID
         )
@@ -429,6 +456,92 @@ struct MomentumTests {
         #expect(sessions.count == 1)
         #expect(sessions.first?.project === projectB)
         #expect(tracker.pendingConflictCount == 0)
+    }
+
+    @Test("Manual tracking añade archivos asignados")
+    func manualTrackingAddsAssignedFiles() throws {
+        let container = try factory.makeContainer()
+        let project = Project(name: "Docs")
+        container.mainContext.insert(project)
+        let settings = makeSettings()
+        settings.isFileTrackingEnabled = true
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: MockCrashRecoveryHandler(),
+            performanceMonitor: MockPerformanceMonitor()
+        )
+
+        let filePath = "/tmp/report.pdf".normalizedFilePath
+        tracker.testing_startManualTracking(project: project)
+        tracker.testing_beginContext(
+            appName: "Preview",
+            bundleIdentifier: "com.apple.Preview",
+            filePath: filePath,
+            startDate: Date().addingTimeInterval(-40)
+        )
+        #expect(tracker.testing_forceFlush())
+        #expect(project.assignedFiles.contains(filePath))
+    }
+
+    @Test("Snapshot de crash incluye filePath")
+    func crashSnapshotIncludesFilePath() throws {
+        let container = try factory.makeContainer()
+        let settings = makeSettings()
+        let crashRecovery = MockCrashRecoveryHandler()
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: crashRecovery,
+            performanceMonitor: MockPerformanceMonitor()
+        )
+
+        let filePath = "/tmp/deck.key".normalizedFilePath
+        tracker.testing_beginContext(
+            appName: "Keynote",
+            bundleIdentifier: "com.apple.iWork.Keynote",
+            filePath: filePath,
+            startDate: Date().addingTimeInterval(-20)
+        )
+        #expect(crashRecovery.persistedSnapshot?.filePath == filePath)
+    }
+
+    @Test("Exclusiones globales reconocen rutas de archivo exactas")
+    func settingsExcludeExactFilePaths() {
+        let settings = makeSettings()
+        let filePath = "/tmp/report.key".normalizedFilePath
+        settings.excludedFiles = [filePath]
+
+        #expect(settings.isFileExcluded(filePath))
+        #expect(settings.isFileExcluded("/tmp/other.key".normalizedFilePath) == false)
+    }
+
+    @Test("Exclusiones globales aceptan terminaciones de archivo")
+    func settingsExcludeFileSuffixes() {
+        let settings = makeSettings()
+        settings.excludedFiles = [".key", "*.pdf"]
+
+        #expect(settings.isFileExcluded("/tmp/report.key".normalizedFilePath))
+        #expect(settings.isFileExcluded("/tmp/docs/manual.pdf".normalizedFilePath))
+        #expect(settings.isFileExcluded("/tmp/docs/manual.txt".normalizedFilePath) == false)
+    }
+
+    @Test("Exclusiones globales reconocen apps por bundle ID")
+    func settingsExcludeAppsByBundleIdentifier() {
+        let settings = makeSettings()
+        settings.excludedApps = ["com.test.App"]
+
+        #expect(settings.isAppExcluded("com.test.app"))
+        #expect(settings.isAppExcluded("com.test.other") == false)
+    }
+
+    @Test("Exclusiones globales reconocen fragmentos de dominio")
+    func settingsExcludeDomainFragments() {
+        let settings = makeSettings()
+        settings.excludedDomains = ["youtube.com"]
+
+        #expect(settings.isDomainExcluded("m.youtube.com/watch"))
+        #expect(settings.isDomainExcluded("example.com") == false)
     }
 
     @Test("Regla evita volver a crear pendientes")
@@ -658,6 +771,80 @@ struct MomentumTests {
         #expect(tracker.testing_forceFlush())
         #expect(tracker.pendingConflictCount == 1)
     }
+
+    @Test("Auto-start sólo cuando se crea el primer proyecto")
+    func onboardingTrackingAutoStartPolicy() {
+        let starter = OnboardingTrackingStarter()
+        #expect(starter.shouldAutoStartTracking(hasCreatedProject: false, existingProjectCount: 0))
+        #expect(!starter.shouldAutoStartTracking(hasCreatedProject: true, existingProjectCount: 0))
+        #expect(!starter.shouldAutoStartTracking(hasCreatedProject: false, existingProjectCount: 1))
+    }
+
+    @Test("Starter de onboarding resuelve cuando el proyecto existe")
+    func onboardingTrackingStarterResolvesQueuedProject() throws {
+        let container = try factory.makeContainer()
+        let projectA = Project(name: "Alpha")
+        let projectB = Project(name: "Beta")
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+
+        var starter = OnboardingTrackingStarter()
+        starter.queue(projectID: projectB.persistentModelID)
+
+        let missing = starter.resolve(projects: [projectA])
+        #expect(missing == nil)
+
+        let resolved = starter.resolve(projects: [projectA, projectB])
+        #expect(resolved === projectB)
+        #expect(starter.resolve(projects: [projectA, projectB]) == nil)
+    }
+
+    @Test("Notificación de onboarding sólo arranca tracking si se solicita")
+    func onboardingTrackingStarterHandlesNotification() throws {
+        let container = try factory.makeContainer()
+        let project = Project(name: "Gamma")
+        container.mainContext.insert(project)
+
+        var starter = OnboardingTrackingStarter()
+        let ignored = starter.handleNotification(
+            projectID: project.persistentModelID,
+            startTracking: false,
+            projects: [project]
+        )
+        #expect(ignored == nil)
+        #expect(starter.resolve(projects: [project]) == nil)
+
+        let started = starter.handleNotification(
+            projectID: project.persistentModelID,
+            startTracking: true,
+            projects: [project]
+        )
+        #expect(started === project)
+        #expect(starter.resolve(projects: [project]) == nil)
+    }
+
+    @Test("OnboardingState persiste los flags en UserDefaults")
+    func onboardingStatePersistsFlags() {
+        let suiteName = "MomentumTests.Onboarding.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fatalError("Unable to create UserDefaults suite")
+        }
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let state = OnboardingState(defaults: defaults)
+        #expect(!state.hasSeenWelcome)
+        #expect(!state.hasCreatedProject)
+        #expect(!state.hasAutomationPermissionPrompted)
+
+        state.markWelcomeSeen()
+        state.markProjectCreated()
+        state.markAutomationPrompted()
+
+        let reloaded = OnboardingState(defaults: defaults)
+        #expect(reloaded.hasSeenWelcome)
+        #expect(reloaded.hasCreatedProject)
+        #expect(reloaded.hasAutomationPermissionPrompted)
+    }
 }
 
 @MainActor
@@ -676,7 +863,7 @@ final class InMemoryModelContainerFactory {
             AssignmentRule.self,
             PendingTrackingSession.self,
             TrackingSession.self,
-            DailySummary.self
+            DailySummary.self,
         ])
         return try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     }
@@ -723,11 +910,11 @@ final class MockCrashRecoveryHandler: CrashRecoveryHandling {
 @MainActor
 final class MockPerformanceMonitor: PerformanceBudgetMonitoring {
     @discardableResult
-    func measure<T>(_ operation: String, work: () throws -> T) rethrows -> T {
+    func measure<T>(_: String, work: () throws -> T) rethrows -> T {
         try work()
     }
 
-    func recordSample(_ sample: PerformanceBudgetMonitor.MetricSample) {
+    func recordSample(_: PerformanceBudgetMonitor.MetricSample) {
         // no-op for tests
     }
 }

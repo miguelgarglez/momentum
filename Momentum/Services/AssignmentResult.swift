@@ -10,6 +10,7 @@ import Foundation
 enum AssignmentContextType: String {
     case app
     case domain
+    case file
 }
 
 struct AssignmentContext: Equatable {

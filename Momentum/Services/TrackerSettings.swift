@@ -107,6 +107,12 @@ final class TrackerSettings: ObservableObject {
         }
     }
 
+    @Published var isFileTrackingEnabled: Bool {
+        didSet {
+            defaults.set(isFileTrackingEnabled, forKey: Keys.files)
+        }
+    }
+
     @Published var excludedApps: [String] {
         didSet {
             let sanitized = TrackerSettings.sanitize(entries: excludedApps)
@@ -126,6 +132,17 @@ final class TrackerSettings: ObservableObject {
                 return
             }
             defaults.set(excludedDomains, forKey: Keys.excludedDomains)
+        }
+    }
+
+    @Published var excludedFiles: [String] {
+        didSet {
+            let sanitized = TrackerSettings.sanitize(entries: excludedFiles)
+            if sanitized != excludedFiles {
+                excludedFiles = sanitized
+                return
+            }
+            defaults.set(excludedFiles, forKey: Keys.excludedFiles)
         }
     }
 
@@ -152,24 +169,28 @@ final class TrackerSettings: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let storedInterval = defaults.double(forKey: Keys.detection)
-        self.detectionInterval = storedInterval == 0 ? 5 : storedInterval
+        detectionInterval = storedInterval == 0 ? 5 : storedInterval
         let storedIdle = defaults.double(forKey: Keys.idle)
-        self.idleThreshold = storedIdle == 0 ? TimeInterval(15 * 60) : storedIdle
-        self.isDomainTrackingEnabled = defaults.object(forKey: Keys.domains) as? Bool ?? true
-        self.excludedApps = TrackerSettings.readList(for: Keys.excludedApps, defaults: defaults)
-        self.excludedDomains = TrackerSettings.readList(for: Keys.excludedDomains, defaults: defaults, lowercaseStorage: true)
-        self.isDatabaseEncryptionEnabled = defaults.object(forKey: Keys.encryptionEnabled) as? Bool ?? false
+        idleThreshold = storedIdle == 0 ? TimeInterval(15 * 60) : storedIdle
+        isDomainTrackingEnabled = defaults.object(forKey: Keys.domains) as? Bool ?? true
+        isFileTrackingEnabled = defaults.object(forKey: Keys.files) as? Bool ?? true
+        excludedApps = TrackerSettings.readList(for: Keys.excludedApps, defaults: defaults)
+        excludedDomains = TrackerSettings.readList(for: Keys.excludedDomains, defaults: defaults, lowercaseStorage: true)
+        excludedFiles = TrackerSettings.readList(for: Keys.excludedFiles, defaults: defaults)
+        isDatabaseEncryptionEnabled = defaults.object(forKey: Keys.encryptionEnabled) as? Bool ?? false
         if let rawValue = defaults.string(forKey: Keys.assignmentRuleExpiration),
-           let option = AssignmentRuleExpirationOption(rawValue: rawValue) {
-            self.assignmentRuleExpiration = option
+           let option = AssignmentRuleExpirationOption(rawValue: rawValue)
+        {
+            assignmentRuleExpiration = option
         } else {
-            self.assignmentRuleExpiration = .never
+            assignmentRuleExpiration = .never
         }
         if let rawValue = defaults.string(forKey: Keys.themePreference),
-           let option = AppThemePreference(rawValue: rawValue) {
-            self.themePreference = option
+           let option = AppThemePreference(rawValue: rawValue)
+        {
+            themePreference = option
         } else {
-            self.themePreference = .system
+            themePreference = .system
         }
     }
 
@@ -186,6 +207,35 @@ final class TrackerSettings: ObservableObject {
     func isDomainExcluded(_ domain: String?) -> Bool {
         guard let value = domain?.lowercased(), !value.isEmpty else { return false }
         return excludedDomains.contains { value.contains($0) }
+    }
+
+    func isFileExcluded(_ filePath: String?) -> Bool {
+        guard let filePath, !filePath.isEmpty else { return false }
+        let normalized = filePath.normalizedFilePath
+        if normalized.isEmpty { return false }
+        let normalizedPath = normalized.lowercased()
+        let fileName = URL(fileURLWithPath: normalized).lastPathComponent.lowercased()
+
+        for entry in excludedFiles {
+            let trimmed = entry.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let lowered = trimmed.lowercased()
+            if lowered.contains("/") || lowered.hasPrefix("~") {
+                let expanded = (lowered as NSString).expandingTildeInPath
+                let normalizedEntry = expanded.normalizedFilePath.lowercased()
+                if !normalizedEntry.isEmpty && normalizedPath == normalizedEntry {
+                    return true
+                }
+                continue
+            }
+
+            let suffix = lowered.hasPrefix("*") ? String(lowered.dropFirst()) : lowered
+            if !suffix.isEmpty, fileName.hasSuffix(suffix) || normalizedPath.hasSuffix(suffix) {
+                return true
+            }
+        }
+
+        return false
     }
 
     private func clamp<T: Comparable>(_ value: T, min: T, max: T) -> T {
@@ -215,8 +265,10 @@ final class TrackerSettings: ObservableObject {
         static let detection = "tracker.detectionInterval"
         static let idle = "tracker.idleThreshold"
         static let domains = "tracker.trackDomains"
+        static let files = "tracker.trackFiles"
         static let excludedApps = "tracker.excludedApps"
         static let excludedDomains = "tracker.excludedDomains"
+        static let excludedFiles = "tracker.excludedFiles"
         static let encryptionEnabled = "tracker.encryptionEnabled"
         static let assignmentRuleExpiration = "assignmentRules.expiration"
         static let themePreference = "app.themePreference"

@@ -22,8 +22,8 @@ final class DailySummary {
         self.seconds = seconds
         self.project = project
         let now = Date()
-        self.createdAt = now
-        self.updatedAt = now
+        createdAt = now
+        updatedAt = now
     }
 
     func apply(deltaSeconds: TimeInterval) {

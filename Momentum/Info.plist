@@ -23,7 +23,7 @@
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.productivity</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Momentum necesita acceder a Safari y Chrome para detectar los dominios activos y registrar así el tiempo que los utilizas</string>
+    <string>Momentum necesita autorización para identificar la app, el dominio o el archivo activo. No accede a contenido, teclas ni capturas de pantalla y toda la información se guarda localmente.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

@@ -5,8 +5,8 @@
 //  Created by Codex on 23/11/25.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct OnboardingQuickProjectView: View {
     @Environment(\.dismiss) private var dismiss
@@ -28,22 +28,22 @@ struct OnboardingQuickProjectView: View {
                         Text("Nombre opcional")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-#if os(macOS)
-                        LTRTextField(
-                            text: $name,
-                            placeholder: "New cool project",
-                            accessibilityIdentifier: "onboarding-project-name"
-                        )
-                        .macRoundedTextFieldStyle()
-#else
-                        TextField("New cool project", text: $name)
-                            .textFieldStyle(.roundedBorder)
-#endif
+                        #if os(macOS)
+                            LTRTextField(
+                                text: $name,
+                                placeholder: "New cool project",
+                                accessibilityIdentifier: "onboarding-project-name"
+                            )
+                            .macRoundedTextFieldStyle()
+                        #else
+                            TextField("New cool project", text: $name)
+                                .textFieldStyle(.roundedBorder)
+                        #endif
                     }
 
                     Picker("Icono", selection: $icon) {
                         Text("Aleatorio")
-                            .tag(Optional<ProjectIcon>.none)
+                            .tag(ProjectIcon?.none)
                         ForEach(ProjectIcon.allCases, id: \.self) { icon in
                             Label(icon.displayName, systemImage: icon.systemName)
                                 .tag(Optional(icon))

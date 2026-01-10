@@ -1,4 +1,4 @@
-.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint run-dev run-dev-onboarding run-release run reset-dev-data archive-release install-release dmg clean clean-release
+.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint run-dev run-dev-onboarding run-release run reset-dev-data run-dev-reset-permissions run-release-reset-permissions archive-release install-release dmg clean clean-release
 
 PROJECT := Momentum.xcodeproj
 SCHEME := Momentum
@@ -45,6 +45,8 @@ help:
 	@echo "  run-dev-onboarding Run dev app with fresh store, no debug seed, and clean onboarding"
 	@echo "  run-release       Build and launch the release app (quits running release app first)"
 	@echo "  reset-dev-data    Remove dev store + seed flag, then run dev app"
+	@echo "  run-dev-reset-permissions     Reset Automation permissions, then run dev app"
+	@echo "  run-release-reset-permissions Reset Automation permissions, then run release app"
 	@echo "  install-release   Build Release and copy app to /Applications"
 	@echo "  archive-release   Archive Release, install app, and .dmg to ~/Downloads"
 	@echo "  dmg               Build a drag-and-drop DMG from an existing .app"
@@ -182,6 +184,18 @@ reset-dev-data:
 	defaults delete "$(DEV_BUNDLE_ID)" Momentum.DebugSeeded >/dev/null 2>&1 || true; \
 	rm -rf "$(DEV_STORE_DIR)" "$(LEGACY_DEV_STORE_DIR)"; \
 	$(MAKE) run-dev
+
+run-dev-reset-permissions:
+	@set -euo pipefail; \
+	echo "Resetting macOS Automation permissions for $(DEV_BUNDLE_ID)"; \
+	tccutil reset AppleEvents "$(DEV_BUNDLE_ID)"; \
+	$(MAKE) run-dev
+
+run-release-reset-permissions:
+	@set -euo pipefail; \
+	echo "Resetting macOS Automation permissions for $(RELEASE_BUNDLE_ID)"; \
+	tccutil reset AppleEvents "$(RELEASE_BUNDLE_ID)"; \
+	$(MAKE) run-release
 
 install-release:
 	@set -euo pipefail; \

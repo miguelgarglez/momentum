@@ -1,16 +1,17 @@
 import Foundation
-import SwiftData
 import OSLog
+import SwiftData
 #if os(macOS)
-import AppKit
+    import AppKit
 #elseif os(iOS)
-import UIKit
+    import UIKit
 #endif
 
 struct SessionSnapshot: Codable, Equatable {
     var appName: String
     var bundleIdentifier: String?
     var domain: String?
+    var filePath: String?
     var startDate: Date
     var projectName: String?
     var isExcluded: Bool
@@ -52,7 +53,7 @@ final class CrashRecoveryManager: ObservableObject, CrashRecoveryHandling {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let wasClean = defaults.bool(forKey: Keys.cleanShutdown)
-        self.hadUncleanShutdown = !wasClean
+        hadUncleanShutdown = !wasClean
         defaults.set(false, forKey: Keys.cleanShutdown)
         registerTerminationObserver()
     }
@@ -72,7 +73,8 @@ final class CrashRecoveryManager: ObservableObject, CrashRecoveryHandling {
     func consumePendingSnapshot() -> SessionSnapshot? {
         guard hadUncleanShutdown,
               let data = defaults.data(forKey: Keys.snapshot),
-              let snapshot = try? JSONDecoder().decode(SessionSnapshot.self, from: data) else {
+              let snapshot = try? JSONDecoder().decode(SessionSnapshot.self, from: data)
+        else {
             return nil
         }
         defaults.removeObject(forKey: Keys.snapshot)
@@ -86,17 +88,17 @@ final class CrashRecoveryManager: ObservableObject, CrashRecoveryHandling {
     }
 
     private func registerTerminationObserver() {
-#if os(macOS)
-        NotificationCenter.default.addObserver(self, selector: #selector(markTerminationClean), name: NSApplication.willTerminateNotification, object: nil)
-#elseif os(iOS)
-        NotificationCenter.default.addObserver(self, selector: #selector(markTerminationClean), name: UIApplication.willTerminateNotification, object: nil)
-#endif
+        #if os(macOS)
+            NotificationCenter.default.addObserver(self, selector: #selector(markTerminationClean), name: NSApplication.willTerminateNotification, object: nil)
+        #elseif os(iOS)
+            NotificationCenter.default.addObserver(self, selector: #selector(markTerminationClean), name: UIApplication.willTerminateNotification, object: nil)
+        #endif
     }
 }
 
 @MainActor
 final class NoopCrashRecoveryManager: CrashRecoveryHandling {
-    func persist(snapshot: SessionSnapshot?) {
+    func persist(snapshot _: SessionSnapshot?) {
         // no-op for tests
     }
 

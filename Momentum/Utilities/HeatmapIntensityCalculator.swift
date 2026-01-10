@@ -1,6 +1,6 @@
 import Foundation
 
-struct HeatmapIntensityCalculator {
+enum HeatmapIntensityCalculator {
     static func thresholds(for values: [TimeInterval]) -> [TimeInterval] {
         let sortedValues = values.sorted()
         if sortedValues.isEmpty {
@@ -12,7 +12,7 @@ struct HeatmapIntensityCalculator {
         return [
             percentile(0.25, in: sortedValues),
             percentile(0.5, in: sortedValues),
-            percentile(0.75, in: sortedValues)
+            percentile(0.75, in: sortedValues),
         ]
     }
 

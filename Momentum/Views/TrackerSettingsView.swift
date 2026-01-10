@@ -1,13 +1,15 @@
-import SwiftUI
+import Foundation
 import SwiftData
+import SwiftUI
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 struct TrackerSettingsView: View {
     @EnvironmentObject private var settings: TrackerSettings
     @EnvironmentObject private var appCatalog: AppCatalog
     @EnvironmentObject private var themePreview: ThemePreviewState
+    @EnvironmentObject private var automationPermissionManager: AutomationPermissionManager
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Project.name, order: .forward) private var projects: [Project]
@@ -17,6 +19,7 @@ struct TrackerSettingsView: View {
     @State private var projectPendingDeletion: Project?
     @State private var maintenanceError: String?
     @State private var showingEncryptionInfo = false
+    @State private var showingAutomationInfo = false
     @State private var hasLoadedDraft = false
 
     init() {}
@@ -56,11 +59,11 @@ struct TrackerSettingsView: View {
             .navigationTitle("Configuración")
             .frame(minWidth: 360)
         }
-#if os(macOS)
+        #if os(macOS)
         .background(WindowCloseObserver {
             clearThemePreview()
         })
-#endif
+        #endif
         .onAppear {
             if !hasLoadedDraft {
                 draft = TrackerSettingsDraft(from: settings)
@@ -79,7 +82,7 @@ struct TrackerSettingsView: View {
         }
         .confirmationDialog("¿Borrar todos los datos?", isPresented: $showEraseAllConfirmation, titleVisibility: .visible) {
             Button("Borrar todo", role: .destructive) { deleteAllData() }
-            Button("Cancelar", role: .cancel) { }
+            Button("Cancelar", role: .cancel) {}
         } message: {
             Text("Esta acción reinicia Momentum y elimina proyectos, sesiones y resúmenes. No se puede deshacer.")
         }
@@ -106,6 +109,14 @@ struct TrackerSettingsView: View {
         } message: {
             Text("Al activar esta opción, macOS aplica FileProtection al archivo de Momentum. Los datos solo se pueden leer cuando tu sesión está desbloqueada; si alguien copia el fichero sin permiso verá información cifrada. Puedes dejarlo desactivado si ya confías en FileVault o si compartes la base con otras herramientas.")
         }
+        #if os(macOS)
+        .sheet(isPresented: $showingAutomationInfo) {
+            AutomationPermissionPromptView(
+                onOpenSettings: automationPermissionManager.openSystemSettings,
+                onLater: { showingAutomationInfo = false }
+            )
+        }
+        #endif
     }
 
     private var projectDeletionTitle: String {
@@ -130,6 +141,26 @@ struct TrackerSettingsView: View {
     private var trackingSection: some View {
         Section("Tracking automático") {
             Toggle("Registrar dominios web", isOn: $draft.isDomainTrackingEnabled)
+            Toggle("Registrar archivos", isOn: $draft.isFileTrackingEnabled)
+
+#if os(macOS)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Momentum solo solicita permisos de Automatización cuando necesita rastrear apps donde detecta archivos o dominios. Si los deniegas, puedes reactivarlos desde Ajustes del sistema.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Button("Abrir ajustes de Automatización") {
+                        automationPermissionManager.openSystemSettings()
+                    }
+                    .buttonStyle(.bordered)
+                    Button("Más info") {
+                        showingAutomationInfo = true
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("automation-permission-info")
+                }
+            }
+#endif
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -140,7 +171,7 @@ struct TrackerSettingsView: View {
                 }
                 Slider(
                     value: $draft.detectionInterval,
-                    in: TrackerSettings.minDetectionInterval...TrackerSettings.maxDetectionInterval,
+                    in: TrackerSettings.minDetectionInterval ... TrackerSettings.maxDetectionInterval,
                     step: 1
                 )
             }
@@ -166,7 +197,7 @@ struct TrackerSettingsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Stepper(
                     value: $draft.idleThresholdMinutes,
-                    in: TrackerSettings.minIdleMinutes...TrackerSettings.maxIdleMinutes
+                    in: TrackerSettings.minIdleMinutes ... TrackerSettings.maxIdleMinutes
                 ) {
                     HStack {
                         Text("Umbral de inactividad")
@@ -193,6 +224,8 @@ struct TrackerSettingsView: View {
                 lowercaseStorage: true,
                 items: $draft.excludedDomains
             )
+
+            FileExclusionEditor(items: $draft.excludedFiles)
         }
     }
 
@@ -262,10 +295,12 @@ struct TrackerSettingsView: View {
     @MainActor
     private func applyChanges() {
         settings.isDomainTrackingEnabled = draft.isDomainTrackingEnabled
+        settings.isFileTrackingEnabled = draft.isFileTrackingEnabled
         settings.detectionInterval = draft.detectionInterval
         settings.idleThresholdMinutes = draft.idleThresholdMinutes
         settings.excludedApps = draft.excludedApps
         settings.excludedDomains = draft.excludedDomains
+        settings.excludedFiles = draft.excludedFiles
         settings.isDatabaseEncryptionEnabled = draft.isDatabaseEncryptionEnabled
         settings.assignmentRuleExpiration = draft.assignmentRuleExpiration
         settings.themePreference = themeSelectionBinding.wrappedValue
@@ -283,8 +318,6 @@ struct TrackerSettingsView: View {
             set: { themePreview.selection = $0 }
         )
     }
-
-    
 
     @MainActor
     private func deleteAllData() {
@@ -314,59 +347,59 @@ struct TrackerSettingsView: View {
 }
 
 #if os(macOS)
-private struct WindowCloseObserver: NSViewRepresentable {
-    let onClose: () -> Void
+    private struct WindowCloseObserver: NSViewRepresentable {
+        let onClose: () -> Void
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onClose: onClose)
-    }
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            context.coordinator.attach(to: view.window)
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            context.coordinator.attach(to: nsView.window)
-        }
-    }
-
-    final class Coordinator {
-        private let onClose: () -> Void
-        private weak var window: NSWindow?
-        private var observer: NSObjectProtocol?
-
-        init(onClose: @escaping () -> Void) {
-            self.onClose = onClose
+        func makeCoordinator() -> Coordinator {
+            Coordinator(onClose: onClose)
         }
 
-        func attach(to window: NSWindow?) {
-            guard self.window !== window else { return }
-            if let observer {
-                NotificationCenter.default.removeObserver(observer)
+        func makeNSView(context: Context) -> NSView {
+            let view = NSView()
+            DispatchQueue.main.async {
+                context.coordinator.attach(to: view.window)
             }
-            self.window = window
-            guard let window else { return }
-            observer = NotificationCenter.default.addObserver(
-                forName: NSWindow.willCloseNotification,
-                object: window,
-                queue: .main
-            ) { [onClose] _ in
-                onClose()
+            return view
+        }
+
+        func updateNSView(_ nsView: NSView, context: Context) {
+            DispatchQueue.main.async {
+                context.coordinator.attach(to: nsView.window)
             }
         }
 
-        deinit {
-            if let observer {
-                NotificationCenter.default.removeObserver(observer)
+        final class Coordinator {
+            private let onClose: () -> Void
+            private weak var window: NSWindow?
+            private var observer: NSObjectProtocol?
+
+            init(onClose: @escaping () -> Void) {
+                self.onClose = onClose
+            }
+
+            func attach(to window: NSWindow?) {
+                guard self.window !== window else { return }
+                if let observer {
+                    NotificationCenter.default.removeObserver(observer)
+                }
+                self.window = window
+                guard let window else { return }
+                observer = NotificationCenter.default.addObserver(
+                    forName: NSWindow.willCloseNotification,
+                    object: window,
+                    queue: .main
+                ) { [onClose] _ in
+                    onClose()
+                }
+            }
+
+            deinit {
+                if let observer {
+                    NotificationCenter.default.removeObserver(observer)
+                }
             }
         }
     }
-}
 #endif
 
 @MainActor
@@ -374,8 +407,10 @@ private struct TrackerSettingsDraft {
     var detectionInterval: Double
     var idleThresholdMinutes: Int
     var isDomainTrackingEnabled: Bool
+    var isFileTrackingEnabled: Bool
     var excludedApps: [String]
     var excludedDomains: [String]
+    var excludedFiles: [String]
     var isDatabaseEncryptionEnabled: Bool
     var assignmentRuleExpiration: AssignmentRuleExpirationOption
 
@@ -383,8 +418,10 @@ private struct TrackerSettingsDraft {
         detectionInterval = settings.detectionInterval
         idleThresholdMinutes = settings.idleThresholdMinutes
         isDomainTrackingEnabled = settings.isDomainTrackingEnabled
+        isFileTrackingEnabled = settings.isFileTrackingEnabled
         excludedApps = settings.excludedApps
         excludedDomains = settings.excludedDomains
+        excludedFiles = settings.excludedFiles
         isDatabaseEncryptionEnabled = settings.isDatabaseEncryptionEnabled
         assignmentRuleExpiration = settings.assignmentRuleExpiration
     }
@@ -393,8 +430,10 @@ private struct TrackerSettingsDraft {
         detectionInterval = TrackerSettings.minDetectionInterval
         idleThresholdMinutes = 15
         isDomainTrackingEnabled = true
+        isFileTrackingEnabled = true
         excludedApps = []
         excludedDomains = []
+        excludedFiles = []
         isDatabaseEncryptionEnabled = false
         assignmentRuleExpiration = .never
     }
@@ -481,16 +520,16 @@ private struct AppExclusionEditor: View {
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
                 HStack {
-#if os(macOS)
-                    LTRTextField(
-                        text: $manualEntry,
-                        placeholder: "com.ejemplo.app"
-                    )
-                    .macRoundedTextFieldStyle()
-#else
-                    TextField("com.ejemplo.app", text: $manualEntry)
-                        .textFieldStyle(.roundedBorder)
-#endif
+                    #if os(macOS)
+                        LTRTextField(
+                            text: $manualEntry,
+                            placeholder: "com.ejemplo.app"
+                        )
+                        .macRoundedTextFieldStyle()
+                    #else
+                        TextField("com.ejemplo.app", text: $manualEntry)
+                            .textFieldStyle(.roundedBorder)
+                    #endif
                     Button("Añadir") {
                         add(identifier: manualEntry)
                         manualEntry = ""
@@ -527,7 +566,7 @@ private struct AppCatalogSelectionPanel: View {
         guard !searchText.isEmpty else { return appCatalog.apps }
         return appCatalog.apps.filter { app in
             app.name.localizedCaseInsensitiveContains(searchText) ||
-            app.bundleIdentifier.localizedCaseInsensitiveContains(searchText)
+                app.bundleIdentifier.localizedCaseInsensitiveContains(searchText)
         }
     }
 
@@ -536,16 +575,16 @@ private struct AppCatalogSelectionPanel: View {
             Text("Selecciona apps a excluir")
                 .font(.headline)
 
-#if os(macOS)
-            LTRTextField(
-                text: $searchText,
-                placeholder: "Buscar apps"
-            )
-            .macRoundedTextFieldStyle()
-#else
-            TextField("Buscar apps", text: $searchText)
-                .textFieldStyle(.roundedBorder)
-#endif
+            #if os(macOS)
+                LTRTextField(
+                    text: $searchText,
+                    placeholder: "Buscar apps"
+                )
+                .macRoundedTextFieldStyle()
+            #else
+                TextField("Buscar apps", text: $searchText)
+                    .textFieldStyle(.roundedBorder)
+            #endif
 
             if filteredApps.isEmpty {
                 Text("No encontramos apps que coincidan con la búsqueda.")
@@ -665,16 +704,16 @@ private struct ExclusionListEditor: View {
             }
 
             HStack {
-#if os(macOS)
-                LTRTextField(
-                    text: $newEntry,
-                    placeholder: placeholder
-                )
-                .macRoundedTextFieldStyle()
-#else
-                TextField(placeholder, text: $newEntry)
-                    .textFieldStyle(.roundedBorder)
-#endif
+                #if os(macOS)
+                    LTRTextField(
+                        text: $newEntry,
+                        placeholder: placeholder
+                    )
+                    .macRoundedTextFieldStyle()
+                #else
+                    TextField(placeholder, text: $newEntry)
+                        .textFieldStyle(.roundedBorder)
+                #endif
                 Button("Añadir") { addEntry() }
                     .disabled(newEntry.trimmed().isEmpty)
             }
@@ -703,6 +742,122 @@ private struct ExclusionListEditor: View {
             items.remove(at: index)
         }
     }
+}
+
+private struct FileExclusionEditor: View {
+    @Binding var items: [String]
+    @State private var newEntry: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Archivos")
+                    .font(.headline)
+                Spacer()
+                if !items.isEmpty {
+                    Text("\(items.count)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if items.isEmpty {
+                Text("No hay archivos excluidos.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(items, id: \.self) { item in
+                        HStack {
+                            Text(item)
+                                .font(.subheadline)
+                            Spacer()
+                            Button {
+                                remove(item)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Eliminar \(item)")
+                        }
+                        .padding(8)
+                        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+            }
+
+            HStack {
+                #if os(macOS)
+                    LTRTextField(
+                        text: $newEntry,
+                        placeholder: "Ruta o terminación (ej: /Users/... o .key)"
+                    )
+                    .macRoundedTextFieldStyle()
+                #else
+                    TextField("Ruta o terminación (ej: /Users/... o .key)", text: $newEntry)
+                        .textFieldStyle(.roundedBorder)
+                #endif
+                Button("Añadir") { addEntry() }
+                    .disabled(newEntry.trimmed().isEmpty)
+            }
+
+            #if os(macOS)
+                HStack {
+                    Spacer()
+                    Button("Seleccionar archivos…") {
+                        selectFiles()
+                    }
+                }
+            #endif
+
+            Text("Puedes excluir rutas exactas o terminaciones como *.key, .pdf o .mov.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func addEntry() {
+        let trimmed = newEntry.trimmed()
+        guard !trimmed.isEmpty else { return }
+        addItems([trimmed])
+        newEntry = ""
+    }
+
+    private func remove(_ item: String) {
+        if let index = items.firstIndex(of: item) {
+            items.remove(at: index)
+        }
+    }
+
+    private func addItems(_ entries: [String]) {
+        for entry in entries {
+            let trimmed = entry.trimmed()
+            guard !trimmed.isEmpty else { continue }
+            let isPath = trimmed.contains("/") || trimmed.hasPrefix("~")
+            let expanded = trimmed.hasPrefix("~") ? (trimmed as NSString).expandingTildeInPath : trimmed
+            let normalized = isPath ? expanded.normalizedFilePath : ""
+            let value = normalized.isEmpty ? trimmed : normalized
+            let exists = items.contains { $0.caseInsensitiveCompare(value) == .orderedSame }
+            guard !exists else { continue }
+            items.append(value)
+        }
+    }
+
+    #if os(macOS)
+        private func selectFiles() {
+            let panel = NSOpenPanel()
+            panel.title = "Selecciona archivos para excluir"
+            panel.canChooseDirectories = false
+            panel.canChooseFiles = true
+            panel.allowsMultipleSelection = true
+            panel.begin { response in
+                guard response == .OK else { return }
+                let paths = panel.urls.map(\.path)
+                addItems(paths)
+            }
+        }
+    #endif
 }
 
 private extension String {
