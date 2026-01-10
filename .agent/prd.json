@@ -23,7 +23,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Sidebar should be keyboard navigable and use existing typography styles."
     },
     {
