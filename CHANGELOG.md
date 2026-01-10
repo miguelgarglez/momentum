@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.4.2](https://github.com/miguelgarglez/momentum/compare/v1.4.1...v1.4.2) (2026-01-10)
+
+
+### Bug Fixes
+
+* isolate status item controller to main actor ([bab1ef1](https://github.com/miguelgarglez/momentum/commit/bab1ef1db7b1feee1888e5267052a6ad77bf6e67))
+* resolve swift 6 concurrency errors ([a9f3d89](https://github.com/miguelgarglez/momentum/commit/a9f3d89e5b949cc09d001dfd707256b083281b3e))
+
+
+### Refactors
+
+* **services:** centralize AppleScript runner ([363100a](https://github.com/miguelgarglez/momentum/commit/363100ac7174de42ade78cee42ceb2652150c9c5))
+* **tracking:** simplify perf budget wiring ([001e35e](https://github.com/miguelgarglez/momentum/commit/001e35e5bfcfd77de291661de69ea99d3e0ded55))
+
+
+### Tests
+
+* disable idle monitoring in tracker scenarios ([969bf9e](https://github.com/miguelgarglez/momentum/commit/969bf9e8cfb9ffd51409f290ab433f2945a13290))
+* stabilize tracker idle behavior in tests ([587ff43](https://github.com/miguelgarglez/momentum/commit/587ff437d5f29174e9ce547ce9cb205bc8fab3b9))
+
+
+### Chores
+
+* **build:** update Xcode project file ([707b30d](https://github.com/miguelgarglez/momentum/commit/707b30d2505e4bb3885e0e5327dab53e042b6f36))
+
 ## [1.4.1](https://github.com/miguelgarglez/momentum/compare/v1.4.0...v1.4.1) (2026-01-10)
 
 
