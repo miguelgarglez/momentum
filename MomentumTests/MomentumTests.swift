@@ -347,6 +347,7 @@ struct MomentumTests {
         }
         defaults.removePersistentDomain(forName: suiteName)
         let settings = TrackerSettings(defaults: defaults)
+        settings.idleThresholdMinutes = TrackerSettings.maxIdleMinutes
         let tracker = ActivityTracker(
             modelContainer: container,
             settings: settings,
