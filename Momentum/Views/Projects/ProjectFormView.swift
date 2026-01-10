@@ -52,6 +52,9 @@ struct ProjectFormView: View {
                                 guard let hex = newValue.hexString() else { return }
                                 draft.colorHex = hex
                                 updateRecents(with: hex)
+#if os(macOS)
+                                NSColorPanel.shared.close()
+#endif
                             }
                         ),
                         supportsOpacity: false
