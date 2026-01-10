@@ -8,11 +8,6 @@
 import SwiftData
 import SwiftUI
 
-struct ManualTrackingNewProjectDraft {
-    var name: String
-    var icon: ProjectIcon?
-}
-
 struct ManualTrackingSheetView: View {
     private enum Mode: String, CaseIterable, Identifiable {
         case existing

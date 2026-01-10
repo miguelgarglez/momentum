@@ -17,6 +17,7 @@
 ## Layout
 - `Views/Dashboard/`: dashboard header/metrics and related UI.
 - `Views/Projects/`: project detail, charts, forms, list views.
+- `Views/Settings/`: app and tracking settings views.
 - `Views/Tracking/`: conflict resolution and tracking-specific UI.
 - `Views/Components/`: reusable UI building blocks.
 - `Views/Styles/`: shared view modifiers/styles.

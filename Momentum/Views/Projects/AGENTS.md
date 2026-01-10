@@ -3,7 +3,7 @@
 ## Scope
 - Project-centric UI: detail screens, activity charts, forms, list cells, and helpers.
 - Keep business logic in models/services; views should format and present.
- - Examples in this folder: `ProjectDetailView`, `ProjectActivityViews`, `ProjectFormView`, `ProjectListViews`.
+- Examples in this folder: `ProjectDetailView`, `ProjectWeeklySummaryChartView`, `ProjectActivityHistoryViews`, `ProjectFormView`, `ProjectListViews`.
 
 ## Conventions
 - Favor small subviews for sections (cards, rows, headers).
