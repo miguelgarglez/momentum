@@ -28,24 +28,22 @@ struct TrackerSettingsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                Form {
-                    if let section {
+        VStack(spacing: 0) {
+            Form {
+                if let section {
+                    sectionView(for: section)
+                } else {
+                    ForEach(SettingsSection.allCases) { section in
                         sectionView(for: section)
-                    } else {
-                        ForEach(SettingsSection.allCases) { section in
-                            sectionView(for: section)
-                        }
                     }
                 }
-                .formStyle(.grouped)
-                .scrollContentBackground(.hidden)
-                .background(Color(nsColor: .windowBackgroundColor))
             }
-            .navigationTitle("Configuración")
-            .frame(minWidth: 360)
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Color(nsColor: .windowBackgroundColor))
         }
+        .navigationTitle("Configuración")
+        .frame(minWidth: 360)
         .confirmationDialog("¿Borrar todos los datos?", isPresented: $showEraseAllConfirmation, titleVisibility: .visible) {
             Button("Borrar todo", role: .destructive) { deleteAllData() }
             Button("Cancelar", role: .cancel) {}

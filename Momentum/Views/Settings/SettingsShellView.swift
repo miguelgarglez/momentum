@@ -19,10 +19,12 @@ struct SettingsShellView: View {
                 .navigationTitle("Configuración")
         } detail: {
             VStack(spacing: 0) {
-                TrackerSettingsView(
-                    draft: $draft,
-                    section: navigationModel.selection ?? .tracking,
-                )
+                NavigationStack {
+                    TrackerSettingsView(
+                        draft: $draft,
+                        section: navigationModel.selection ?? .tracking,
+                    )
+                }
                 Divider()
                 HStack(spacing: 12) {
                     Spacer()

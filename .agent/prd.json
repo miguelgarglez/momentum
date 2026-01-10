@@ -123,7 +123,7 @@
         "Run `make test-unit`",
         "Run `make test`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Confirm NavigationStack scope so the push works in section detail."
     },
     {
