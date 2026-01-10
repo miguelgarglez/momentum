@@ -50,9 +50,9 @@ struct ProjectFormView: View {
                             set: { newValue in
                                 guard let hex = newValue.hexString() else { return }
                                 draft.colorHex = hex
-                            }
+                            },
                         ),
-                        supportsOpacity: false
+                        supportsOpacity: false,
                     )
 
                     colorSwatchSection(title: "Predeterminados", colors: ProjectPalette.colors.map(\.hex))
@@ -132,9 +132,9 @@ struct ProjectFormView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar") {
-#if os(macOS)
-                        NSColorPanel.shared.close()
-#endif
+                        #if os(macOS)
+                            NSColorPanel.shared.close()
+                        #endif
                         dismiss()
                     }
                 }
@@ -142,9 +142,9 @@ struct ProjectFormView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(mode == .create ? "Crear" : "Guardar") {
                         onSave(draft)
-#if os(macOS)
-                        NSColorPanel.shared.close()
-#endif
+                        #if os(macOS)
+                            NSColorPanel.shared.close()
+                        #endif
                         dismiss()
                     }
                     .disabled(draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -226,7 +226,7 @@ private struct FileSelectionChips: View {
                     },
                     onRemove: {
                         onRemove(path)
-                    }
+                    },
                 )
                 .help(path)
             }
@@ -385,7 +385,7 @@ struct SelectedAppChips: View {
                     },
                     onRemove: {
                         selection.remove(app.bundleIdentifier)
-                    }
+                    },
                 )
             }
         }

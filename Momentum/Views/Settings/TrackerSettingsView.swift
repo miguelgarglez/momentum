@@ -649,7 +649,7 @@ private struct ExcludedAppChip: View {
                     .frame(width: 20, height: 20)
                     .clipShape(RoundedRectangle(cornerRadius: 4))
             },
-            onRemove: onRemove
+            onRemove: onRemove,
         )
     }
 }

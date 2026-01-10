@@ -1,6 +1,6 @@
 import Foundation
 
-struct ProjectUsageSummarizer {
+enum ProjectUsageSummarizer {
     struct UsageSessionSnapshot: Sendable {
         let startDate: Date
         let endDate: Date
@@ -34,7 +34,7 @@ struct ProjectUsageSummarizer {
                 0,
                 session.bundleIdentifier,
                 session.domain,
-                session.filePath
+                session.filePath,
             )
             totals[session.contextKey] = (
                 info.title,
@@ -42,7 +42,7 @@ struct ProjectUsageSummarizer {
                 info.seconds + duration,
                 info.bundleIdentifier,
                 info.domain,
-                info.filePath
+                info.filePath,
             )
         }
         let summaries = totals.map { key, value in

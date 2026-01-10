@@ -1459,7 +1459,7 @@ import SwiftData
                 """
             }
 
-            nonisolated fileprivate static func domain(from urlString: String) -> String? {
+            fileprivate nonisolated static func domain(from urlString: String) -> String? {
                 let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty else { return nil }
                 var normalized = trimmed
@@ -1480,7 +1480,7 @@ import SwiftData
             }
         }
 
-        private nonisolated struct BrowserScriptRunner {
+        private nonisolated enum BrowserScriptRunner {
             @concurrent
             static func run(script: String, identifier: String, logger: Logger) async -> String? {
                 guard let appleScript = NSAppleScript(source: script) else {

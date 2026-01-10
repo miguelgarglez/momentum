@@ -414,5 +414,4 @@ private struct ProjectDetailStats {
             usageSummaries: summaries,
         )
     }
-
 }

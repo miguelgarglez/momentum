@@ -25,7 +25,7 @@ enum HeatmapIntensityCalculator {
         return 4
     }
 
-    nonisolated private static func percentile(_ percentile: Double, in values: [TimeInterval]) -> TimeInterval {
+    private nonisolated static func percentile(_ percentile: Double, in values: [TimeInterval]) -> TimeInterval {
         guard !values.isEmpty else { return 0 }
         let index = Int(round(Double(values.count - 1) * percentile))
         return values[min(max(index, 0), values.count - 1)]

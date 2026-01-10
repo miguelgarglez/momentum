@@ -21,7 +21,7 @@ struct AssignedAppsChips: View {
             leading: {
                 appIcon(for: app)
             },
-            onRemove: {}
+            onRemove: {},
         )
         .help(app?.bundleIdentifier ?? identifier)
     }
@@ -50,7 +50,7 @@ struct AssignedFilesChips: View {
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(.secondary)
                     },
-                    onRemove: {}
+                    onRemove: {},
                 )
                 .help(path)
             }
@@ -69,7 +69,7 @@ struct WrappingChips: View {
                     showsLeading: false,
                     showsRemoveButton: false,
                     leading: { EmptyView() },
-                    onRemove: {}
+                    onRemove: {},
                 )
             }
         }

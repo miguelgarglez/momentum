@@ -142,7 +142,7 @@
         }
     }
 
-    private nonisolated struct AppleScriptRunner {
+    private nonisolated enum AppleScriptRunner {
         @concurrent
         static func run(script: String, identifier: String, logger: Logger) async -> String? {
             guard let appleScript = NSAppleScript(source: script) else {

@@ -63,43 +63,43 @@ struct ContentView: View {
         var project: Project {
             switch self {
             case let .clear(project), let .delete(project):
-                return project
+                project
             }
         }
 
         var title: String {
             switch self {
             case .clear:
-                return "¿Quieres eliminar todas las sesiones de este proyecto?"
+                "¿Quieres eliminar todas las sesiones de este proyecto?"
             case .delete:
-                return "¿Eliminar este proyecto?"
+                "¿Eliminar este proyecto?"
             }
         }
 
         var message: String {
             switch self {
             case .clear:
-                return "Esta acción conserva el proyecto y borra su historial de tiempo."
+                "Esta acción conserva el proyecto y borra su historial de tiempo."
             case .delete:
-                return "Se eliminará el proyecto y su historial asociado."
+                "Se eliminará el proyecto y su historial asociado."
             }
         }
 
         var confirmTitle: String {
             switch self {
             case .clear:
-                return "Limpiar actividad"
+                "Limpiar actividad"
             case .delete:
-                return "Eliminar proyecto"
+                "Eliminar proyecto"
             }
         }
 
         private var actionKey: String {
             switch self {
             case .clear:
-                return "clear"
+                "clear"
             case .delete:
-                return "delete"
+                "delete"
             }
         }
     }
@@ -219,7 +219,7 @@ struct ContentView: View {
                     primaryButton: .destructive(Text(action.confirmTitle)) {
                         performPendingProjectAction(action)
                     },
-                    secondaryButton: .cancel()
+                    secondaryButton: .cancel(),
                 )
             }
     }

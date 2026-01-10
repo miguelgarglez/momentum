@@ -21,7 +21,7 @@ struct RemovableChip<Leading: View>: View {
         showsLeading: Bool = true,
         showsRemoveButton: Bool = true,
         @ViewBuilder leading: () -> Leading,
-        onRemove: @escaping () -> Void
+        onRemove: @escaping () -> Void,
     ) {
         self.title = title
         self.leading = leading()
