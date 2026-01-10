@@ -82,8 +82,7 @@ struct LastUsedCard: View {
     }
 
     private var relativeTime: String {
-        let formatter = RelativeDateTimeFormatter()
-        return formatter.localizedString(for: session.endDate, relativeTo: .now)
+        Self.relativeDateFormatter.localizedString(for: session.endDate, relativeTo: .now)
     }
 
     var body: some View {
@@ -117,4 +116,12 @@ struct LastUsedCard: View {
             strokeOpacity: 0.12,
         )
     }
+}
+
+private extension LastUsedCard {
+    static let relativeDateFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter
+    }()
 }

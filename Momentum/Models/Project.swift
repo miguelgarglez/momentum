@@ -60,13 +60,15 @@ extension Project {
 
     var color: Color { Color(hex: colorHex) ?? .accentColor }
 
+    @MainActor
     var lastActivityDate: Date? {
-        sessions.sorted(by: { $0.endDate > $1.endDate }).first?.endDate
+        sessions.max(by: { $0.endDate < $1.endDate })?.endDate
     }
 
+    @MainActor
     var lastActivityText: String {
         guard let last = lastActivityDate else { return "Sin datos recientes" }
-        return RelativeDateTimeFormatter().localizedString(for: last, relativeTo: .now)
+        return Self.relativeDateFormatter.localizedString(for: last, relativeTo: .now)
     }
 
     func secondsSpent(in interval: DateInterval) -> TimeInterval {
@@ -405,6 +407,15 @@ extension Project {
         }
         return Array(summaries.sorted { $0.seconds > $1.seconds }.prefix(limit))
     }
+}
+
+private extension Project {
+    @MainActor
+    static let relativeDateFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter
+    }()
 }
 
 enum ProjectIcon: String, CaseIterable {

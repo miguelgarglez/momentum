@@ -35,16 +35,13 @@ struct ActivityHeatmapView: View {
     @Binding var selectedYear: Int
     @State private var hoveredDay: Date?
     @State private var days: [HeatmapDay] = []
+    @State private var weeks: [[HeatmapDay]] = []
+    @State private var monthLabels: [String?] = []
     @State private var thresholds: [TimeInterval] = [0, 0, 0]
+    @State private var availableYears: [Int] = []
 
     private let cellSize: CGFloat = 12
     private let spacing: CGFloat = 4
-
-    private var weeks: [[HeatmapDay]] {
-        stride(from: 0, to: days.count, by: 7).map { index in
-            Array(days[index ..< min(index + 7, days.count)])
-        }
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -147,6 +144,7 @@ struct ActivityHeatmapView: View {
     }
 
     private func refreshDays() {
+        updateAvailableYears()
         ensureSelectedYearIsAvailable()
         let interval = yearInterval(for: selectedYear)
         let calendar = Calendar.current
@@ -169,6 +167,8 @@ struct ActivityHeatmapView: View {
         }
 
         self.days = days
+        weeks = buildWeeks(from: days)
+        monthLabels = buildMonthLabels(from: weeks)
         let values = days.filter { $0.isInRange && $0.seconds > 0 }.map(\.seconds)
         thresholds = HeatmapIntensityCalculator.thresholds(for: values)
     }
@@ -180,26 +180,7 @@ struct ActivityHeatmapView: View {
     }
 
     private var refreshKey: String {
-        "\(selectedYear)-\(project.dailySummaries.count)"
-    }
-
-    private var availableYears: [Int] {
-        let calendar = Calendar.current
-        var years: Set<Int> = []
-        if !project.dailySummaries.isEmpty {
-            for summary in project.dailySummaries {
-                years.insert(calendar.component(.year, from: summary.date))
-            }
-        } else {
-            for session in project.sessions {
-                years.insert(calendar.component(.year, from: session.startDate))
-                years.insert(calendar.component(.year, from: session.endDate))
-            }
-        }
-        if years.isEmpty {
-            years.insert(calendar.component(.year, from: .now))
-        }
-        return years.sorted(by: >)
+        "\(selectedYear)-\(project.dailySummaries.count)-\(project.sessions.count)"
     }
 
     private func yearInterval(for year: Int) -> DateInterval {
@@ -238,18 +219,57 @@ struct ActivityHeatmapView: View {
     }
 
     private func monthLabel(for weekIndex: Int) -> String? {
-        guard weekIndex < weeks.count else { return nil }
+        guard weekIndex < monthLabels.count else { return nil }
+        return monthLabels[weekIndex]
+    }
+
+    private func updateAvailableYears() {
         let calendar = Calendar.current
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateFormat = "MMM"
-        for day in weeks[weekIndex] where day.isInRange {
-            if calendar.component(.day, from: day.date) == 1 {
-                return formatter.string(from: day.date).uppercased()
+        var years: Set<Int> = []
+        if !project.dailySummaries.isEmpty {
+            for summary in project.dailySummaries {
+                years.insert(calendar.component(.year, from: summary.date))
+            }
+        } else {
+            for session in project.sessions {
+                years.insert(calendar.component(.year, from: session.startDate))
+                years.insert(calendar.component(.year, from: session.endDate))
             }
         }
-        return nil
+        if years.isEmpty {
+            years.insert(calendar.component(.year, from: .now))
+        }
+        availableYears = years.sorted(by: >)
     }
+
+    private func buildWeeks(from days: [HeatmapDay]) -> [[HeatmapDay]] {
+        stride(from: 0, to: days.count, by: 7).map { index in
+            Array(days[index ..< min(index + 7, days.count)])
+        }
+    }
+
+    private func buildMonthLabels(from weeks: [[HeatmapDay]]) -> [String?] {
+        guard !weeks.isEmpty else { return [] }
+        let calendar = Calendar.current
+        let formatter = Self.monthFormatter
+        formatter.locale = Locale.current
+        return weeks.map { week in
+            for day in week where day.isInRange {
+                if calendar.component(.day, from: day.date) == 1 {
+                    return formatter.string(from: day.date).uppercased()
+                }
+            }
+            return nil
+        }
+    }
+}
+
+private extension ActivityHeatmapView {
+    static let monthFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        return formatter
+    }()
 }
 
 private struct HeatmapDay: Identifiable {
