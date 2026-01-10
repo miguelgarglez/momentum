@@ -14,6 +14,7 @@ struct ProjectFormView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appCatalog: AppCatalog
     @State private var draft: ProjectFormDraft
+    @AppStorage("projectColorRecents") private var recentColorsData: String = ""
     private let mode: FormMode
 
     let onSave: (ProjectFormDraft) -> Void
@@ -43,26 +44,23 @@ struct ProjectFormView: View {
                 }
 
                 Section("Color") {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 16) {
-                            ForEach(ProjectPalette.colors) { paletteColor in
-                                Circle()
-                                    .fill(Color(hex: paletteColor.hex) ?? .accentColor)
-                                    .frame(width: 48, height: 48)
-                                    .overlay {
-                                        if paletteColor.hex == draft.colorHex {
-                                            Image(systemName: "checkmark")
-                                                .font(.headline)
-                                                .foregroundStyle(.white)
-                                        }
-                                    }
-                                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-                                    .onTapGesture {
-                                        draft.colorHex = paletteColor.hex
-                                    }
+                    ColorPicker(
+                        "Selector",
+                        selection: Binding(
+                            get: { Color(hex: draft.colorHex) ?? .accentColor },
+                            set: { newValue in
+                                guard let hex = newValue.hexString() else { return }
+                                draft.colorHex = hex
+                                updateRecents(with: hex)
                             }
-                        }
-                        .padding(.vertical, 8)
+                        ),
+                        supportsOpacity: false
+                    )
+
+                    colorSwatchSection(title: "Favoritos", colors: ProjectPalette.colors.map(\.hex))
+
+                    if !recentColors.isEmpty {
+                        colorSwatchSection(title: "Recientes", colors: recentColors)
                     }
                 }
 
@@ -151,6 +149,53 @@ struct ProjectFormView: View {
                     }
                     .disabled(draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
+            }
+        }
+    }
+
+    private var recentColors: [String] {
+        recentColorsData
+            .split(separator: ",")
+            .map { String($0) }
+            .filter { $0.hasPrefix("#") && $0.count == 7 }
+    }
+
+    private func updateRecents(with hex: String) {
+        var colors = recentColors.filter { $0 != hex }
+        colors.insert(hex, at: 0)
+        if colors.count > 6 {
+            colors = Array(colors.prefix(6))
+        }
+        recentColorsData = colors.joined(separator: ",")
+    }
+
+    @ViewBuilder
+    private func colorSwatchSection(title: String, colors: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    ForEach(colors, id: \.self) { hex in
+                        Circle()
+                            .fill(Color(hex: hex) ?? .accentColor)
+                            .frame(width: 44, height: 44)
+                            .overlay {
+                                if hex == draft.colorHex {
+                                    Image(systemName: "checkmark")
+                                        .font(.headline)
+                                        .foregroundStyle(.white)
+                                }
+                            }
+                            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                            .onTapGesture {
+                                draft.colorHex = hex
+                                updateRecents(with: hex)
+                            }
+                    }
+                }
+                .padding(.vertical, 6)
             }
         }
     }
