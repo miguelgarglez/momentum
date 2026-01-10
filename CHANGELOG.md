@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.4.0](https://github.com/miguelgarglez/momentum/compare/v1.3.0...v1.4.0) (2026-01-10)
+
+
+### Features
+
+* add color picker for project color ([073bb56](https://github.com/miguelgarglez/momentum/commit/073bb5667cf97671f459710e5f4b558a64e95ef2))
+* **projects:** add usage summary support ([c5466b3](https://github.com/miguelgarglez/momentum/commit/c5466b3e3ea4245988dd1b72b31cdac1bf5818aa))
+* **ui:** add navigation to project details ([a49549f](https://github.com/miguelgarglez/momentum/commit/a49549f4119392a53fcf6e7df6e8930a36decfc8))
+
+
+### Bug Fixes
+
+* close color panel after selection ([dc7a9d3](https://github.com/miguelgarglez/momentum/commit/dc7a9d3c8883351d4fae3575c4a7a5f196535cf3))
+* close color panel on cancel ([443af15](https://github.com/miguelgarglez/momentum/commit/443af15cb2f32ae2021fe2cfb4b81e9e4ffda1e2))
+* close color panel on save ([f2a7ca3](https://github.com/miguelgarglez/momentum/commit/f2a7ca32e5f41526fa68b8790e82785561d6a169))
+* match file chip delete style ([b9fd585](https://github.com/miguelgarglez/momentum/commit/b9fd58512624f1352e47b7e1b8879ef88fd93859))
+* remove leftover recents hook ([826dcea](https://github.com/miguelgarglez/momentum/commit/826dcea6d569c9f3c3800d6fea43e5e74e085162))
+
+
+### Refactors
+
+* **app:** swift 6.2 and tighten tracking and UI code ([b2aaa2e](https://github.com/miguelgarglez/momentum/commit/b2aaa2ea7ed83c852f963a7e3104eab67555e388))
+* extract removable chip component ([d778cfb](https://github.com/miguelgarglez/momentum/commit/d778cfbb73172c79c98a50293e2e2cf456617fd7))
+* reuse chip styling in detail view ([6fddc58](https://github.com/miguelgarglez/momentum/commit/6fddc58e00e0ff217d4e6ed195080ea2b3e21d96))
+* reuse removable chip in settings ([5e2bf7c](https://github.com/miguelgarglez/momentum/commit/5e2bf7cc499fde35977f0566be6505b3ae1eefa4))
+* **ui:** split project detail views ([af5daeb](https://github.com/miguelgarglez/momentum/commit/af5daeb5766fa3dff0ba8d0665719d2245128aca))
+* unify removable chip styling ([77effcf](https://github.com/miguelgarglez/momentum/commit/77effcf446be0494fc88ce8d3abd298ffbfcde2c))
+
 ## [1.3.0](https://github.com/miguelgarglez/momentum/compare/v1.2.1...v1.3.0) (2026-01-10)
 
 
