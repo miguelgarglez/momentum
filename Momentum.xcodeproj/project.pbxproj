@@ -437,6 +437,13 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				OTHER_SWIFT_FLAGS = (
+					"$(inherited)",
+					"-Xfrontend",
+					"-enable-experimental-feature",
+					"-Xfrontend",
+					"IsolatedDeinit",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = miguelgarglez.Momentum.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -468,6 +475,13 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				OTHER_SWIFT_FLAGS = (
+					"$(inherited)",
+					"-Xfrontend",
+					"-enable-experimental-feature",
+					"-Xfrontend",
+					"IsolatedDeinit",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = miguelgarglez.Momentum;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
