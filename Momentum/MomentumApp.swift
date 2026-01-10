@@ -73,7 +73,7 @@ struct MomentumApp: App {
         Settings {
             Group {
                 if let container = environment.container {
-                    TrackerSettingsView()
+                    SettingsShellView()
                         .environmentObject(environment.trackerSettings)
                         .environmentObject(environment.appCatalog)
                         .environmentObject(onboardingState)
@@ -97,7 +97,7 @@ struct MomentumApp: App {
             #endif
         }
         .windowResizability(.contentSize)
-        .defaultSize(width: 420, height: 360)
+        .defaultSize(width: 720, height: 520)
 
         #if os(macOS)
             WindowGroup(id: OnboardingWindowID.welcome) {

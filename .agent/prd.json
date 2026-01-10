@@ -74,7 +74,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Adjust default window size for split view without breaking current behavior."
     },
     {
