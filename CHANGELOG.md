@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/miguelgarglez/momentum/compare/v1.4.0...v1.4.1) (2026-01-10)
+
+
+### Style
+
+* **ui:** normalize formatting updates ([01ef559](https://github.com/miguelgarglez/momentum/commit/01ef55904a7cb3b40055a19fa9d0b449a8f3b1a9))
+
 ## [1.4.0](https://github.com/miguelgarglez/momentum/compare/v1.3.0...v1.4.0) (2026-01-10)
 
 
