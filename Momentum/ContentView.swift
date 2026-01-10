@@ -33,6 +33,7 @@ struct ContentView: View {
     @State private var showAutomationPrompt = false
     @State private var toast: ToastMessage?
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var pendingProjectAction: PendingProjectAction?
     #if os(macOS)
         @Environment(\.openWindow) private var openWindow
     #endif
@@ -49,6 +50,58 @@ struct ContentView: View {
         static let sidebarMinWidth: CGFloat = 350
         static let sidebarIdealWidth: CGFloat = 400
         static let sidebarMaxWidth: CGFloat = 450
+    }
+
+    private enum PendingProjectAction: Identifiable {
+        case clear(Project)
+        case delete(Project)
+
+        var id: String {
+            "\(actionKey)-\(project.persistentModelID)"
+        }
+
+        var project: Project {
+            switch self {
+            case let .clear(project), let .delete(project):
+                return project
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .clear:
+                return "¿Quieres eliminar todas las sesiones de este proyecto?"
+            case .delete:
+                return "¿Eliminar este proyecto?"
+            }
+        }
+
+        var message: String {
+            switch self {
+            case .clear:
+                return "Esta acción conserva el proyecto y borra su historial de tiempo."
+            case .delete:
+                return "Se eliminará el proyecto y su historial asociado."
+            }
+        }
+
+        var confirmTitle: String {
+            switch self {
+            case .clear:
+                return "Limpiar actividad"
+            case .delete:
+                return "Eliminar proyecto"
+            }
+        }
+
+        private var actionKey: String {
+            switch self {
+            case .clear:
+                return "clear"
+            case .delete:
+                return "delete"
+            }
+        }
     }
 
     var body: some View {
@@ -159,6 +212,16 @@ struct ContentView: View {
             .task {
                 showWelcomeWindowIfNeeded()
             }
+            .alert(item: $pendingProjectAction) { action in
+                Alert(
+                    title: Text(action.title),
+                    message: Text(action.message),
+                    primaryButton: .destructive(Text(action.confirmTitle)) {
+                        performPendingProjectAction(action)
+                    },
+                    secondaryButton: .cancel()
+                )
+            }
     }
 
     @ViewBuilder
@@ -230,10 +293,10 @@ struct ContentView: View {
                                     activeProjectSheet = .edit(project)
                                 }
                                 Button("Limpiar actividad", role: .destructive) {
-                                    clearActivity(for: project)
+                                    pendingProjectAction = .clear(project)
                                 }
                                 Button("Eliminar", role: .destructive) {
-                                    deleteProject(project)
+                                    pendingProjectAction = .delete(project)
                                 }
                             }
                     }
@@ -455,6 +518,15 @@ struct ContentView: View {
 
     private func startTracking(for project: Project) {
         startManualTracking(with: project)
+    }
+
+    private func performPendingProjectAction(_ action: PendingProjectAction) {
+        switch action {
+        case let .clear(project):
+            clearActivity(for: project)
+        case let .delete(project):
+            deleteProject(project)
+        }
     }
 
     private func handleAutomationPromptIfNeeded(for summary: ActivityTracker.StatusSummary) {

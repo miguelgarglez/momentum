@@ -11,6 +11,7 @@ struct ProjectDetailView: View {
     let onClearActivity: (Project) -> Void
     let onStartTracking: (Project) -> Void
     @State private var showClearActivityDialog = false
+    @State private var showDeleteDialog = false
     @State private var stats = ProjectDetailStats.empty
 
     enum MetricLayout {
@@ -84,7 +85,7 @@ struct ProjectDetailView: View {
                             Text("Limpiar actividad")
                         }
                         Button(role: .destructive) {
-                            onDelete(project)
+                            showDeleteDialog = true
                         } label: {
                             Text("Eliminar")
                         }
@@ -94,17 +95,21 @@ struct ProjectDetailView: View {
                     }
                 }
             }
-            .confirmationDialog(
-                "¿Quieres eliminar todas las sesiones de este proyecto?",
-                isPresented: $showClearActivityDialog,
-                titleVisibility: .visible,
-            ) {
+            .alert("¿Quieres eliminar todas las sesiones de este proyecto?", isPresented: $showClearActivityDialog) {
                 Button("Limpiar actividad", role: .destructive) {
                     onClearActivity(project)
                 }
                 Button("Cancelar", role: .cancel) {}
             } message: {
                 Text("Esta acción conserva el proyecto y borra su historial de tiempo.")
+            }
+            .alert("¿Eliminar este proyecto?", isPresented: $showDeleteDialog) {
+                Button("Eliminar proyecto", role: .destructive) {
+                    onDelete(project)
+                }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("Se eliminará el proyecto y su historial asociado.")
             }
         }
         .task(id: refreshKey) {
