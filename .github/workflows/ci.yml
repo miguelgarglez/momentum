@@ -23,7 +23,11 @@ jobs:
       - name: Verify Release Please version marker
         run: |
           set -euo pipefail
-          rg -n "MARKETING_VERSION = .*// x-release-please-version" Momentum.xcodeproj/project.pbxproj >/dev/null
+          if command -v rg >/dev/null 2>&1; then
+            rg -n "MARKETING_VERSION = .*// x-release-please-version" Configs/Version.xcconfig >/dev/null
+          else
+            grep -n "MARKETING_VERSION = .*// x-release-please-version" Configs/Version.xcconfig >/dev/null
+          fi
 
       - name: Install SwiftLint
         run: |
