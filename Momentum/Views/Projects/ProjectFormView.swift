@@ -162,44 +162,44 @@ struct ProjectFormView: View {
                 }
 
                 Section("Archivos") {
-#if os(macOS)
-                    if !draft.assignedFiles.isEmpty {
-                        FileSelectionChips(
-                            filePaths: draft.assignedFiles,
-                            onRemove: { path in
-                                draft.removeFile(path)
-                            }
-                        )
-                    }
-
-                    Button("Seleccionar archivos…") {
-                        selectFiles()
-                    }
-                    .buttonStyle(.bordered)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Añadir rutas manualmente")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(.secondary)
-                        HStack {
-                            LTRTextField(
-                                text: $draft.manualFilesEntry,
-                                placeholder: "Rutas de archivo (separadas por coma)",
-                                accessibilityIdentifier: "project-files-field"
+                    #if os(macOS)
+                        if !draft.assignedFiles.isEmpty {
+                            FileSelectionChips(
+                                filePaths: draft.assignedFiles,
+                                onRemove: { path in
+                                    draft.removeFile(path)
+                                }
                             )
-                            .macRoundedTextFieldStyle()
-                            Button("Añadir") {
-                                draft.addManualFilesEntry()
-                            }
-                            .disabled(draft.manualFilesEntry.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
-                    }
-#else
-                    TextField("Rutas de archivo (separadas por coma)", text: $draft.manualFilesEntry)
-                        .accessibilityIdentifier("project-files-field")
-                        .textFieldStyle(.roundedBorder)
-                        .padding(.vertical, 4)
-#endif
+
+                        Button("Seleccionar archivos…") {
+                            selectFiles()
+                        }
+                        .buttonStyle(.bordered)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Añadir rutas manualmente")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(.secondary)
+                            HStack {
+                                LTRTextField(
+                                    text: $draft.manualFilesEntry,
+                                    placeholder: "Rutas de archivo (separadas por coma)",
+                                    accessibilityIdentifier: "project-files-field"
+                                )
+                                .macRoundedTextFieldStyle()
+                                Button("Añadir") {
+                                    draft.addManualFilesEntry()
+                                }
+                                .disabled(draft.manualFilesEntry.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            }
+                        }
+                    #else
+                        TextField("Rutas de archivo (separadas por coma)", text: $draft.manualFilesEntry)
+                            .accessibilityIdentifier("project-files-field")
+                            .textFieldStyle(.roundedBorder)
+                            .padding(.vertical, 4)
+                    #endif
                     Text("Guardamos la ruta del archivo para reconocerlo en el tracking.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -235,22 +235,22 @@ struct ProjectFormView: View {
 }
 
 #if os(macOS)
-private extension ProjectFormView {
-    @MainActor
-    func selectFiles() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = true
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.canCreateDirectories = false
-        panel.prompt = "Seleccionar"
-        panel.begin { response in
-            guard response == .OK else { return }
-            let paths = panel.urls.map { $0.path }
-            draft.addFiles(paths)
+    private extension ProjectFormView {
+        @MainActor
+        func selectFiles() {
+            let panel = NSOpenPanel()
+            panel.allowsMultipleSelection = true
+            panel.canChooseFiles = true
+            panel.canChooseDirectories = false
+            panel.canCreateDirectories = false
+            panel.prompt = "Seleccionar"
+            panel.begin { response in
+                guard response == .OK else { return }
+                let paths = panel.urls.map { $0.path }
+                draft.addFiles(paths)
+            }
         }
     }
-}
 #endif
 
 private struct FileSelectionChips: View {

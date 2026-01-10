@@ -1,3 +1,4 @@
 --indent 4
 --linebreaks lf
 --exclude .build,.derivedData,build,DerivedData,Packages,Carthage
+--disable redundantSelf
