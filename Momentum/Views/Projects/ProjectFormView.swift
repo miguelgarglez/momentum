@@ -132,6 +132,9 @@ struct ProjectFormView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar") {
+#if os(macOS)
+                        NSColorPanel.shared.close()
+#endif
                         dismiss()
                     }
                 }
