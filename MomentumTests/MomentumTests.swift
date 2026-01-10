@@ -889,6 +889,7 @@ final class InMemoryModelContainerFactory {
             crashRecovery: MockCrashRecoveryHandler(),
             performanceMonitor: MockPerformanceMonitor(),
         )
+        tracker.testing_disableIdleMonitoring()
         return TrackerScenario(tracker: tracker, container: container, primaryProject: project, primaryBundle: primaryBundle, secondaryBundle: secondaryBundle)
     }
 }

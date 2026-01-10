@@ -81,6 +81,8 @@ import SwiftData
         private let idleCheckInterval: TimeInterval = 5
         /// Frequency for purging expired assignment rules.
         private let rulesCleanupInterval: TimeInterval = 60 * 60 * 24
+        /// Max interval for domain/file polling backoff.
+        private let maxResolutionInterval: TimeInterval = 60
 
         private var currentContext: AppSessionContext?
         private var observer: NSObjectProtocol?
@@ -93,6 +95,8 @@ import SwiftData
         private var screenUnlockObserver: NSObjectProtocol?
         private var isResolvingDomain = false
         private var isResolvingFile = false
+        private var domainBackoffLevel = 0
+        private var fileBackoffLevel = 0
         private var isUserIdle = false
         private var isScreenLocked = false
         private var idleBeganAt: Date?
@@ -257,6 +261,8 @@ import SwiftData
                 logger.debug("App \(identifier, privacy: .public) is excluded from tracking")
             }
             setCurrentContext(context)
+            resetDomainBackoff()
+            resetFileBackoff()
             if settings.isDomainTrackingEnabled, !isExcludedApp {
                 triggerDomainResolution()
             }
@@ -445,7 +451,7 @@ import SwiftData
         private func startDomainPolling() {
             domainTimer?.invalidate()
             guard isTrackingEnabled, settings.isDomainTrackingEnabled else { return }
-            let interval = max(TrackerSettings.minDetectionInterval, settings.detectionInterval)
+            let interval = domainPollingInterval()
             domainTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
@@ -457,7 +463,7 @@ import SwiftData
         private func startFilePolling() {
             fileTimer?.invalidate()
             guard isTrackingEnabled, settings.isFileTrackingEnabled else { return }
-            let interval = max(TrackerSettings.minDetectionInterval, settings.detectionInterval)
+            let interval = filePollingInterval()
             fileTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
@@ -479,11 +485,20 @@ import SwiftData
                   application.bundleIdentifier == context.bundleIdentifier else { return }
 
             isResolvingDomain = true
+            let previousDomain = currentContext?.domain
+            let previousExcluded = currentContext?.isExcluded ?? false
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 let resolvedDomain = await self.domainResolver.resolveDomain(for: application)
                 self.isResolvingDomain = false
                 self.applyResolvedDomain(resolvedDomain, for: application)
+                let didChange = previousDomain != self.currentContext?.domain ||
+                    previousExcluded != (self.currentContext?.isExcluded ?? false)
+                if didChange {
+                    self.resetDomainBackoff()
+                } else {
+                    self.bumpDomainBackoffIfNeeded()
+                }
             }
         }
 
@@ -500,11 +515,20 @@ import SwiftData
                   application.bundleIdentifier == context.bundleIdentifier else { return }
 
             isResolvingFile = true
+            let previousFile = currentContext?.filePath
+            let previousExcluded = currentContext?.isExcluded ?? false
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 let resolvedPath = await self.fileResolver.resolveFilePath(for: application)
                 self.isResolvingFile = false
                 self.applyResolvedFilePath(resolvedPath, for: application)
+                let didChange = previousFile != self.currentContext?.filePath ||
+                    previousExcluded != (self.currentContext?.isExcluded ?? false)
+                if didChange {
+                    self.resetFileBackoff()
+                } else {
+                    self.bumpFileBackoffIfNeeded()
+                }
             }
         }
 
@@ -512,8 +536,8 @@ import SwiftData
             settings.$detectionInterval
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in
-                    self?.startDomainPolling()
-                    self?.startFilePolling()
+                    self?.resetDomainBackoff()
+                    self?.resetFileBackoff()
                 }
                 .store(in: &cancellables)
 
@@ -522,11 +546,12 @@ import SwiftData
                 .sink { [weak self] isEnabled in
                     guard let self else { return }
                     if isEnabled {
-                        self.startDomainPolling()
+                        self.resetDomainBackoff()
                         self.triggerDomainResolution()
                     } else {
                         self.domainTimer?.invalidate()
                         self.domainTimer = nil
+                        self.domainBackoffLevel = 0
                         if var context = self.currentContext {
                             context.domain = nil
                             if !context.isExcluded {
@@ -543,11 +568,12 @@ import SwiftData
                 .sink { [weak self] isEnabled in
                     guard let self else { return }
                     if isEnabled {
-                        self.startFilePolling()
+                        self.resetFileBackoff()
                         self.triggerFileResolution()
                     } else {
                         self.fileTimer?.invalidate()
                         self.fileTimer = nil
+                        self.fileBackoffLevel = 0
                         if var context = self.currentContext {
                             context.filePath = nil
                             if !context.isExcluded {
@@ -1201,6 +1227,52 @@ import SwiftData
             startIdleMonitoring()
         }
 
+        private func domainPollingInterval() -> TimeInterval {
+            let base = max(TrackerSettings.minDetectionInterval, settings.detectionInterval)
+            let interval = base * pow(2, Double(domainBackoffLevel))
+            return min(interval, maxResolutionInterval)
+        }
+
+        private func filePollingInterval() -> TimeInterval {
+            let base = max(TrackerSettings.minDetectionInterval, settings.detectionInterval)
+            let interval = base * pow(2, Double(fileBackoffLevel))
+            return min(interval, maxResolutionInterval)
+        }
+
+        private func resetDomainBackoff() {
+            guard domainBackoffLevel != 0 else {
+                startDomainPolling()
+                return
+            }
+            domainBackoffLevel = 0
+            startDomainPolling()
+        }
+
+        private func resetFileBackoff() {
+            guard fileBackoffLevel != 0 else {
+                startFilePolling()
+                return
+            }
+            fileBackoffLevel = 0
+            startFilePolling()
+        }
+
+        private func bumpDomainBackoffIfNeeded() {
+            let previous = domainBackoffLevel
+            domainBackoffLevel = min(domainBackoffLevel + 1, 4)
+            if previous != domainBackoffLevel {
+                startDomainPolling()
+            }
+        }
+
+        private func bumpFileBackoffIfNeeded() {
+            let previous = fileBackoffLevel
+            fileBackoffLevel = min(fileBackoffLevel + 1, 4)
+            if previous != fileBackoffLevel {
+                startFilePolling()
+            }
+        }
+
         private func startRuleExpirationMonitoring() {
             rulesCleanupTimer?.invalidate()
             rulesCleanupTimer = nil
@@ -1367,6 +1439,14 @@ import SwiftData
 
             func testing_forceIdleState(_ idle: Bool) {
                 isUserIdle = idle
+                refreshStatusSummary()
+            }
+
+            func testing_disableIdleMonitoring() {
+                idleTimer?.invalidate()
+                idleTimer = nil
+                isUserIdle = false
+                idleBeganAt = nil
                 refreshStatusSummary()
             }
 
