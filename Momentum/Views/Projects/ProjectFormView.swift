@@ -208,6 +208,58 @@ struct ProjectFormView: View {
     }
 #endif
 
+private struct RemovableChip<Leading: View>: View {
+    let title: String
+    let leading: Leading
+    let removeAccessibilityLabel: String?
+    let onRemove: () -> Void
+
+    init(
+        title: String,
+        removeAccessibilityLabel: String? = nil,
+        @ViewBuilder leading: () -> Leading,
+        onRemove: @escaping () -> Void
+    ) {
+        self.title = title
+        self.leading = leading()
+        self.removeAccessibilityLabel = removeAccessibilityLabel
+        self.onRemove = onRemove
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            leading
+            Text(title)
+                .font(.caption)
+                .lineLimit(1)
+            if let label = removeAccessibilityLabel {
+                Button {
+                    onRemove()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(label)
+            } else {
+                Button {
+                    onRemove()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .background(Color.secondary.opacity(0.12))
+        .clipShape(Capsule())
+    }
+}
+
 private struct FileSelectionChips: View {
     let filePaths: [String]
     let onRemove: (String) -> Void
@@ -215,26 +267,19 @@ private struct FileSelectionChips: View {
     var body: some View {
         FlowLayout(spacing: 8) {
             ForEach(filePaths, id: \.self) { path in
-                HStack(spacing: 8) {
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text(path.filePathDisplayName)
-                        .font(.caption.weight(.medium))
-                        .lineLimit(1)
-                    Button {
-                        onRemove(path)
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.caption)
+                RemovableChip(
+                    title: path.filePathDisplayName,
+                    removeAccessibilityLabel: "Eliminar archivo",
+                    leading: {
+                        Image(systemName: "doc.text")
+                            .font(.system(size: 12, weight: .semibold))
+                            .frame(width: 20, height: 20)
                             .foregroundStyle(.secondary)
+                    },
+                    onRemove: {
+                        onRemove(path)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Eliminar archivo")
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(Color.secondary.opacity(0.12))
-                .clipShape(Capsule())
+                )
                 .help(path)
             }
         }
@@ -381,27 +426,19 @@ struct SelectedAppChips: View {
     var body: some View {
         FlowLayout(spacing: 8) {
             ForEach(apps, id: \.self) { app in
-                HStack(spacing: 6) {
-                    app.icon
-                        .resizable()
-                        .frame(width: 20, height: 20)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                    Text(app.name)
-                        .font(.caption)
-                        .lineLimit(1)
-                    Button {
+                RemovableChip(
+                    title: app.name,
+                    removeAccessibilityLabel: "Eliminar app",
+                    leading: {
+                        app.icon
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    },
+                    onRemove: {
                         selection.remove(app.bundleIdentifier)
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(Color.secondary.opacity(0.12))
-                .clipShape(Capsule())
+                )
             }
         }
     }
