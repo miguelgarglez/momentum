@@ -4,3 +4,5 @@
 2026-01-10: SET-001 passed (added SettingsSection enum + SettingsNavigationModel). verify_fast: make test-unit.
 2026-01-10: Ralph onboarded: .agent files already present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test). Ran verify_fast successfully.
 2026-01-10: SET-002 passed (added SettingsSidebarView). verify_fast: make test-unit.
+2026-01-10: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test). Ran verify_fast successfully.
+2026-01-10: SET-003 passed (added SettingsShellView with NavigationSplitView shell). verify_fast: make test-unit.

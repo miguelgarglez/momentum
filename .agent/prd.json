@@ -36,7 +36,7 @@
         "Run `make test-unit`",
         "Run `make test`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Shell hosts sidebar + detail content and centralizes window layout."
     },
     {
