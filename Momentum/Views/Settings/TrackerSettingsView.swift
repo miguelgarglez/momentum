@@ -29,12 +29,21 @@ struct TrackerSettingsView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 Form {
-                    appearanceSection
-                    trackingSection
-                    idleSection
-                    exclusionSection
-                    assignmentRulesSection
-                    privacySection
+                    SettingsAppearanceSectionView(themeSelection: themeSelectionBinding)
+                    SettingsTrackingSectionView(
+                        draft: $draft,
+                        showingAutomationInfo: $showingAutomationInfo,
+                    )
+                    SettingsIdleSectionView(draft: $draft)
+                    SettingsExclusionSectionView(draft: $draft)
+                    SettingsAssignmentRulesSectionView(draft: $draft)
+                    SettingsPrivacySectionView(
+                        draft: $draft,
+                        projects: projects,
+                        showEraseAllConfirmation: $showEraseAllConfirmation,
+                        showingEncryptionInfo: $showingEncryptionInfo,
+                        projectPendingDeletion: $projectPendingDeletion,
+                    )
                 }
                 .formStyle(.grouped)
                 .scrollContentBackground(.hidden)
@@ -143,7 +152,88 @@ struct TrackerSettingsView: View {
         )
     }
 
-    private var trackingSection: some View {
+    private var themeSelectionBinding: Binding<AppThemePreference> {
+        Binding(
+            get: { themePreview.selection ?? settings.themePreference },
+            set: { themePreview.selection = $0 },
+        )
+    }
+
+    @MainActor
+    private func applyChanges() {
+        settings.isDomainTrackingEnabled = draft.isDomainTrackingEnabled
+        settings.isFileTrackingEnabled = draft.isFileTrackingEnabled
+        settings.detectionInterval = draft.detectionInterval
+        settings.idleThresholdMinutes = draft.idleThresholdMinutes
+        settings.excludedApps = draft.excludedApps
+        settings.excludedDomains = draft.excludedDomains
+        settings.excludedFiles = draft.excludedFiles
+        settings.isDatabaseEncryptionEnabled = draft.isDatabaseEncryptionEnabled
+        settings.assignmentRuleExpiration = draft.assignmentRuleExpiration
+        settings.themePreference = themeSelectionBinding.wrappedValue
+        clearThemePreview()
+    }
+
+    private func clearThemePreview() {
+        themePreview.selection = nil
+        themePreview.previewPreference = nil
+    }
+
+    @MainActor
+    private func deleteAllData() {
+        do {
+            if #available(macOS 15, iOS 18, *) {
+                try modelContext.container.erase()
+            } else {
+                modelContext.container.deleteAllData()
+            }
+            try? modelContext.save()
+        } catch {
+            maintenanceError = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func deleteActivity(for project: Project) {
+        do {
+            project.sessions.forEach { modelContext.delete($0) }
+            project.dailySummaries.forEach { modelContext.delete($0) }
+
+            try modelContext.save()
+        } catch {
+            maintenanceError = error.localizedDescription
+        }
+    }
+}
+
+private struct SettingsAppearanceSectionView: View {
+    @Binding var themeSelection: AppThemePreference
+    @EnvironmentObject private var themePreview: ThemePreviewState
+
+    var body: some View {
+        Section("Apariencia") {
+            Picker("Tema", selection: $themeSelection) {
+                ForEach(AppThemePreference.allCases) { option in
+                    Text(option.label)
+                        .tag(option)
+                }
+            }
+            .pickerStyle(.menu)
+            .transaction { $0.disablesAnimations = true }
+            .animation(.none, value: themePreview.selection)
+        }
+    }
+}
+
+private struct SettingsTrackingSectionView: View {
+    @Binding var draft: TrackerSettingsDraft
+    @Binding var showingAutomationInfo: Bool
+
+    #if os(macOS)
+        @EnvironmentObject private var automationPermissionManager: AutomationPermissionManager
+    #endif
+
+    var body: some View {
         Section("Tracking automático") {
             Toggle("Registrar dominios web", isOn: $draft.isDomainTrackingEnabled)
             Toggle("Registrar archivos", isOn: $draft.isFileTrackingEnabled)
@@ -182,22 +272,12 @@ struct TrackerSettingsView: View {
             }
         }
     }
+}
 
-    private var appearanceSection: some View {
-        Section("Apariencia") {
-            Picker("Tema", selection: themeSelectionBinding) {
-                ForEach(AppThemePreference.allCases) { option in
-                    Text(option.label)
-                        .tag(option)
-                }
-            }
-            .pickerStyle(.menu)
-            .transaction { $0.disablesAnimations = true }
-            .animation(.none, value: themePreview.selection)
-        }
-    }
+private struct SettingsIdleSectionView: View {
+    @Binding var draft: TrackerSettingsDraft
 
-    private var idleSection: some View {
+    var body: some View {
         Section("Inactividad") {
             VStack(alignment: .leading, spacing: 8) {
                 Stepper(
@@ -217,8 +297,12 @@ struct TrackerSettingsView: View {
             }
         }
     }
+}
 
-    private var exclusionSection: some View {
+private struct SettingsExclusionSectionView: View {
+    @Binding var draft: TrackerSettingsDraft
+
+    var body: some View {
         Section("Exclusiones globales") {
             AppExclusionEditor(excludedApps: $draft.excludedApps)
 
@@ -233,8 +317,12 @@ struct TrackerSettingsView: View {
             FileExclusionEditor(items: $draft.excludedFiles)
         }
     }
+}
 
-    private var assignmentRulesSection: some View {
+private struct SettingsAssignmentRulesSectionView: View {
+    @Binding var draft: TrackerSettingsDraft
+
+    var body: some View {
         Section("Reglas de asignacion") {
             Picker("Expiración de reglas", selection: $draft.assignmentRuleExpiration) {
                 ForEach(AssignmentRuleExpirationOption.allCases) { option in
@@ -255,8 +343,16 @@ struct TrackerSettingsView: View {
                 .foregroundStyle(.secondary)
         }
     }
+}
 
-    private var privacySection: some View {
+private struct SettingsPrivacySectionView: View {
+    @Binding var draft: TrackerSettingsDraft
+    let projects: [Project]
+    @Binding var showEraseAllConfirmation: Bool
+    @Binding var showingEncryptionInfo: Bool
+    @Binding var projectPendingDeletion: Project?
+
+    var body: some View {
         Section("Privacidad y datos") {
             Toggle(isOn: $draft.isDatabaseEncryptionEnabled) {
                 HStack(spacing: 6) {
@@ -294,59 +390,6 @@ struct TrackerSettingsView: View {
                     Label("Borrar actividad de un proyecto", systemImage: "folder.badge.minus")
                 }
             }
-        }
-    }
-
-    @MainActor
-    private func applyChanges() {
-        settings.isDomainTrackingEnabled = draft.isDomainTrackingEnabled
-        settings.isFileTrackingEnabled = draft.isFileTrackingEnabled
-        settings.detectionInterval = draft.detectionInterval
-        settings.idleThresholdMinutes = draft.idleThresholdMinutes
-        settings.excludedApps = draft.excludedApps
-        settings.excludedDomains = draft.excludedDomains
-        settings.excludedFiles = draft.excludedFiles
-        settings.isDatabaseEncryptionEnabled = draft.isDatabaseEncryptionEnabled
-        settings.assignmentRuleExpiration = draft.assignmentRuleExpiration
-        settings.themePreference = themeSelectionBinding.wrappedValue
-        clearThemePreview()
-    }
-
-    private func clearThemePreview() {
-        themePreview.selection = nil
-        themePreview.previewPreference = nil
-    }
-
-    private var themeSelectionBinding: Binding<AppThemePreference> {
-        Binding(
-            get: { themePreview.selection ?? settings.themePreference },
-            set: { themePreview.selection = $0 },
-        )
-    }
-
-    @MainActor
-    private func deleteAllData() {
-        do {
-            if #available(macOS 15, iOS 18, *) {
-                try modelContext.container.erase()
-            } else {
-                modelContext.container.deleteAllData()
-            }
-            try? modelContext.save()
-        } catch {
-            maintenanceError = error.localizedDescription
-        }
-    }
-
-    @MainActor
-    private func deleteActivity(for project: Project) {
-        do {
-            project.sessions.forEach { modelContext.delete($0) }
-            project.dailySummaries.forEach { modelContext.delete($0) }
-
-            try modelContext.save()
-        } catch {
-            maintenanceError = error.localizedDescription
         }
     }
 }

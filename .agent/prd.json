@@ -49,7 +49,7 @@
         "Run `make test-unit`",
         "Run `make test`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Extract appearance/tracking/idle/exclusions/assignment/privacy into dedicated views."
     },
     {
