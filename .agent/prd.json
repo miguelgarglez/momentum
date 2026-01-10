@@ -135,7 +135,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Keep theme preview binding intact."
     },
     {
