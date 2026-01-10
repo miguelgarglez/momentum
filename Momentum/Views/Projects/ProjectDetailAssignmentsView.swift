@@ -15,21 +15,13 @@ struct AssignedAppsChips: View {
     @ViewBuilder
     private func chip(for identifier: String) -> some View {
         let app = appCatalog.app(for: identifier)
-        HStack(spacing: 8) {
-            appIcon(for: app)
-            Text(app?.name ?? identifier)
-                .font(.caption.weight(.medium))
-                .lineLimit(1)
-        }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
-        .background(
-            Capsule()
-                .fill(Color.secondary.opacity(0.12)),
-        )
-        .overlay(
-            Capsule()
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1),
+        RemovableChip(
+            title: app?.name ?? identifier,
+            showsRemoveButton: false,
+            leading: {
+                appIcon(for: app)
+            },
+            onRemove: {}
         )
         .help(app?.bundleIdentifier ?? identifier)
     }
@@ -50,22 +42,15 @@ struct AssignedFilesChips: View {
     var body: some View {
         FlowLayout(spacing: 8) {
             ForEach(filePaths, id: \.self) { path in
-                HStack(spacing: 8) {
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text(path.filePathDisplayName)
-                        .font(.caption.weight(.medium))
-                        .lineLimit(1)
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(
-                    Capsule()
-                        .fill(Color.secondary.opacity(0.12)),
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1),
+                RemovableChip(
+                    title: path.filePathDisplayName,
+                    showsRemoveButton: false,
+                    leading: {
+                        Image(systemName: "doc.text")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    },
+                    onRemove: {}
                 )
                 .help(path)
             }
@@ -79,18 +64,13 @@ struct WrappingChips: View {
     var body: some View {
         FlowLayout(spacing: 8) {
             ForEach(items, id: \.self) { item in
-                Text(item)
-                    .font(.caption)
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 10)
-                    .background(
-                        Capsule()
-                            .fill(Color.secondary.opacity(0.12)),
-                    )
-                    .overlay(
-                        Capsule()
-                            .stroke(Color.primary.opacity(0.08), lineWidth: 1),
-                    )
+                RemovableChip(
+                    title: item,
+                    showsLeading: false,
+                    showsRemoveButton: false,
+                    leading: { EmptyView() },
+                    onRemove: {}
+                )
             }
         }
     }

@@ -11,31 +11,41 @@ struct RemovableChip<Leading: View>: View {
     let title: String
     let leading: Leading
     let removeAccessibilityLabel: String?
+    let showsLeading: Bool
+    let showsRemoveButton: Bool
     let onRemove: () -> Void
 
     init(
         title: String,
         removeAccessibilityLabel: String? = nil,
+        showsLeading: Bool = true,
+        showsRemoveButton: Bool = true,
         @ViewBuilder leading: () -> Leading,
         onRemove: @escaping () -> Void
     ) {
         self.title = title
         self.leading = leading()
         self.removeAccessibilityLabel = removeAccessibilityLabel
+        self.showsLeading = showsLeading
+        self.showsRemoveButton = showsRemoveButton
         self.onRemove = onRemove
     }
 
     var body: some View {
         HStack(spacing: 6) {
-            leading
+            if showsLeading {
+                leading
+            }
             Text(title)
                 .font(.caption)
                 .lineLimit(1)
-            if let label = removeAccessibilityLabel {
-                removeButton
-                    .accessibilityLabel(label)
-            } else {
-                removeButton
+            if showsRemoveButton {
+                if let label = removeAccessibilityLabel {
+                    removeButton
+                        .accessibilityLabel(label)
+                } else {
+                    removeButton
+                }
             }
         }
         .padding(.vertical, 6)
