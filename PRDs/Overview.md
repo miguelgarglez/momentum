@@ -59,6 +59,8 @@ Su objetivo es convertir ese tiempo en **progreso visible**, manteniendo los dat
   - tiempo del día
   - actividad actual detectada
   - acceso rápido al proyecto activo
+- **FR-4.4** Visibilidad del Dock:
+  - la app inicia sin Dock y aparece solo cuando hay ventanas visibles.
 
 ## FR-5. Configuración
 - **FR-5.1** Elegir si registrar dominios o solo apps.

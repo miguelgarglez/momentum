@@ -71,35 +71,18 @@ struct MomentumApp: App {
         }
 
         Settings {
-            Group {
-                if let container = environment.container {
-                    SettingsShellView()
-                        .environmentObject(environment.trackerSettings)
-                        .environmentObject(environment.appCatalog)
-                        .environmentObject(onboardingState)
-                        .environmentObject(automationPermissionManager)
-                        .environmentObject(trackingSessionManager)
-                        .environmentObject(themePreview)
-                        .modelContainer(container)
-                } else {
-                    ProgressView("Cargando ajustes…")
-                        .padding()
-                }
-            }
-            .task {
-                await bootstrapIfNeeded()
-            }
-            .preferredColorSchemeIfNeeded(effectiveThemePreference.colorScheme)
-            #if os(macOS)
-                .task(id: effectiveThemePreference) {
-                    applyAppearance(for: effectiveThemePreference)
-                }
-            #endif
+            settingsContent(effectiveThemePreference: effectiveThemePreference)
         }
         .windowResizability(.contentSize)
         .defaultSize(width: 620, height: 460)
 
         #if os(macOS)
+            WindowGroup(id: SettingsWindowID.main) {
+                settingsContent(effectiveThemePreference: effectiveThemePreference)
+            }
+            .windowResizability(.contentSize)
+            .defaultSize(width: 620, height: 460)
+
             WindowGroup(id: OnboardingWindowID.welcome) {
                 Group {
                     if let container = environment.container,
@@ -148,6 +131,35 @@ struct MomentumApp: App {
             }
         }
     #endif
+
+    @ViewBuilder
+    private func settingsContent(effectiveThemePreference: AppThemePreference) -> some View {
+        Group {
+            if let container = environment.container {
+                SettingsShellView()
+                    .environmentObject(environment.trackerSettings)
+                    .environmentObject(environment.appCatalog)
+                    .environmentObject(onboardingState)
+                    .environmentObject(automationPermissionManager)
+                    .environmentObject(trackingSessionManager)
+                    .environmentObject(themePreview)
+                    .modelContainer(container)
+            } else {
+                ProgressView("Cargando ajustes…")
+                    .padding()
+            }
+        }
+        .task {
+            await bootstrapIfNeeded()
+        }
+        .preferredColorSchemeIfNeeded(effectiveThemePreference.colorScheme)
+        #if os(macOS)
+            .task(id: effectiveThemePreference) {
+                applyAppearance(for: effectiveThemePreference)
+            }
+            .background(WindowCloseAccessoryHandler())
+        #endif
+    }
 
     @MainActor
     private func bootstrapIfNeeded() async {
@@ -263,10 +275,15 @@ final class AppEnvironment: ObservableObject {
     private let dailySummaryBackfill: DailySummaryBackfilling = DailySummaryBackfill()
     #if os(macOS)
         private var statusItemCoordinator = StatusItemCoordinator()
+        private var dockVisibilityCoordinator = DockVisibilityCoordinator()
     #endif
 
     init(trackerSettings: TrackerSettings) {
         self.trackerSettings = trackerSettings
+        #if os(macOS)
+            NSApp.setActivationPolicy(.accessory)
+            dockVisibilityCoordinator.start()
+        #endif
     }
 
     var isConfigured: Bool {

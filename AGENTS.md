@@ -115,6 +115,9 @@ Raw `xcodebuild` commands are still valid and occasionally useful:
 - The menu bar status item is created when `AppEnvironment` finishes bootstrapping the `ActivityTracker` via `StatusItemCoordinator`.
 - Avoid wiring status item creation through `NSApplicationDelegate`; keep the lifecycle owned by `AppEnvironment` so it is deterministic.
 
+## macOS Dock Visibility
+- Dock visibility is coordinated centrally; views should post `MomentumWindowVisibilityNeedsUpdate` instead of changing activation policy directly.
+
 ## Tooling Notes
 - Optional: create `.vscode/tasks.json` entries for the `xcodebuild` commands.
 - If installed, `xcpretty` can be used to format `xcodebuild` output.

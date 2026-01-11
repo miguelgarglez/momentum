@@ -182,6 +182,10 @@
             showAppItem.target = self
             menu.addItem(showAppItem)
 
+            let settingsItem = NSMenuItem(title: "Ajustes…", action: #selector(handleShowSettings), keyEquivalent: ",")
+            settingsItem.target = self
+            menu.addItem(settingsItem)
+
             menu.addItem(NSMenuItem.separator())
 
             let quitItem = NSMenuItem(title: "Salir", action: #selector(handleQuit), keyEquivalent: "q")
@@ -286,7 +290,7 @@
         }
 
         @objc private func handleShowApp(_: Any?) {
-            NSApplication.shared.activate(ignoringOtherApps: true)
+            NotificationCenter.default.post(name: .statusItemShowApp, object: nil)
         }
 
         @objc private func handleOpenActiveProject(_ sender: Any?) {
@@ -303,11 +307,18 @@
         @objc private func handleQuit(_: Any?) {
             NSApplication.shared.terminate(nil)
         }
+
+        @objc private func handleShowSettings(_: Any?) {
+            NotificationCenter.default.post(name: .statusItemShowSettings, object: nil)
+        }
+
     }
 
     extension Notification.Name {
         static let statusItemOpenProject = Notification.Name("StatusItemOpenProject")
         static let statusItemStartManualTracking = Notification.Name("StatusItemStartManualTracking")
+        static let statusItemShowApp = Notification.Name("StatusItemShowApp")
+        static let statusItemShowSettings = Notification.Name("StatusItemShowSettings")
     }
 
     enum StatusItemUserInfoKey {

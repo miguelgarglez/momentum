@@ -36,6 +36,7 @@ struct ContentView: View {
     @State private var pendingProjectAction: PendingProjectAction?
     #if os(macOS)
         @Environment(\.openWindow) private var openWindow
+        @State private var shouldSuppressInitialWindow = true
     #endif
     @State private var hasPresentedWelcome = false
     @State private var onboardingTrackingStarter = OnboardingTrackingStarter()
@@ -166,12 +167,26 @@ struct ContentView: View {
         }
         .animation(Layout.toastAnimation, value: toast)
         #if os(macOS)
+            .background(
+                MainWindowVisibilityObserver(
+                    shouldSuppressInitialWindow: $shouldSuppressInitialWindow
+                )
+            )
+            .background(
+                WindowCloseAccessoryHandler()
+            )
+            .onReceive(NotificationCenter.default.publisher(for: .statusItemShowApp)) { _ in
+                showMainWindowFromStatusItem()
+            }
             .onReceive(NotificationCenter.default.publisher(for: .statusItemOpenProject)) { notification in
                 guard let identifier = notification.userInfo?[StatusItemUserInfoKey.projectID] as? PersistentIdentifier else { return }
                 selectedProjectID = identifier
             }
             .onReceive(NotificationCenter.default.publisher(for: .statusItemStartManualTracking)) { _ in
                 showManualTrackingSheet = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .statusItemShowSettings)) { _ in
+                showSettingsFromStatusItem()
             }
         #endif
             .onReceive(tracker.$manualStopEvent.compactMap(\.self)) { event in
@@ -576,6 +591,28 @@ struct ContentView: View {
                 openWindow(id: OnboardingWindowID.welcome)
             }
         }
+
+        private func showMainWindowFromStatusItem() {
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            NSApplication.shared.unhide(nil)
+            NSApp.setActivationPolicy(.regular)
+            if let window = NSApp.windows.first(where: { $0.canBecomeKey }) {
+                window.makeKeyAndOrderFront(nil)
+                window.orderFrontRegardless()
+            }
+        }
+
+        private func showSettingsFromStatusItem() {
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            NSApplication.shared.unhide(nil)
+            if #available(macOS 13.0, *) {
+                NSApp.setActivationPolicy(.regular)
+                openWindow(id: SettingsWindowID.main)
+            } else {
+                let selector = Selector(("showSettingsWindow:"))
+                NSApplication.shared.sendAction(selector, to: nil, from: nil)
+            }
+        }
     #else
         private func showWelcomeWindowIfNeeded() {}
     #endif
@@ -595,10 +632,33 @@ private enum ProjectSheet: Identifiable {
     }
 }
 
+#if os(macOS)
+    private struct MainWindowVisibilityObserver: NSViewRepresentable {
+        @Binding var shouldSuppressInitialWindow: Bool
+
+        func makeNSView(context: Context) -> NSView {
+            NSView()
+        }
+
+        func updateNSView(_ nsView: NSView, context: Context) {
+            DispatchQueue.main.async {
+                guard let window = nsView.window else { return }
+                if shouldSuppressInitialWindow {
+                    shouldSuppressInitialWindow = false
+                    window.orderOut(nil)
+                    return
+                }
+                if window.isVisible {
+                    NotificationCenter.default.post(name: .momentumWindowVisibilityNeedsUpdate, object: nil)
+                }
+            }
+        }
+    }
+#endif
+
 private struct ContentViewPreviewWrapper: View {
     let container: ModelContainer
     let tracker: ActivityTracker
-    let settings: TrackerSettings
     let catalog: AppCatalog
     let onboardingState: OnboardingState
     let automationPermissionManager: AutomationPermissionManager
@@ -637,7 +697,6 @@ private struct ContentViewPreviewWrapper: View {
 
         container = schemaContainer
         tracker = previewTracker
-        settings = previewSettings
         catalog = previewCatalog
         onboardingState = OnboardingState()
         automationPermissionManager = AutomationPermissionManager()
@@ -647,7 +706,6 @@ private struct ContentViewPreviewWrapper: View {
     var body: some View {
         ContentView()
             .environmentObject(tracker)
-            .environmentObject(settings)
             .environmentObject(catalog)
             .environmentObject(onboardingState)
             .environmentObject(automationPermissionManager)
