@@ -64,3 +64,5 @@
 2026-01-11: SET-023 passed (added sidebar preview hints for empty exclusions and assignment rules). verify_fast: make test-unit.
 2026-01-11: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
 2026-01-11: SET-025 passed (added settings layout UX note). verify_fast: make test-unit.
+2026-01-11: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
+2026-01-11: SET-026 passed (verified no dependency/tooling changes detected in current diff). verify_fast: make test-unit.
