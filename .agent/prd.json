@@ -188,7 +188,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Keep idle threshold stepper + explanatory text."
     },
     {
