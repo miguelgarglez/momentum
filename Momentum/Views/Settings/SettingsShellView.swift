@@ -43,6 +43,7 @@ struct SettingsShellView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 12)
             }
+            .background(Color(nsColor: .windowBackgroundColor))
         }
         .environmentObject(navigationModel)
         .frame(minWidth: Layout.minWidth, minHeight: Layout.minHeight)

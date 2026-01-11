@@ -259,7 +259,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Keep grouped form style and window background color consistent."
     },
     {

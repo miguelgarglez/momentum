@@ -18,6 +18,9 @@ struct TrackerSettingsView: View {
     @State private var maintenanceError: String?
     @State private var showingEncryptionInfo = false
     @State private var showingAutomationInfo = false
+    private enum Layout {
+        static let formVerticalPadding: CGFloat = 12
+    }
 
     init(draft: Binding<TrackerSettingsDraft>, section: SettingsSection? = nil) {
         _draft = draft
@@ -37,6 +40,7 @@ struct TrackerSettingsView: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
+            .padding(.vertical, Layout.formVerticalPadding)
             .background(Color(nsColor: .windowBackgroundColor))
         }
         .navigationTitle("Configuración")
