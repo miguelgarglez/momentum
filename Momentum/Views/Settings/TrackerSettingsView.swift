@@ -40,7 +40,6 @@ struct TrackerSettingsView: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-            .padding(.vertical, Layout.formVerticalPadding)
             .background(Color(nsColor: .windowBackgroundColor))
         }
         .navigationTitle("Configuración")

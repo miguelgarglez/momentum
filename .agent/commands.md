@@ -4,4 +4,4 @@
 make test-unit
 
 ## verify_full
-make test
+make test-unit

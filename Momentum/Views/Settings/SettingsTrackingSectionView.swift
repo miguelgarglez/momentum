@@ -47,7 +47,7 @@ struct SettingsTrackingSectionView: View {
             }
         } header: {
             SettingsSectionHeader(
-                "Tracking automático",
+                "Tracking",
                 subtitle: "Controla qué fuentes registra Momentum y la frecuencia de detección.",
             )
         }

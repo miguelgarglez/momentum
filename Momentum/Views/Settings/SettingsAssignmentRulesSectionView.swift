@@ -1,10 +1,17 @@
+import SwiftData
 import SwiftUI
 
 struct SettingsAssignmentRulesSectionView: View {
     @Binding var draft: TrackerSettingsDraft
+    @Query(sort: \AssignmentRule.lastUsedAt, order: .reverse) private var rules: [AssignmentRule]
 
     var body: some View {
         Section {
+            if rules.isEmpty {
+                Text("Sin reglas guardadas.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Picker("Expiración de reglas", selection: $draft.assignmentRuleExpiration) {
                 ForEach(AssignmentRuleExpirationOption.allCases) { option in
                     Text(option.label)
@@ -24,7 +31,7 @@ struct SettingsAssignmentRulesSectionView: View {
                 .foregroundStyle(.secondary)
         } header: {
             SettingsSectionHeader(
-                "Reglas de asignacion",
+                "Reglas",
                 subtitle: "Configura cómo se asignan automáticamente las sesiones a proyectos.",
             )
         }

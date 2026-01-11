@@ -48,7 +48,7 @@ struct SettingsPrivacySectionView: View {
             }
         } header: {
             SettingsSectionHeader(
-                "Privacidad y datos",
+                "Privacidad",
                 subtitle: "Gestiona la protección de tu base de datos y limpieza de actividad.",
             )
         }

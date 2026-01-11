@@ -14,17 +14,17 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .tracking:
-            return "Tracking automatico"
+            return "Tracking"
         case .privacy:
-            return "Privacidad y datos"
+            return "Privacidad"
         case .appearance:
             return "Apariencia"
         case .idle:
             return "Inactividad"
         case .exclusions:
-            return "Exclusiones globales"
+            return "Exclusiones"
         case .assignmentRules:
-            return "Reglas de asignacion"
+            return "Reglas"
         }
     }
 

@@ -9,6 +9,14 @@ struct SettingsExclusionSectionView: View {
 
     var body: some View {
         Section {
+            if draft.excludedApps.isEmpty,
+               draft.excludedDomains.isEmpty,
+               draft.excludedFiles.isEmpty
+            {
+                Text("Sin exclusiones configuradas.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             AppExclusionEditor(excludedApps: $draft.excludedApps)
 
             ExclusionListEditor(
@@ -22,7 +30,7 @@ struct SettingsExclusionSectionView: View {
             FileExclusionEditor(items: $draft.excludedFiles)
         } header: {
             SettingsSectionHeader(
-                "Exclusiones globales",
+                "Exclusiones",
                 subtitle: "Evita registrar apps, dominios o archivos que no quieras trackear.",
             )
         }

@@ -5,19 +5,19 @@ struct SettingsShellView: View {
     @EnvironmentObject private var themePreview: ThemePreviewState
     @Environment(\.dismiss) private var dismiss
     @StateObject private var navigationModel = SettingsNavigationModel(selection: .tracking)
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var draft = TrackerSettingsDraft()
     @State private var hasLoadedDraft = false
     private enum Layout {
-        static let minWidth: CGFloat = 780
-        static let minHeight: CGFloat = 560
+        static let minWidth: CGFloat = 560
+        static let minHeight: CGFloat = 420
     }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            SettingsSidebarView(selection: $navigationModel.selection, draft: draft)
+        HSplitView {
+            SettingsSidebarView(selection: $navigationModel.selection)
                 .navigationTitle("Configuración")
-        } detail: {
+                .frame(minWidth: 170, idealWidth: 190, maxWidth: 210)
+                .background(Color(nsColor: .controlBackgroundColor))
             VStack(spacing: 0) {
                 NavigationStack {
                     TrackerSettingsView(

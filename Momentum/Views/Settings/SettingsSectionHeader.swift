@@ -20,7 +20,6 @@ struct SettingsSectionHeader: View {
             }
         }
         .textCase(nil)
-        .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
     }
 }
