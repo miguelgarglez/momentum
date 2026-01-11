@@ -10,6 +10,9 @@ struct SettingsSidebarView: View {
                     Label(section.label, systemImage: section.systemImageName)
                         .font(.headline)
                 }
+                .focusable(true)
+                .accessibilityLabel(Text(section.label))
+                .accessibilityHint(Text("Abre la sección \(section.label)."))
             }
         }
         .listStyle(.sidebar)

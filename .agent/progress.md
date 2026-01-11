@@ -50,3 +50,5 @@
 2026-01-11: SET-017 passed (added SettingsSectionHeader and applied across settings sections). verify_fast: make test-unit.
 2026-01-11: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
 2026-01-11: SET-018 passed (aligned settings form padding/background and section header spacing for split view). verify_fast: make test-unit.
+2026-01-11: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
+2026-01-11: SET-021 passed (added sidebar focus + accessibility labels). verify_fast: make test-unit.
