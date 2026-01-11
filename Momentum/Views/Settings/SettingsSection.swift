@@ -1,6 +1,5 @@
 import Foundation
 
-@MainActor
 enum SettingsSection: String, CaseIterable, Identifiable {
     case tracking
     case privacy
