@@ -13,14 +13,27 @@ import SwiftUI
     struct LTRTextField: NSViewRepresentable {
         final class Coordinator: NSObject, NSTextFieldDelegate {
             @Binding var text: String
+            let onSubmit: (() -> Void)?
 
-            init(text: Binding<String>) {
+            init(text: Binding<String>, onSubmit: (() -> Void)?) {
                 _text = text
+                self.onSubmit = onSubmit
             }
 
             func controlTextDidChange(_ obj: Notification) {
                 guard let field = obj.object as? NSTextField else { return }
                 text = field.stringValue
+            }
+
+            func controlTextDidEndEditing(_ notification: Notification) {
+                guard let movement = notification.userInfo?["NSTextMovement"] as? Int,
+                      movement == NSTextMovement.return.rawValue
+                else { return }
+                onSubmit?()
+            }
+
+            @objc func submitAction() {
+                onSubmit?()
             }
         }
 
@@ -35,9 +48,10 @@ import SwiftUI
         var style: Style = .plain
         var allowsMultiline: Bool = false
         var accessibilityIdentifier: String?
+        var onSubmit: (() -> Void)? = nil
 
         func makeCoordinator() -> Coordinator {
-            Coordinator(text: $text)
+            Coordinator(text: $text, onSubmit: onSubmit)
         }
 
         func makeNSView(context: Context) -> NSTextField {
@@ -46,6 +60,8 @@ import SwiftUI
             field.alignment = .left
             field.baseWritingDirection = .leftToRight
             field.delegate = context.coordinator
+            field.target = context.coordinator
+            field.action = #selector(Coordinator.submitAction)
             field.font = font
             configureLineMode(for: field)
             apply(style: style, to: field)

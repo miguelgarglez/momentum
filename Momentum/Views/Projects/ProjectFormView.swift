@@ -14,6 +14,7 @@ struct ProjectFormView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appCatalog: AppCatalog
     @State private var draft: ProjectFormDraft
+    @State private var domainEntryError: String?
     private let mode: FormMode
 
     let onSave: (ProjectFormDraft) -> Void
@@ -64,20 +65,66 @@ struct ProjectFormView: View {
                 )
 
                 Section("Dominios") {
-                    #if os(macOS)
-                        LTRTextField(
-                            text: $draft.domains,
-                            placeholder: "Dominios (separados por coma)",
-                            accessibilityIdentifier: "project-domains-field",
-                        )
-                        .macRoundedTextFieldStyle()
-                        .padding(.vertical, 4)
-                    #else
-                        TextField("Dominios (separados por coma)", text: $draft.domains)
-                            .accessibilityIdentifier("project-domains-field")
-                            .textFieldStyle(.roundedBorder)
+                    VStack(alignment: .leading, spacing: 8) {
+                        if !draft.assignedDomains.isEmpty {
+                            DomainSelectionChips(
+                                domains: draft.assignedDomains,
+                                onRemove: { domain in
+                                    draft.removeDomain(domain)
+                                },
+                            )
+                        }
+
+                        #if os(macOS)
+                            HStack {
+                                LTRTextField(
+                                    text: $draft.domainEntry,
+                                    placeholder: "Dominios o URLs (separados por coma)",
+                                    accessibilityIdentifier: "project-domains-field",
+                                    onSubmit: {
+                                        saveDomainEntry()
+                                    },
+                                )
+                                .macRoundedTextFieldStyle()
+
+                                Button("Guardar") {
+                                    saveDomainEntry()
+                                }
+                                .disabled(draft.isDomainEntryEmpty)
+                            }
                             .padding(.vertical, 4)
-                    #endif
+                        #else
+                            HStack {
+                                TextField(
+                                    "Dominios o URLs (separados por coma)",
+                                    text: $draft.domainEntry,
+                                )
+                                .accessibilityIdentifier("project-domains-field")
+                                .textFieldStyle(.roundedBorder)
+                                .onSubmit {
+                                    saveDomainEntry()
+                                }
+
+                                Button("Guardar") {
+                                    saveDomainEntry()
+                                }
+                                .disabled(draft.isDomainEntryEmpty)
+                            }
+                            .padding(.vertical, 4)
+                        #endif
+
+                        Text("Pega URLs completas o dominios. Guardamos solo el dominio.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if let domainEntryError {
+                            Text(domainEntryError)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    }
+                    .onChange(of: draft.domainEntry) { _, _ in
+                        domainEntryError = nil
+                    }
                 }
 
                 Section("Archivos") {
@@ -187,6 +234,18 @@ struct ProjectFormView: View {
         case create
         case edit
     }
+
+    private func saveDomainEntry() {
+        guard !draft.isDomainEntryEmpty else { return }
+        let result = draft.addDomainEntry()
+        if result.added.isEmpty {
+            domainEntryError = "No pudimos reconocer ningún dominio válido."
+        } else if !result.rejected.isEmpty {
+            domainEntryError = "Algunos dominios no son válidos y no se guardaron."
+        } else {
+            domainEntryError = nil
+        }
+    }
 }
 
 #if os(macOS)
@@ -229,6 +288,32 @@ private struct FileSelectionChips: View {
                     },
                 )
                 .help(path)
+            }
+        }
+    }
+}
+
+private struct DomainSelectionChips: View {
+    let domains: [String]
+    let onRemove: (String) -> Void
+
+    var body: some View {
+        FlowLayout(spacing: 8) {
+            ForEach(domains, id: \.self) { domain in
+                RemovableChip(
+                    title: domain,
+                    removeAccessibilityLabel: "Eliminar dominio",
+                    leading: {
+                        Image(systemName: "globe")
+                            .font(.system(size: 12, weight: .semibold))
+                            .frame(width: 20, height: 20)
+                            .foregroundStyle(.secondary)
+                    },
+                    onRemove: {
+                        onRemove(domain)
+                    },
+                )
+                .help(domain)
             }
         }
     }

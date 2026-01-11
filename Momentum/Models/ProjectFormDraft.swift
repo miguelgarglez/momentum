@@ -1,12 +1,18 @@
 import Foundation
 
 struct ProjectFormDraft {
+    struct DomainEntryResult {
+        let added: [String]
+        let rejected: [String]
+    }
+
     var name: String
     var colorHex: String
     var iconName: String
     var selectedAppIDs: Set<String>
     var manualApps: String
-    var domains: String
+    var domainEntry: String
+    var assignedDomains: [String]
     var assignedFiles: [String]
     var manualFilesEntry: String
 
@@ -17,7 +23,8 @@ struct ProjectFormDraft {
             iconName = project.iconName
             selectedAppIDs = Set(project.assignedApps)
             manualApps = ""
-            domains = project.assignedDomains.joined(separator: ", ")
+            domainEntry = ""
+            assignedDomains = project.assignedDomains
             assignedFiles = project.assignedFiles
             manualFilesEntry = ""
         } else {
@@ -26,7 +33,8 @@ struct ProjectFormDraft {
             iconName = ProjectIcon.spark.systemName
             selectedAppIDs = []
             manualApps = ""
-            domains = ""
+            domainEntry = ""
+            assignedDomains = []
             assignedFiles = []
             manualFilesEntry = ""
         }
@@ -41,11 +49,34 @@ struct ProjectFormDraft {
             .sorted()
     }
 
-    var assignedDomains: [String] {
-        domains
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-            .filter { !$0.isEmpty }
+    var isDomainEntryEmpty: Bool {
+        let trimmed = domainEntry.trimmingCharacters(in: .whitespacesAndNewlines)
+        let withoutCommas = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: ","))
+        return withoutCommas.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    mutating func addDomainEntry() -> DomainEntryResult {
+        let domains = DomainNormalizer.domains(from: domainEntry)
+        let rejected = DomainNormalizer.rejectedTokens(from: domainEntry)
+        addDomains(domains)
+        if !domains.isEmpty {
+            domainEntry = ""
+        }
+        return DomainEntryResult(added: domains, rejected: rejected)
+    }
+
+    mutating func addDomains(_ domains: [String]) {
+        guard !domains.isEmpty else { return }
+        var seen = Set(assignedDomains.map { $0.lowercased() })
+        for domain in domains {
+            let key = domain.lowercased()
+            guard seen.insert(key).inserted else { continue }
+            assignedDomains.append(domain)
+        }
+    }
+
+    mutating func removeDomain(_ domain: String) {
+        assignedDomains.removeAll { $0.caseInsensitiveCompare(domain) == .orderedSame }
     }
 
     mutating func addFiles(_ paths: [String]) {
