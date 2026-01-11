@@ -216,7 +216,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Preserve picker identifiers and navigation link identifiers."
     },
     {
