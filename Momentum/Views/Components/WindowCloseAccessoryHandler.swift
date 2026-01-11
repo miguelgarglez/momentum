@@ -9,18 +9,19 @@
 
         func makeNSView(context: Context) -> NSView {
             let view = NSView()
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 context.coordinator.attach(to: view.window)
             }
             return view
         }
 
         func updateNSView(_ nsView: NSView, context: Context) {
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 context.coordinator.attach(to: nsView.window)
             }
         }
 
+        @MainActor
         final class Coordinator: NSObject, NSWindowDelegate {
             private weak var window: NSWindow?
 
