@@ -230,7 +230,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Preserve confirmation dialogs and error alerts wiring."
     },
     {
