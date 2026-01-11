@@ -358,7 +358,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Only if documentation expects a log entry for UX changes."
     },
     {
