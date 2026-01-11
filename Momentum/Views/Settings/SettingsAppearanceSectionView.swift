@@ -5,10 +5,7 @@ struct SettingsAppearanceSectionView: View {
     @EnvironmentObject private var themePreview: ThemePreviewState
 
     var body: some View {
-        Section("Apariencia") {
-            Text("Ajusta el tema visual que verás en toda la app.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        Section {
             Picker("Tema", selection: $themeSelection) {
                 ForEach(AppThemePreference.allCases) { option in
                     Text(option.label)
@@ -18,6 +15,11 @@ struct SettingsAppearanceSectionView: View {
             .pickerStyle(.menu)
             .transaction { $0.disablesAnimations = true }
             .animation(.none, value: themePreview.selection)
+        } header: {
+            SettingsSectionHeader(
+                "Apariencia",
+                subtitle: "Ajusta el tema visual que verás en toda la app.",
+            )
         }
     }
 }

@@ -244,7 +244,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Use for consistency across section detail views."
     },
     {

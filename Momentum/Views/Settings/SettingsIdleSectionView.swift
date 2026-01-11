@@ -4,10 +4,7 @@ struct SettingsIdleSectionView: View {
     @Binding var draft: TrackerSettingsDraft
 
     var body: some View {
-        Section("Inactividad") {
-            Text("Define cuándo considerar una sesión inactiva y pausar el registro.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        Section {
             VStack(alignment: .leading, spacing: 8) {
                 Stepper(
                     value: $draft.idleThresholdMinutes,
@@ -24,6 +21,11 @@ struct SettingsIdleSectionView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+        } header: {
+            SettingsSectionHeader(
+                "Inactividad",
+                subtitle: "Define cuándo considerar una sesión inactiva y pausar el registro.",
+            )
         }
     }
 }

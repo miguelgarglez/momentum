@@ -8,10 +8,7 @@ struct SettingsExclusionSectionView: View {
     @Binding var draft: TrackerSettingsDraft
 
     var body: some View {
-        Section("Exclusiones globales") {
-            Text("Evita registrar apps, dominios o archivos que no quieras trackear.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        Section {
             AppExclusionEditor(excludedApps: $draft.excludedApps)
 
             ExclusionListEditor(
@@ -23,6 +20,11 @@ struct SettingsExclusionSectionView: View {
             )
 
             FileExclusionEditor(items: $draft.excludedFiles)
+        } header: {
+            SettingsSectionHeader(
+                "Exclusiones globales",
+                subtitle: "Evita registrar apps, dominios o archivos que no quieras trackear.",
+            )
         }
     }
 }

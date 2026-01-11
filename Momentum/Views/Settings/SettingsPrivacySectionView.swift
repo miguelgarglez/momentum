@@ -9,10 +9,7 @@ struct SettingsPrivacySectionView: View {
     @Binding var projectPendingDeletion: Project?
 
     var body: some View {
-        Section("Privacidad y datos") {
-            Text("Gestiona la protección de tu base de datos y limpieza de actividad.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        Section {
             Toggle(isOn: $draft.isDatabaseEncryptionEnabled) {
                 HStack(spacing: 6) {
                     Text("Cifrar base de datos")
@@ -49,6 +46,11 @@ struct SettingsPrivacySectionView: View {
                     Label("Borrar actividad de un proyecto", systemImage: "folder.badge.minus")
                 }
             }
+        } header: {
+            SettingsSectionHeader(
+                "Privacidad y datos",
+                subtitle: "Gestiona la protección de tu base de datos y limpieza de actividad.",
+            )
         }
     }
 }

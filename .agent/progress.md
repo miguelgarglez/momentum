@@ -46,3 +46,5 @@
 2026-01-11: SET-015 passed (extracted assignment rules section into dedicated view file). verify_fast: make test-unit.
 2026-01-11: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
 2026-01-11: SET-016 passed (extracted privacy & data section into dedicated view file). verify_fast: make test-unit.
+2026-01-11: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
+2026-01-11: SET-017 passed (added SettingsSectionHeader and applied across settings sections). verify_fast: make test-unit.

@@ -9,10 +9,7 @@ struct SettingsTrackingSectionView: View {
     #endif
 
     var body: some View {
-        Section("Tracking automático") {
-            Text("Controla qué fuentes registra Momentum y la frecuencia de detección.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        Section {
             Toggle("Registrar dominios web", isOn: $draft.isDomainTrackingEnabled)
             Toggle("Registrar archivos", isOn: $draft.isFileTrackingEnabled)
 
@@ -48,6 +45,11 @@ struct SettingsTrackingSectionView: View {
                     step: 1,
                 )
             }
+        } header: {
+            SettingsSectionHeader(
+                "Tracking automático",
+                subtitle: "Controla qué fuentes registra Momentum y la frecuencia de detección.",
+            )
         }
     }
 }
