@@ -9,8 +9,8 @@ struct SettingsShellView: View {
     @State private var draft = TrackerSettingsDraft()
     @State private var hasLoadedDraft = false
     private enum Layout {
-        static let minWidth: CGFloat = 720
-        static let minHeight: CGFloat = 520
+        static let minWidth: CGFloat = 780
+        static let minHeight: CGFloat = 560
     }
 
     var body: some View {

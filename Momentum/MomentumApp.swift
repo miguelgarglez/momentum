@@ -97,7 +97,7 @@ struct MomentumApp: App {
             #endif
         }
         .windowResizability(.contentSize)
-        .defaultSize(width: 720, height: 520)
+        .defaultSize(width: 780, height: 560)
 
         #if os(macOS)
             WindowGroup(id: OnboardingWindowID.welcome) {

@@ -316,7 +316,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Use a slightly wider default to avoid clipping."
     },
     {
