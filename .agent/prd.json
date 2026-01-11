@@ -202,7 +202,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Keep AppExclusionEditor, domain and file exclusion editors intact."
     },
     {

@@ -40,3 +40,5 @@
 2026-01-10: SET-012 passed (extracted tracking section view). verify_fast: make test-unit.
 2026-01-11: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
 2026-01-11: SET-013 passed (extracted idle settings section view). verify_fast: make test-unit.
+2026-01-11: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
+2026-01-11: SET-014 passed (extracted exclusions section into dedicated view file). verify_fast: make test-unit.
