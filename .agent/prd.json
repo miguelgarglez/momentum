@@ -344,7 +344,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Keep docs succinct and consistent with current Spanish UI."
     },
     {
