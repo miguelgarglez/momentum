@@ -15,7 +15,7 @@ struct SettingsShellView: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            SettingsSidebarView(selection: $navigationModel.selection)
+            SettingsSidebarView(selection: $navigationModel.selection, draft: draft)
                 .navigationTitle("Configuración")
         } detail: {
             VStack(spacing: 0) {

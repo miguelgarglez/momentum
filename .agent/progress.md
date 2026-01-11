@@ -60,3 +60,5 @@
 2026-01-11: SET-020 passed (default SettingsNavigationModel selection to tracking). verify_fast: make test-unit.
 2026-01-11: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
 2026-01-11: SET-022 passed (increased settings window min/default size for split view). verify_fast: make test-unit.
+2026-01-11: Ralph onboarded: .agent files present; verify_fast from .agent/commands.md (make test-unit), verify_full (make test-unit). Ran verify_fast successfully.
+2026-01-11: SET-023 passed (added sidebar preview hints for empty exclusions and assignment rules). verify_fast: make test-unit.
