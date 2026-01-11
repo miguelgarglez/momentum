@@ -50,7 +50,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 final class SettingsNavigationModel: ObservableObject {
     @Published var selection: SettingsSection?
 
-    init(selection: SettingsSection? = nil) {
+    init(selection: SettingsSection? = .tracking) {
         self.selection = selection
     }
 }

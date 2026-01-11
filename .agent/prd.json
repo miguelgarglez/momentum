@@ -288,7 +288,7 @@
       "steps_to_verify": [
         "Run `make test-unit`"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Default should be the primary tracking-related section."
     },
     {
