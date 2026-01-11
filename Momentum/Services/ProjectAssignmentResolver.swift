@@ -17,6 +17,9 @@ protocol ProjectAssignmentResolving {
 struct ProjectAssignmentResolver: ProjectAssignmentResolving {
     private let modelContainer: ModelContainer
     private let settings: TrackerSettings
+    private let cache = Cache()
+    private let projectsCacheTTL: TimeInterval = 5
+    private let ruleCacheTTL: TimeInterval = 5
 
     init(modelContainer: ModelContainer, settings: TrackerSettings) {
         self.modelContainer = modelContainer
@@ -56,10 +59,18 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
     }
 
     private func fetchProjects() -> [Project]? {
+        if let lastFetch = cache.lastProjectsFetch,
+           Date().timeIntervalSince(lastFetch) < projectsCacheTTL
+        {
+            return cache.projects
+        }
         let descriptor = FetchDescriptor<Project>(
             sortBy: [SortDescriptor(\Project.createdAt, order: .forward)],
         )
-        return try? modelContainer.mainContext.fetch(descriptor)
+        guard let projects = try? modelContainer.mainContext.fetch(descriptor) else { return nil }
+        cache.projects = projects
+        cache.lastProjectsFetch = Date()
+        return projects
     }
 
     private func resolve(
@@ -86,6 +97,13 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
     }
 
     private func fetchRule(for context: AssignmentContext) -> AssignmentRule? {
+        let cacheKey = cacheKeyForRule(context)
+        if let cached = cache.rules[cacheKey],
+           let cachedAt = cache.ruleFetchTimestamps[cacheKey],
+           Date().timeIntervalSince(cachedAt) < ruleCacheTTL
+        {
+            return cached
+        }
         let typeValue = context.type.rawValue
         let contextValue = context.value
         let descriptor = FetchDescriptor<AssignmentRule>(
@@ -94,7 +112,10 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
                     $0.contextValue == contextValue
             },
         )
-        return try? modelContainer.mainContext.fetch(descriptor).first
+        let rule = try? modelContainer.mainContext.fetch(descriptor).first
+        cache.rules[cacheKey] = rule
+        cache.ruleFetchTimestamps[cacheKey] = Date()
+        return rule
     }
 
     private func isExpired(_ rule: AssignmentRule) -> Bool {
@@ -121,5 +142,18 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard let normalized, !normalized.isEmpty else { return nil }
         return AssignmentContext(type: .app, value: normalized)
+    }
+
+    private func cacheKeyForRule(_ context: AssignmentContext) -> String {
+        "\(context.type.rawValue)|\(context.value)"
+    }
+}
+
+private extension ProjectAssignmentResolver {
+    final class Cache {
+        var projects: [Project] = []
+        var lastProjectsFetch: Date?
+        var rules: [String: AssignmentRule?] = [:]
+        var ruleFetchTimestamps: [String: Date] = [:]
     }
 }

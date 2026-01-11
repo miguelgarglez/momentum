@@ -49,6 +49,7 @@ final class CrashRecoveryManager: ObservableObject, CrashRecoveryHandling {
     private let defaults: UserDefaults
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Momentum", category: "CrashRecovery")
     private var hadUncleanShutdown: Bool
+    private var lastSnapshot: SessionSnapshot?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -63,10 +64,15 @@ final class CrashRecoveryManager: ObservableObject, CrashRecoveryHandling {
     }
 
     func persist(snapshot: SessionSnapshot?) {
+        if snapshot == lastSnapshot {
+            return
+        }
         if let snapshot, let data = try? JSONEncoder().encode(snapshot) {
             defaults.set(data, forKey: Keys.snapshot)
+            lastSnapshot = snapshot
         } else {
             defaults.removeObject(forKey: Keys.snapshot)
+            lastSnapshot = nil
         }
     }
 

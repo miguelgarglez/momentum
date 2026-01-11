@@ -74,7 +74,7 @@ import SwiftData
         private let domainResolver = BrowserDomainResolver()
         private let fileResolver = FileDocumentResolver()
         /// Interval for periodic session flushing even when the active app does not change.
-        private let heartbeatInterval: TimeInterval = 60
+        private let heartbeatInterval: TimeInterval = 300
         /// Sessions shorter than this are discarded to avoid noisy data.
         private let minimumSessionDuration: TimeInterval = 10
         /// Frequency for checking the system idle timer (seconds).
@@ -238,6 +238,7 @@ import SwiftData
             _ = flushCurrentSession()
             guard isTrackingEnabled, let application else {
                 setCurrentContext(nil)
+                updateResolutionPolling(for: nil)
                 logger.debug("Tracking paused or no active app.")
                 return
             }
@@ -261,6 +262,7 @@ import SwiftData
                 logger.debug("App \(identifier, privacy: .public) is excluded from tracking")
             }
             setCurrentContext(context)
+            updateResolutionPolling(for: context)
             resetDomainBackoff()
             resetFileBackoff()
             if settings.isDomainTrackingEnabled, !isExcludedApp {
@@ -549,8 +551,7 @@ import SwiftData
                         self.resetDomainBackoff()
                         self.triggerDomainResolution()
                     } else {
-                        self.domainTimer?.invalidate()
-                        self.domainTimer = nil
+                        self.stopDomainPolling()
                         self.domainBackoffLevel = 0
                         if var context = self.currentContext {
                             context.domain = nil
@@ -571,8 +572,7 @@ import SwiftData
                         self.resetFileBackoff()
                         self.triggerFileResolution()
                     } else {
-                        self.fileTimer?.invalidate()
-                        self.fileTimer = nil
+                        self.stopFilePolling()
                         self.fileBackoffLevel = 0
                         if var context = self.currentContext {
                             context.filePath = nil
@@ -1211,10 +1211,8 @@ import SwiftData
         private func pauseTimers() {
             heartbeatTimer?.invalidate()
             heartbeatTimer = nil
-            domainTimer?.invalidate()
-            domainTimer = nil
-            fileTimer?.invalidate()
-            fileTimer = nil
+            stopDomainPolling()
+            stopFilePolling()
             idleTimer?.invalidate()
             idleTimer = nil
         }
@@ -1222,9 +1220,8 @@ import SwiftData
         private func restartTimersIfNeeded() {
             guard isTrackingEnabled else { return }
             startHeartbeat()
-            startDomainPolling()
-            startFilePolling()
             startIdleMonitoring()
+            updateResolutionPolling(for: currentContext)
         }
 
         private func domainPollingInterval() -> TimeInterval {
@@ -1241,27 +1238,27 @@ import SwiftData
 
         private func resetDomainBackoff() {
             guard domainBackoffLevel != 0 else {
-                startDomainPolling()
+                updateResolutionPolling(for: currentContext)
                 return
             }
             domainBackoffLevel = 0
-            startDomainPolling()
+            updateResolutionPolling(for: currentContext)
         }
 
         private func resetFileBackoff() {
             guard fileBackoffLevel != 0 else {
-                startFilePolling()
+                updateResolutionPolling(for: currentContext)
                 return
             }
             fileBackoffLevel = 0
-            startFilePolling()
+            updateResolutionPolling(for: currentContext)
         }
 
         private func bumpDomainBackoffIfNeeded() {
             let previous = domainBackoffLevel
             domainBackoffLevel = min(domainBackoffLevel + 1, 4)
             if previous != domainBackoffLevel {
-                startDomainPolling()
+                updateResolutionPolling(for: currentContext)
             }
         }
 
@@ -1269,8 +1266,46 @@ import SwiftData
             let previous = fileBackoffLevel
             fileBackoffLevel = min(fileBackoffLevel + 1, 4)
             if previous != fileBackoffLevel {
-                startFilePolling()
+                updateResolutionPolling(for: currentContext)
             }
+        }
+
+        private func updateResolutionPolling(for context: AppSessionContext?) {
+            guard isTrackingEnabled else {
+                stopDomainPolling()
+                stopFilePolling()
+                return
+            }
+
+            if let context,
+               settings.isDomainTrackingEnabled,
+               !context.isExcluded,
+               domainResolver.supports(bundleIdentifier: context.bundleIdentifier)
+            {
+                startDomainPolling()
+            } else {
+                stopDomainPolling()
+            }
+
+            if let context,
+               settings.isFileTrackingEnabled,
+               !context.isExcluded,
+               fileResolver.supports(bundleIdentifier: context.bundleIdentifier)
+            {
+                startFilePolling()
+            } else {
+                stopFilePolling()
+            }
+        }
+
+        private func stopDomainPolling() {
+            domainTimer?.invalidate()
+            domainTimer = nil
+        }
+
+        private func stopFilePolling() {
+            fileTimer?.invalidate()
+            fileTimer = nil
         }
 
         private func startRuleExpirationMonitoring() {
