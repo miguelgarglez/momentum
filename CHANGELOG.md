@@ -1,5 +1,60 @@
 # Changelog
 
+## [1.5.0](https://github.com/miguelgarglez/momentum/compare/v1.4.2...v1.5.0) (2026-01-11)
+
+
+### Features
+
+* add settings section header ([7b8f594](https://github.com/miguelgarglez/momentum/commit/7b8f594573bc2d532fcfc3db760d14d5d6835c86))
+* add settings section intro copy ([fbc8881](https://github.com/miguelgarglez/momentum/commit/fbc8881c268e0fcb804cc97d6d25c2758f117604))
+* add settings section model ([fc85d2c](https://github.com/miguelgarglez/momentum/commit/fc85d2c67fa749fe5fa75c89bcf26b5bf0398d9f))
+* add settings shell view ([3262981](https://github.com/miguelgarglez/momentum/commit/32629812bebb85bee528a95950f9edfa9c5ec55d))
+* add settings sidebar view ([25ac0b8](https://github.com/miguelgarglez/momentum/commit/25ac0b8cb7cbb5585d3bc272be65c009d20df2eb))
+* add sidebar previews for empty sections ([d4ded67](https://github.com/miguelgarglez/momentum/commit/d4ded67f38b7226b4005d047ce1d72800ab48382))
+* centralize settings shell layout ([32c84f5](https://github.com/miguelgarglez/momentum/commit/32c84f58083c0281b35fb29106dd7ba0d097d365))
+* extract appearance settings section ([71b2ca5](https://github.com/miguelgarglez/momentum/commit/71b2ca5b7ae6acdc2bccfd4ffd757b52c89af846))
+* extract assignment rules settings section ([c2f8d61](https://github.com/miguelgarglez/momentum/commit/c2f8d61b4bf9bee9c363971339d07d6d15feaebd))
+* extract exclusions settings section ([a45e854](https://github.com/miguelgarglez/momentum/commit/a45e85404fd2564f5b949d6475259576899021d4))
+* extract idle settings section ([48e45f2](https://github.com/miguelgarglez/momentum/commit/48e45f21994e932b9005b429525c5584c824dfb6))
+* extract privacy settings section ([84afd3e](https://github.com/miguelgarglez/momentum/commit/84afd3e658919d17bb713b2f8950a5bdf061ec17))
+* extract settings tracking section view ([32f9717](https://github.com/miguelgarglez/momentum/commit/32f97170f2e2c1ec13bc5f908c9ac21cebefc5d0))
+* reorder settings sidebar sections ([ec6cbb7](https://github.com/miguelgarglez/momentum/commit/ec6cbb78e27a8ff11b478436b4367b0674a01c59))
+* resize settings window for split view ([1874663](https://github.com/miguelgarglez/momentum/commit/1874663b3bfda3cb497bf7f2f573c7a43e971ce7))
+* route settings sections in detail view ([0198d23](https://github.com/miguelgarglez/momentum/commit/0198d23c24b4d26924e115dcf03fc6590201d53c))
+* **settings:** refresh settings shell layout ([2ac53be](https://github.com/miguelgarglez/momentum/commit/2ac53be9f5dcbc2dc5f5ece12d624c5b9a8cd5cf))
+
+
+### Bug Fixes
+
+* add accessibility to settings sidebar ([3b0dbaf](https://github.com/miguelgarglez/momentum/commit/3b0dbaf6c55bfa3699e795abeae57e1ffe7d4c7d))
+* align settings split view spacing ([f809df8](https://github.com/miguelgarglez/momentum/commit/f809df8c5d0fe53b58cc48e10194cd21e0118e4f))
+* default settings section selection ([abfebce](https://github.com/miguelgarglez/momentum/commit/abfebcebec842638ab1880fa11ebfad1ab08ec06))
+* reset settings draft on close ([5d18e2b](https://github.com/miguelgarglez/momentum/commit/5d18e2b6de0edebea7139dd7a1791d4408e5bf10))
+* scope settings navigation stack ([533e16b](https://github.com/miguelgarglez/momentum/commit/533e16baf5e81290a54645e16a58f0763479781d))
+* widen settings window minimum size ([8d54791](https://github.com/miguelgarglez/momentum/commit/8d547919d0b6b6f4e5dd64dabdcefd23539dc06f))
+
+
+### Refactors
+
+* split settings sections ([beb64c6](https://github.com/miguelgarglez/momentum/commit/beb64c60e8b18e74c883d5b21445993338172a66))
+
+
+### Documentation
+
+* document settings split layout ([2964853](https://github.com/miguelgarglez/momentum/commit/29648531903cc06512d5ebb11e13209bfa42f06a))
+
+
+### Chores
+
+* add settings layout UX note ([980c291](https://github.com/miguelgarglez/momentum/commit/980c29124eb918f6b319637ffbfcd601f08a1a0f))
+* complete SET-026 dependency check ([9b7c0b9](https://github.com/miguelgarglez/momentum/commit/9b7c0b91a7f6826055b9ab77c56f5631f71c75bd))
+* mark settings sidebar icons complete ([6f7da5e](https://github.com/miguelgarglez/momentum/commit/6f7da5ed080585902c13e1268c33e044098168ed))
+
+
+### Style
+
+* **settings:** drop MainActor annotation ([91fa368](https://github.com/miguelgarglez/momentum/commit/91fa36885688e1b3493251a09e540431b67ced38))
+
 ## [1.4.2](https://github.com/miguelgarglez/momentum/compare/v1.4.1...v1.4.2) (2026-01-10)
 
 
