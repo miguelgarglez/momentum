@@ -28,7 +28,9 @@ final class DailySummaryBackfill: DailySummaryBackfilling {
         guard storedVersion < Constants.currentVersion else { return }
 
         do {
-            try DailySummaryBackfill.backfill(container: container)
+            try Diagnostics.record(.backfillRun) {
+                try DailySummaryBackfill.backfill(container: container)
+            }
             defaults.set(Constants.currentVersion, forKey: Keys.version)
             logger.info("DailySummary backfill completed.")
         } catch {
@@ -38,7 +40,9 @@ final class DailySummaryBackfill: DailySummaryBackfilling {
 
     private static func backfill(container: ModelContainer) throws {
         let context = ModelContext(container)
-        let projects = try context.fetch(FetchDescriptor<Project>())
+        let projects = try Diagnostics.record(.swiftDataFetch) {
+            try context.fetch(FetchDescriptor<Project>())
+        }
         guard !projects.isEmpty else { return }
 
         for project in projects {
@@ -69,7 +73,9 @@ final class DailySummaryBackfill: DailySummaryBackfilling {
         }
 
         if context.hasChanges {
-            try context.save()
+            try Diagnostics.record(.swiftDataSave) {
+                try context.save()
+            }
         }
     }
 }

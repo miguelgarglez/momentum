@@ -67,7 +67,9 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
         let descriptor = FetchDescriptor<Project>(
             sortBy: [SortDescriptor(\Project.createdAt, order: .forward)],
         )
-        guard let projects = try? modelContainer.mainContext.fetch(descriptor) else { return nil }
+        guard let projects = try? Diagnostics.record(.swiftDataFetch, work: {
+            try modelContainer.mainContext.fetch(descriptor)
+        }) else { return nil }
         cache.projects = projects
         cache.lastProjectsFetch = Date()
         return projects
@@ -81,10 +83,14 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
         if let rule = fetchRule(for: context) {
             if isExpired(rule) {
                 modelContainer.mainContext.delete(rule)
-                try? modelContainer.mainContext.save()
+                try? Diagnostics.record(.swiftDataSave) {
+                    try modelContainer.mainContext.save()
+                }
             } else if let ruleProject = rule.project {
                 rule.lastUsedAt = .now
-                try? modelContainer.mainContext.save()
+                try? Diagnostics.record(.swiftDataSave) {
+                    try modelContainer.mainContext.save()
+                }
                 return .assigned(ruleProject, usedRule: true)
             }
         }
@@ -112,7 +118,9 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
                     $0.contextValue == contextValue
             },
         )
-        let rule = try? modelContainer.mainContext.fetch(descriptor).first
+        let rule = try? Diagnostics.record(.swiftDataFetch, work: {
+            try modelContainer.mainContext.fetch(descriptor).first
+        })
         cache.rules[cacheKey] = rule
         cache.ruleFetchTimestamps[cacheKey] = Date()
         return rule

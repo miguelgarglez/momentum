@@ -7,6 +7,7 @@ import SwiftData
 /// where multiple sessions would otherwise cover the same wall‑clock time,
 /// ensuring that downstream summaries (streaks, weekly reports, etc.) are
 /// based on a consistent, non‑overlapping timeline.
+@MainActor
 struct SessionOverlapResolver {
     let context: ModelContext
 
@@ -15,7 +16,9 @@ struct SessionOverlapResolver {
             $0.endDate > interval.start && $0.startDate < interval.end
         }
         let descriptor = FetchDescriptor<TrackingSession>(predicate: predicate)
-        guard let sessions = try? context.fetch(descriptor) else {
+        guard let sessions = try? Diagnostics.record(.swiftDataFetch, work: {
+            try context.fetch(descriptor)
+        }) else {
             return []
         }
 

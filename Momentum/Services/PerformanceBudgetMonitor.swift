@@ -115,10 +115,12 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
 
     @MainActor
     private func handlePollTick() {
-        let snapshot = metricsSource.snapshot()
-        defer { lastPollSnapshot = snapshot }
-        guard let previous = lastPollSnapshot else { return }
-        recordSnapshot(start: previous, end: snapshot, label: nil)
+        Diagnostics.record(.budgetPollTick) {
+            let snapshot = metricsSource.snapshot()
+            defer { lastPollSnapshot = snapshot }
+            guard let previous = lastPollSnapshot else { return }
+            recordSnapshot(start: previous, end: snapshot, label: nil)
+        }
     }
 
     @MainActor

@@ -146,41 +146,43 @@ import SwiftData
         }
 
         private func recoverLastSessionIfNeeded() {
-            guard let snapshot = crashRecovery.consumePendingSnapshot() else { return }
-            if snapshot.isManualTrackingActive ?? false {
-                if let manualProject = fetchManualProject(for: snapshot.manualProjectID) {
-                    isManualTrackingActive = true
-                    manualProjectID = manualProject.persistentModelID
-                    manualStartDate = snapshot.manualStartDate ?? snapshot.startDate
-                } else {
-                    logger.notice("Manual tracking snapshot referenced missing project; skipping manual restore")
-                    isManualTrackingActive = false
-                    manualProjectID = nil
-                    manualStartDate = nil
+            Diagnostics.record(.crashRecoveryRun) {
+                guard let snapshot = crashRecovery.consumePendingSnapshot() else { return }
+                if snapshot.isManualTrackingActive ?? false {
+                    if let manualProject = fetchManualProject(for: snapshot.manualProjectID) {
+                        isManualTrackingActive = true
+                        manualProjectID = manualProject.persistentModelID
+                        manualStartDate = snapshot.manualStartDate ?? snapshot.startDate
+                    } else {
+                        logger.notice("Manual tracking snapshot referenced missing project; skipping manual restore")
+                        isManualTrackingActive = false
+                        manualProjectID = nil
+                        manualStartDate = nil
+                    }
                 }
+                guard !snapshot.isExcluded else { return }
+                var context = AppSessionContext(
+                    appName: snapshot.appName,
+                    bundleIdentifier: snapshot.bundleIdentifier,
+                    domain: snapshot.domain,
+                    filePath: snapshot.filePath,
+                    startDate: snapshot.startDate,
+                    projectID: nil,
+                    projectName: snapshot.projectName,
+                    isExcluded: snapshot.isExcluded,
+                    isPendingAssignment: false,
+                )
+                if isManualTrackingActive {
+                    applyManualProjectAssociation(to: &context)
+                } else {
+                    updateProjectAssociation(for: &context)
+                }
+                let endDate = Date()
+                performanceMonitor.measure("session.recover") {
+                    persistSession(context: context, endDate: endDate)
+                }
+                logger.notice("Recovered session after crash. Duration: \(endDate.timeIntervalSince(context.startDate), privacy: .public)s")
             }
-            guard !snapshot.isExcluded else { return }
-            var context = AppSessionContext(
-                appName: snapshot.appName,
-                bundleIdentifier: snapshot.bundleIdentifier,
-                domain: snapshot.domain,
-                filePath: snapshot.filePath,
-                startDate: snapshot.startDate,
-                projectID: nil,
-                projectName: snapshot.projectName,
-                isExcluded: snapshot.isExcluded,
-                isPendingAssignment: false,
-            )
-            if isManualTrackingActive {
-                applyManualProjectAssociation(to: &context)
-            } else {
-                updateProjectAssociation(for: &context)
-            }
-            let endDate = Date()
-            performanceMonitor.measure("session.recover") {
-                persistSession(context: context, endDate: endDate)
-            }
-            logger.notice("Recovered session after crash. Duration: \(endDate.timeIntervalSince(context.startDate), privacy: .public)s")
         }
 
         func toggleTracking() {
@@ -319,7 +321,9 @@ import SwiftData
         private func persistSession(context: AppSessionContext, endDate: Date, project: Project) {
             insertResolvedSession(context: context, endDate: endDate, project: project)
             do {
-                try modelContainer.mainContext.save()
+                try Diagnostics.record(.swiftDataSave) {
+                    try modelContainer.mainContext.save()
+                }
                 logger.info("Logged \(endDate.timeIntervalSince(context.startDate), privacy: .public)s for \(context.appName, privacy: .public) project=\(project.name, privacy: .public)")
             } catch {
                 logger.error("Failed to save session: \(error.localizedDescription, privacy: .public)")
@@ -330,7 +334,9 @@ import SwiftData
             insertResolvedSession(context: context, endDate: endDate, project: project)
             updateManualProjectAssignments(for: project, context: context)
             do {
-                try modelContainer.mainContext.save()
+                try Diagnostics.record(.swiftDataSave) {
+                    try modelContainer.mainContext.save()
+                }
                 logger.info("Logged manual \(endDate.timeIntervalSince(context.startDate), privacy: .public)s for \(context.appName, privacy: .public) project=\(project.name, privacy: .public)")
             } catch {
                 logger.error("Failed to save manual session: \(error.localizedDescription, privacy: .public)")
@@ -366,7 +372,9 @@ import SwiftData
             )
             modelContainer.mainContext.insert(pending)
             do {
-                try modelContainer.mainContext.save()
+                try Diagnostics.record(.swiftDataSave) {
+                    try modelContainer.mainContext.save()
+                }
                 refreshPendingConflictCount()
                 logger.info("Stored pending session for \(conflictContext.value, privacy: .public)")
             } catch {
@@ -433,19 +441,21 @@ import SwiftData
             heartbeatTimer = Timer.scheduledTimer(withTimeInterval: heartbeatInterval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    self.logger.debug("Heartbeat flush triggered")
-                    guard let (context, endDate) = self.flushCurrentSession() else { return }
-                    self.setCurrentContext(AppSessionContext(
-                        appName: context.appName,
-                        bundleIdentifier: context.bundleIdentifier,
-                        domain: context.domain,
-                        filePath: context.filePath,
-                        startDate: endDate,
-                        projectID: context.projectID,
-                        projectName: context.projectName,
-                        isExcluded: context.isExcluded,
-                        isPendingAssignment: context.isPendingAssignment,
-                    ))
+                    Diagnostics.record(.heartbeatTick) {
+                        self.logger.debug("Heartbeat flush triggered")
+                        guard let (context, endDate) = self.flushCurrentSession() else { return }
+                        self.setCurrentContext(AppSessionContext(
+                            appName: context.appName,
+                            bundleIdentifier: context.bundleIdentifier,
+                            domain: context.domain,
+                            filePath: context.filePath,
+                            startDate: endDate,
+                            projectID: context.projectID,
+                            projectName: context.projectName,
+                            isExcluded: context.isExcluded,
+                            isPendingAssignment: context.isPendingAssignment,
+                        ))
+                    }
                 }
             }
         }
@@ -947,7 +957,10 @@ import SwiftData
             guard isTrackingEnabled else { return }
             idleTimer = Timer.scheduledTimer(withTimeInterval: idleCheckInterval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
-                    self?.evaluateIdleState()
+                    guard let self else { return }
+                    Diagnostics.record(.idleCheckTick) {
+                        self.evaluateIdleState()
+                    }
                 }
             }
         }
@@ -1199,13 +1212,17 @@ import SwiftData
         private func fetchManualProject(for identifier: PersistentIdentifier?) -> Project? {
             guard let identifier else { return nil }
             let descriptor = FetchDescriptor<Project>()
-            guard let projects = try? modelContainer.mainContext.fetch(descriptor) else { return nil }
+            guard let projects = try? Diagnostics.record(.swiftDataFetch, work: {
+                try modelContainer.mainContext.fetch(descriptor)
+            }) else { return nil }
             return projects.first(where: { $0.persistentModelID == identifier })
         }
 
         private func refreshPendingConflictCount() {
             let descriptor = FetchDescriptor<PendingTrackingSession>()
-            pendingConflictCount = (try? modelContainer.mainContext.fetch(descriptor).count) ?? 0
+            pendingConflictCount = (try? Diagnostics.record(.swiftDataFetch, work: {
+                try modelContainer.mainContext.fetch(descriptor).count
+            })) ?? 0
         }
 
         private func pauseTimers() {
@@ -1323,12 +1340,16 @@ import SwiftData
         private func purgeExpiredRules() {
             guard let cutoff = settings.assignmentRuleExpiration.cutoffDate() else { return }
             let descriptor = FetchDescriptor<AssignmentRule>()
-            guard let rules = try? modelContainer.mainContext.fetch(descriptor) else { return }
+            guard let rules = try? Diagnostics.record(.swiftDataFetch, work: {
+                try modelContainer.mainContext.fetch(descriptor)
+            }) else { return }
             let expired = rules.filter { isRuleExpired($0, cutoff: cutoff) }
             guard !expired.isEmpty else { return }
             expired.forEach { modelContainer.mainContext.delete($0) }
             do {
-                try modelContainer.mainContext.save()
+                try Diagnostics.record(.swiftDataSave) {
+                    try modelContainer.mainContext.save()
+                }
                 logger.info("Purged \(expired.count, privacy: .public) expired assignment rules")
             } catch {
                 logger.error("Failed to purge expired assignment rules: \(error.localizedDescription, privacy: .public)")
@@ -1349,7 +1370,9 @@ import SwiftData
                         $0.contextValue == contextValue
                 },
             )
-            if let rule = try? modelContainer.mainContext.fetch(ruleDescriptor).first {
+            if let rule = try? Diagnostics.record(.swiftDataFetch, work: {
+                try modelContainer.mainContext.fetch(ruleDescriptor).first
+            }) {
                 rule.project = project
                 rule.lastUsedAt = .now
             } else {
@@ -1367,7 +1390,9 @@ import SwiftData
                         $0.contextValue == contextValue
                 },
             )
-            guard let pendingSessions = try? modelContainer.mainContext.fetch(pendingDescriptor),
+            guard let pendingSessions = try? Diagnostics.record(.swiftDataFetch, work: {
+                try modelContainer.mainContext.fetch(pendingDescriptor)
+            }),
                   !pendingSessions.isEmpty
             else {
                 refreshPendingConflictCount()
@@ -1393,7 +1418,9 @@ import SwiftData
             }
 
             do {
-                try modelContainer.mainContext.save()
+                try Diagnostics.record(.swiftDataSave) {
+                    try modelContainer.mainContext.save()
+                }
                 refreshPendingConflictCount()
                 logger.info("Resolved \(resolvedCount, privacy: .public) pending sessions for \(context.value, privacy: .public)")
             } catch {
