@@ -111,11 +111,13 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
         pollTimer?.invalidate()
         guard !RuntimeFlags.isDisabled(.disableBudgetMonitor) else { return }
         let interval = max(pollInterval, minimumPollInterval)
-        pollTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.handlePollTick()
             }
         }
+        timer.tolerance = interval * 0.1
+        pollTimer = timer
         if lastPollSnapshot == nil {
             lastPollSnapshot = metricsSource.snapshot()
         }

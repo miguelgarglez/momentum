@@ -445,7 +445,7 @@ import SwiftData
             heartbeatTimer?.invalidate()
             guard isTrackingEnabled, !RuntimeFlags.isDisabled(.disableHeartbeat) else { return }
             let interval = max(heartbeatInterval, minimumTimerInterval)
-            heartbeatTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     Diagnostics.record(.heartbeatTick) {
@@ -465,30 +465,36 @@ import SwiftData
                     }
                 }
             }
+            timer.tolerance = interval * 0.1
+            heartbeatTimer = timer
         }
 
         private func startDomainPolling() {
             domainTimer?.invalidate()
             guard isTrackingEnabled, settings.isDomainTrackingEnabled else { return }
             let interval = domainPollingInterval()
-            domainTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     self.triggerDomainResolution()
                 }
             }
+            timer.tolerance = interval * 0.1
+            domainTimer = timer
         }
 
         private func startFilePolling() {
             fileTimer?.invalidate()
             guard isTrackingEnabled, settings.isFileTrackingEnabled else { return }
             let interval = filePollingInterval()
-            fileTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     self.triggerFileResolution()
                 }
             }
+            timer.tolerance = interval * 0.1
+            fileTimer = timer
         }
 
         private func triggerDomainResolution() {
@@ -970,7 +976,7 @@ import SwiftData
                 return
             }
             let interval = max(idleCheckInterval, minimumTimerInterval)
-            idleTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     Diagnostics.record(.idleCheckTick) {
@@ -978,6 +984,8 @@ import SwiftData
                     }
                 }
             }
+            timer.tolerance = interval * 0.1
+            idleTimer = timer
         }
 
         private func startScreenLockMonitoring() {
@@ -1347,11 +1355,13 @@ import SwiftData
             rulesCleanupTimer = nil
             guard settings.assignmentRuleExpiration.days != nil else { return }
             let interval = max(rulesCleanupInterval, minimumTimerInterval)
-            rulesCleanupTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.purgeExpiredRules()
                 }
             }
+            timer.tolerance = interval * 0.1
+            rulesCleanupTimer = timer
             purgeExpiredRules()
         }
 
