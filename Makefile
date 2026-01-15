@@ -1,4 +1,4 @@
-.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint run-dev run-dev-onboarding run-release run reset-dev-data run-dev-reset-permissions run-release-reset-permissions archive-release install-release dmg clean clean-release
+.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint run-dev run-dev-onboarding run-release run reset-dev-data run-dev-reset-permissions run-release-reset-permissions archive-release install-release dmg clean clean-release diag-cpu-release
 
 PROJECT := Momentum.xcodeproj
 SCHEME := Momentum
@@ -44,6 +44,7 @@ help:
 	@echo "  run-dev           Build and launch the dev app (quits running dev app first)"
 	@echo "  run-dev-onboarding Run dev app with fresh store, no debug seed, and clean onboarding"
 	@echo "  run-release       Build and launch the release app (quits running release app first)"
+	@echo "  diag-cpu-release  Run automated CPU diagnostics for Release"
 	@echo "  reset-dev-data    Remove dev store + seed flag, then run dev app"
 	@echo "  run-dev-reset-permissions     Reset Automation permissions, then run dev app"
 	@echo "  run-release-reset-permissions Reset Automation permissions, then run release app"
@@ -151,6 +152,9 @@ run-dev:
 
 run-release:
 	@$(MAKE) run CONFIGURATION=Release RUN_BUNDLE_ID="$(RELEASE_BUNDLE_ID)"
+
+diag-cpu-release:
+	@./scripts/diag_run_release.sh
 
 run: build
 	@set -euo pipefail; \
