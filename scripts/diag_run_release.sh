@@ -12,6 +12,13 @@ mkdir -p "${RUN_ROOT}"
 BUILD_LOG="${RUN_ROOT}/build.log"
 make -C "${ROOT_DIR}" build CONFIGURATION=Release >"${BUILD_LOG}" 2>&1
 
+GIT_SHA="unknown"
+GIT_BRANCH="unknown"
+if git -C "${ROOT_DIR}" rev-parse --short HEAD >/dev/null 2>&1; then
+  GIT_SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD)"
+  GIT_BRANCH="$(git -C "${ROOT_DIR}" rev-parse --abbrev-ref HEAD)"
+fi
+
 PROJECT="Momentum.xcodeproj"
 SCHEME="Momentum"
 DESTINATION="platform=macOS"
@@ -41,6 +48,36 @@ scenarios=(
   "disable_swiftdata_writes:DISABLE_SWIFTDATA_WRITES=1"
   "disable_overlay_updates:DISABLE_OVERLAY_UPDATES=1"
 )
+
+RUN_INFO="${RUN_ROOT}/RUN_INFO.md"
+cat <<EOF_RUN >"${RUN_INFO}"
+# Run Info
+
+- timestamp: ${TIMESTAMP}
+- git_branch: ${GIT_BRANCH}
+- git_sha: ${GIT_SHA}
+- bundle_id: ${BUNDLE_ID}
+- app_exec: ${APP_EXEC}
+- run_root: ${RUN_ROOT}
+- diagnostics_log: ~/Library/Logs/Momentum/diagnostics.csv
+- warmup_s: 30
+- cpu_sample_s: 120
+- cpu_sample_interval_s: 2
+- timeprofiler_s: 60
+- scenarios:
+EOF_RUN
+for scenario in "${scenarios[@]}"; do
+  name="${scenario%%:*}"
+  flags="${scenario#*:}"
+  echo "  - ${name}: ${flags}" >>"${RUN_INFO}"
+done
+{
+  echo
+  echo "## System"
+  sw_vers || true
+  echo
+  uname -a || true
+} >>"${RUN_INFO}"
 
 log_supports_signpost=false
 if log stream --help 2>&1 | rg -q -- "--signpost"; then
