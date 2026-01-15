@@ -128,15 +128,6 @@ for scenario in "${scenarios[@]}"; do
   run_scenario "${name}" "${flags}"
 done
 
-SUMMARY="${RUN_ROOT}/SUMMARY.md"
-cat <<EOF_SUM >"${SUMMARY}"
-# CPU Diagnostic Summary
-
-Run: ${TIMESTAMP}
-
-Artifacts are under:
-
-diagnostics/runs/${TIMESTAMP}/<scenario>/
-EOF_SUM
+python3 "${ROOT_DIR}/scripts/parse_cpu_csv.py" "${RUN_ROOT}" || true
 
 echo "Completed run at ${RUN_ROOT}"
