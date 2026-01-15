@@ -32,6 +32,16 @@ enum Diagnostics {
     }
 
     @MainActor
+    static func snapshot() -> [CounterKey: Int] {
+        guard isEnabled else { return [:] }
+        var snapshot: [CounterKey: Int] = [:]
+        for key in CounterKey.allCases {
+            snapshot[key] = counters[key, default: 0]
+        }
+        return snapshot
+    }
+
+    @MainActor
     static func record(_ key: CounterKey, work: () -> Void) {
         guard isEnabled else {
             work()

@@ -104,6 +104,7 @@ import SwiftData
         private var idleBeganAt: Date?
         private var manualProjectID: PersistentIdentifier?
         private var manualStartDate: Date?
+        private var diagnosticsReporter: DiagnosticsReporter?
         private var cancellables: Set<AnyCancellable> = []
 
         init(
@@ -139,6 +140,9 @@ import SwiftData
             startRuleExpirationMonitoring()
             refreshStatusSummary()
             refreshPendingConflictCount()
+            if Diagnostics.isEnabled {
+                diagnosticsReporter = DiagnosticsReporter()
+            }
         }
 
         deinit {
@@ -962,6 +966,8 @@ import SwiftData
             stopScreenLockMonitoring()
             pauseTimers()
             rulesCleanupTimer?.invalidate()
+            diagnosticsReporter?.stop()
+            diagnosticsReporter = nil
         }
 
         private func startIdleMonitoring() {
