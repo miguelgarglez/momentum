@@ -80,11 +80,16 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
         self.budget = budget
         self.metricsSource = metricsSource
         self.pollInterval = pollInterval
-        schedulePolling()
+        if !RuntimeFlags.isDisabled(.disableBudgetMonitor) {
+            schedulePolling()
+        }
     }
 
     @discardableResult
     func measure<T>(_ operation: String, work: () throws -> T) rethrows -> T {
+        if RuntimeFlags.isDisabled(.disableBudgetMonitor) {
+            return try work()
+        }
         let start = metricsSource.snapshot()
         let value = try work()
         let end = metricsSource.snapshot()
@@ -93,6 +98,7 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
     }
 
     func recordSample(_ sample: MetricSample) {
+        guard !RuntimeFlags.isDisabled(.disableBudgetMonitor) else { return }
         recentSamples.append(sample)
         if recentSamples.count > maxSamples {
             recentSamples.removeFirst(recentSamples.count - maxSamples)
@@ -102,6 +108,7 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
     @MainActor
     private func schedulePolling() {
         pollTimer?.invalidate()
+        guard !RuntimeFlags.isDisabled(.disableBudgetMonitor) else { return }
         guard pollInterval > 0 else { return }
         pollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -115,6 +122,7 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
 
     @MainActor
     private func handlePollTick() {
+        guard !RuntimeFlags.isDisabled(.disableBudgetMonitor) else { return }
         Diagnostics.record(.budgetPollTick) {
             let snapshot = metricsSource.snapshot()
             defer { lastPollSnapshot = snapshot }

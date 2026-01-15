@@ -197,7 +197,7 @@ struct DebugOverlayModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay(alignment: .topTrailing) {
-                if isEnabled {
+                if isEnabled && !RuntimeFlags.isDisabled(.disableOverlayUpdates) {
                     DebugOverlayView(tracker: tracker, performanceMonitor: performanceMonitor)
                         .padding(.top, 12)
                         .padding(.trailing, 16)

@@ -146,6 +146,7 @@ import SwiftData
         }
 
         private func recoverLastSessionIfNeeded() {
+            guard !RuntimeFlags.isDisabled(.disableCrashRecovery) else { return }
             Diagnostics.record(.crashRecoveryRun) {
                 guard let snapshot = crashRecovery.consumePendingSnapshot() else { return }
                 if snapshot.isManualTrackingActive ?? false {
@@ -319,6 +320,7 @@ import SwiftData
         }
 
         private func persistSession(context: AppSessionContext, endDate: Date, project: Project) {
+            guard !RuntimeFlags.isDisabled(.disableSwiftDataWrites) else { return }
             insertResolvedSession(context: context, endDate: endDate, project: project)
             do {
                 try Diagnostics.record(.swiftDataSave) {
@@ -331,6 +333,7 @@ import SwiftData
         }
 
         private func persistManualSession(context: AppSessionContext, endDate: Date, project: Project) {
+            guard !RuntimeFlags.isDisabled(.disableSwiftDataWrites) else { return }
             insertResolvedSession(context: context, endDate: endDate, project: project)
             updateManualProjectAssignments(for: project, context: context)
             do {
@@ -360,6 +363,7 @@ import SwiftData
             endDate: Date,
             conflictContext: AssignmentContext,
         ) {
+            guard !RuntimeFlags.isDisabled(.disableSwiftDataWrites) else { return }
             let pending = PendingTrackingSession(
                 startDate: context.startDate,
                 endDate: endDate,
@@ -437,7 +441,7 @@ import SwiftData
 
         private func startHeartbeat() {
             heartbeatTimer?.invalidate()
-            guard isTrackingEnabled else { return }
+            guard isTrackingEnabled, !RuntimeFlags.isDisabled(.disableHeartbeat) else { return }
             heartbeatTimer = Timer.scheduledTimer(withTimeInterval: heartbeatInterval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
@@ -954,7 +958,14 @@ import SwiftData
         private func startIdleMonitoring() {
             idleTimer?.invalidate()
             evaluateIdleState()
-            guard isTrackingEnabled else { return }
+            guard isTrackingEnabled, !RuntimeFlags.isDisabled(.disableIdleCheck) else {
+                if isUserIdle {
+                    isUserIdle = false
+                    idleBeganAt = nil
+                    refreshStatusSummary()
+                }
+                return
+            }
             idleTimer = Timer.scheduledTimer(withTimeInterval: idleCheckInterval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
@@ -1157,14 +1168,16 @@ import SwiftData
 
         private func setCurrentContext(_ context: AppSessionContext?) {
             currentContext = context
-            crashRecovery.persist(snapshot: context.map {
-                SessionSnapshot(
-                    context: $0,
-                    isManualTrackingActive: isManualTrackingActive,
-                    manualProjectID: manualProjectID,
-                    manualStartDate: manualStartDate,
-                )
-            })
+            if !RuntimeFlags.isDisabled(.disableCrashRecovery) {
+                crashRecovery.persist(snapshot: context.map {
+                    SessionSnapshot(
+                        context: $0,
+                        isManualTrackingActive: isManualTrackingActive,
+                        manualProjectID: manualProjectID,
+                        manualStartDate: manualStartDate,
+                    )
+                })
+            }
             refreshStatusSummary()
         }
 

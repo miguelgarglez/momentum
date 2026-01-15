@@ -82,14 +82,18 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
     ) -> AssignmentResult {
         if let rule = fetchRule(for: context) {
             if isExpired(rule) {
-                modelContainer.mainContext.delete(rule)
-                try? Diagnostics.record(.swiftDataSave) {
-                    try modelContainer.mainContext.save()
+                if !RuntimeFlags.isDisabled(.disableSwiftDataWrites) {
+                    modelContainer.mainContext.delete(rule)
+                    try? Diagnostics.record(.swiftDataSave) {
+                        try modelContainer.mainContext.save()
+                    }
                 }
             } else if let ruleProject = rule.project {
-                rule.lastUsedAt = .now
-                try? Diagnostics.record(.swiftDataSave) {
-                    try modelContainer.mainContext.save()
+                if !RuntimeFlags.isDisabled(.disableSwiftDataWrites) {
+                    rule.lastUsedAt = .now
+                    try? Diagnostics.record(.swiftDataSave) {
+                        try modelContainer.mainContext.save()
+                    }
                 }
                 return .assigned(ruleProject, usedRule: true)
             }

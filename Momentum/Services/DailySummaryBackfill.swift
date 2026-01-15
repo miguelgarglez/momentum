@@ -24,6 +24,7 @@ final class DailySummaryBackfill: DailySummaryBackfilling {
     }
 
     func runIfNeeded(container: ModelContainer) {
+        guard !RuntimeFlags.isDisabled(.disableBackfill) else { return }
         let storedVersion = defaults.integer(forKey: Keys.version)
         guard storedVersion < Constants.currentVersion else { return }
 
