@@ -83,6 +83,8 @@ import SwiftData
         private let rulesCleanupInterval: TimeInterval = 60 * 60 * 24
         /// Max interval for domain/file polling backoff.
         private let maxResolutionInterval: TimeInterval = 60
+        /// Safety floor for timer intervals to avoid hot loops.
+        private let minimumTimerInterval: TimeInterval = 1
 
         private var currentContext: AppSessionContext?
         private var observer: NSObjectProtocol?
@@ -442,7 +444,8 @@ import SwiftData
         private func startHeartbeat() {
             heartbeatTimer?.invalidate()
             guard isTrackingEnabled, !RuntimeFlags.isDisabled(.disableHeartbeat) else { return }
-            heartbeatTimer = Timer.scheduledTimer(withTimeInterval: heartbeatInterval, repeats: true) { [weak self] _ in
+            let interval = max(heartbeatInterval, minimumTimerInterval)
+            heartbeatTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     Diagnostics.record(.heartbeatTick) {
@@ -966,7 +969,8 @@ import SwiftData
                 }
                 return
             }
-            idleTimer = Timer.scheduledTimer(withTimeInterval: idleCheckInterval, repeats: true) { [weak self] _ in
+            let interval = max(idleCheckInterval, minimumTimerInterval)
+            idleTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     Diagnostics.record(.idleCheckTick) {
@@ -1257,13 +1261,13 @@ import SwiftData
         private func domainPollingInterval() -> TimeInterval {
             let base = max(TrackerSettings.minDetectionInterval, settings.detectionInterval)
             let interval = base * pow(2, Double(domainBackoffLevel))
-            return min(interval, maxResolutionInterval)
+            return max(minimumTimerInterval, min(interval, maxResolutionInterval))
         }
 
         private func filePollingInterval() -> TimeInterval {
             let base = max(TrackerSettings.minDetectionInterval, settings.detectionInterval)
             let interval = base * pow(2, Double(fileBackoffLevel))
-            return min(interval, maxResolutionInterval)
+            return max(minimumTimerInterval, min(interval, maxResolutionInterval))
         }
 
         private func resetDomainBackoff() {
@@ -1342,7 +1346,8 @@ import SwiftData
             rulesCleanupTimer?.invalidate()
             rulesCleanupTimer = nil
             guard settings.assignmentRuleExpiration.days != nil else { return }
-            rulesCleanupTimer = Timer.scheduledTimer(withTimeInterval: rulesCleanupInterval, repeats: true) { [weak self] _ in
+            let interval = max(rulesCleanupInterval, minimumTimerInterval)
+            rulesCleanupTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.purgeExpiredRules()
                 }

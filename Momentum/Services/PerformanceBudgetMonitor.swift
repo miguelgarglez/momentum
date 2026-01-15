@@ -68,6 +68,7 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
     private let metricsSource: ResourceMetricsSource
     private let maxSamples = 60
     private let pollInterval: TimeInterval
+    private let minimumPollInterval: TimeInterval = 1
     private var pollTimer: Timer?
     private var lastPollSnapshot: ResourceSnapshot?
 
@@ -109,8 +110,8 @@ final class PerformanceBudgetMonitor: ObservableObject, PerformanceBudgetMonitor
     private func schedulePolling() {
         pollTimer?.invalidate()
         guard !RuntimeFlags.isDisabled(.disableBudgetMonitor) else { return }
-        guard pollInterval > 0 else { return }
-        pollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
+        let interval = max(pollInterval, minimumPollInterval)
+        pollTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.handlePollTick()
             }
