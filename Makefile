@@ -1,4 +1,4 @@
-.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint run-dev run-dev-onboarding run-release run reset-dev-data run-dev-reset-permissions run-release-reset-permissions archive-release install-release dmg clean clean-release diag-cpu-release
+.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint run-dev run-dev-onboarding run-release run reset-dev-data run-dev-reset-permissions run-release-reset-permissions archive-release install-release dmg clean clean-release diag-cpu-release diag-cpu-release-focus
 
 PROJECT := Momentum.xcodeproj
 SCHEME := Momentum
@@ -45,6 +45,7 @@ help:
 	@echo "  run-dev-onboarding Run dev app with fresh store, no debug seed, and clean onboarding"
 	@echo "  run-release       Build and launch the release app (quits running release app first)"
 	@echo "  diag-cpu-release  Run automated CPU diagnostics for Release"
+	@echo "  diag-cpu-release-focus Run focused CPU diagnostics (baseline + top suspects)"
 	@echo "  reset-dev-data    Remove dev store + seed flag, then run dev app"
 	@echo "  run-dev-reset-permissions     Reset Automation permissions, then run dev app"
 	@echo "  run-release-reset-permissions Reset Automation permissions, then run release app"
@@ -155,6 +156,13 @@ run-release:
 
 diag-cpu-release:
 	@./scripts/diag_run_release.sh
+
+diag-cpu-release-focus:
+	@SCENARIOS="baseline,disable_swiftdata_writes,disable_backfill,disable_crash_recovery" \
+	DIAG_FORCE_ACTIVE=1 \
+	CPU_SAMPLE_S=240 \
+	TIMEPROFILER_S=90 \
+	./scripts/diag_run_release.sh
 
 run: build
 	@set -euo pipefail; \

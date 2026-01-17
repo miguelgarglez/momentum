@@ -134,3 +134,12 @@ Raw `xcodebuild` commands are still valid and occasionally useful:
 - Debug builds use bundle id `miguelgarglez.Momentum.dev`; expect to re-grant macOS permissions (Accessibility, Screen Recording, etc.).
 - Debug builds auto-seed sample data once when the store is empty (projects, sessions, conflicts, summaries).
 - `make reset-dev-data` clears the dev store and seed flag, then re-launches the dev app.
+
+## Performance Diagnostics (Deterministic)
+- Use `make diag-cpu-release` / `make diag-cpu-release-focus` for CPU diagnostics.
+- For deterministic workload: `SCENARIO_DRIVER_PATH=./scripts/diag_scenario_driver.sh make diag-cpu-release-focus`.
+- Driver details and phase guide: `diagnostics/SCENARIO_GUIDE.md`.
+- Diagnostics workflow guide: `diagnostics/AGENTS.md`.
+- Runner/driver script notes: `scripts/AGENTS.md`.
+- The runner uses an isolated store per scenario inside the app container and seeds deterministic data (`MOM_DIAG_SEED=1`).
+- Default driver keeps the system active (`caffeinate -u`) and the runner can disable idle checks (`DIAG_FORCE_ACTIVE=1`) for stability.

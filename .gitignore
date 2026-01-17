@@ -42,3 +42,6 @@ fastlane/test_output/
 dist/
 node_modules/
 .raycast/
+
+# Performance Diagnostics
+diagnostics/runs/
