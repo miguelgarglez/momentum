@@ -53,6 +53,15 @@ struct ContentView: View {
         static let sidebarMaxWidth: CGFloat = 450
     }
 
+    private static let diagnosticsUIEnabled = ProcessInfo.processInfo.environment["MOM_DIAG_UI"] == "1"
+    private static let diagnosticsUIInterval: TimeInterval = {
+        let raw = ProcessInfo.processInfo.environment["MOM_DIAG_UI_INTERVAL_S"] ?? ""
+        if let value = Double(raw), value > 0 {
+            return value
+        }
+        return 6
+    }()
+
     private enum PendingProjectAction: Identifiable {
         case clear(Project)
         case delete(Project)
@@ -191,6 +200,13 @@ struct ContentView: View {
         #endif
             .onReceive(tracker.$manualStopEvent.compactMap(\.self)) { event in
                 showManualStopToast(event.reason)
+            }
+            .task(id: Self.diagnosticsUIEnabled) {
+                guard Self.diagnosticsUIEnabled else { return }
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: UInt64(Self.diagnosticsUIInterval * 1_000_000_000))
+                    cycleDiagnosticsSelection()
+                }
             }
             .sheet(isPresented: $showConflictSheet) {
                 PendingConflictResolutionView(
@@ -378,6 +394,13 @@ struct ContentView: View {
         } catch {
             showToast("No pudimos eliminar el proyecto", style: .error)
         }
+    }
+
+    private func cycleDiagnosticsSelection() {
+        guard !projects.isEmpty else { return }
+        let currentIndex = projects.firstIndex { $0.persistentModelID == selectedProjectID } ?? -1
+        let nextIndex = (currentIndex + 1) % projects.count
+        selectedProjectID = projects[nextIndex].persistentModelID
     }
 
     private func deleteProject(_ project: Project) {

@@ -17,7 +17,14 @@ This folder contains deterministic CPU diagnostics runs and supporting guides. U
 - `SCENARIO_DRIVER_PATH`: path to deterministic driver (recommended).
 - `DIAG_FORCE_ACTIVE=1`: disables idle checks for consistent activity.
 - `CPU_SAMPLE_S`, `TIMEPROFILER_S`: override sample durations when needed.
+- The runner scales driver phase durations to `CPU_SAMPLE_S` so CPU sampling covers all phases.
 - `SCENARIOS`: comma-separated list to override scenarios.
+- `DRIVER_MOMENTUM_MODE=foreground|pulse`: controls whether Momentum stays foregrounded during the momentum phase.
+- `DRIVER_MOMENTUM_FOREGROUND_S`: how long to keep Momentum in front per slice (foreground mode).
+- `DRIVER_APP_ROTATION`: comma-separated app names to rotate during the mixed phase (default includes Xcode, VS Code, Ghostty, Notes).
+- `DIAG_PRESEED=1`: pre-populates the per-scenario store with diagnostics seed data before each run.
+- `DIAG_UI=1`: enables lightweight UI activity inside Momentum (cycles project selection).
+- `DIAG_UI_INTERVAL_S=6`: how often to cycle project selection when `DIAG_UI=1`.
 
 ## Output Structure
 ```

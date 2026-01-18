@@ -28,3 +28,7 @@ It writes phase timing to `/tmp/momentum-diag/driver.log`, which the runner copi
 ## Notes
 - If `driver.log` is empty, check `/tmp/momentum-diag/driver.log` for driver output.
 - `DIAG_FORCE_ACTIVE=1` is recommended for consistent sampling.
+- `DIAG_PRESEED=1` (default) pre-populates the per-scenario store with diagnostics seed data before launching the scenario.
+- `DIAG_UI=1` (default) enables lightweight UI activity inside Momentum during diagnostics.
+- `DRIVER_APP_ROTATION` controls which apps are activated during the mixed phase.
+- Driver phase durations are scaled to `CPU_SAMPLE_S` so sampling covers all phases.

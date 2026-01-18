@@ -160,8 +160,8 @@ diag-cpu-release:
 diag-cpu-release-focus:
 	@SCENARIOS="baseline,disable_swiftdata_writes,disable_backfill,disable_crash_recovery" \
 	DIAG_FORCE_ACTIVE=1 \
-	CPU_SAMPLE_S=240 \
-	TIMEPROFILER_S=90 \
+	CPU_SAMPLE_S=360 \
+	TIMEPROFILER_S=60 \
 	./scripts/diag_run_release.sh
 
 run: build

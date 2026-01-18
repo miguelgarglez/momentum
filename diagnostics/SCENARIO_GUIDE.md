@@ -31,6 +31,9 @@ Optional overrides:
 - `DRIVER_URLS=...` custom URL list
 - `DRIVER_PHASE_IDLE_S`, `DRIVER_PHASE_DOMAIN_S`, `DRIVER_PHASE_FILE_S`, `DRIVER_PHASE_MIXED_S`, `DRIVER_PHASE_MOMENTUM_S`
 - `DRIVER_MOMENTUM_APP=Momentum` (app name)
+- `DRIVER_MOMENTUM_MODE=foreground|pulse` keep Momentum in front for the momentum phase
+- `DRIVER_MOMENTUM_FOREGROUND_S=8` duration per foreground slice (used in `foreground` mode)
+- `DRIVER_MOMENTUM_BACKGROUND_APP=Safari` app to switch to in `pulse` mode
 - `DRIVER_KEEP_AWAKE=1` keep system idle timer reset via `caffeinate -u`
 
 Each scenario now uses a clean store path inside the app container and seeds deterministic data when `MOM_DIAG` runs, so results are comparable run-to-run.

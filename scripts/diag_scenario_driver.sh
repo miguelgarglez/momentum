@@ -14,9 +14,15 @@ PHASE_MOMENTUM_S="${DRIVER_PHASE_MOMENTUM_S:-40}"
 
 CYCLE_PAUSE_S="${DRIVER_CYCLE_PAUSE_S:-2}"
 MOMENTUM_APP_NAME="${DRIVER_MOMENTUM_APP:-Momentum}"
+MOMENTUM_MODE="${DRIVER_MOMENTUM_MODE:-pulse}"
+MOMENTUM_FOREGROUND_S="${DRIVER_MOMENTUM_FOREGROUND_S:-20}"
+MOMENTUM_BACKGROUND_APP="${DRIVER_MOMENTUM_BACKGROUND_APP:-Safari}"
 
 URLS_RAW="${DRIVER_URLS:-https://example.com,https://developer.apple.com,https://www.wikipedia.org,https://www.mozilla.org}"
 IFS=',' read -r -a URLS <<< "${URLS_RAW}"
+
+APP_ROTATION_RAW="${DRIVER_APP_ROTATION:-Xcode,Visual Studio Code,Ghostty,Notes}"
+IFS=',' read -r -a APP_ROTATION <<< "${APP_ROTATION_RAW}"
 
 mkdir -p "${TEMP_DIR}"
 > "${LOG_PATH}"
@@ -55,6 +61,9 @@ PDFS=("${PDF_A}" "${PDF_B}" "${PDF_C}")
 
 open -a "Safari" >/dev/null 2>&1 || true
 open -a "Preview" "${PDF_A}" >/dev/null 2>&1 || true
+for app in "${APP_ROTATION[@]}"; do
+  open -a "${app}" >/dev/null 2>&1 || true
+done
 sleep 2
 
 if [[ "${KEEP_AWAKE}" == "1" ]]; then
@@ -62,6 +71,7 @@ if [[ "${KEEP_AWAKE}" == "1" ]]; then
   KEEP_AWAKE_PID=$!
   log_line "keep-awake enabled"
 fi
+log_line "momentum-mode ${MOMENTUM_MODE}"
 
 set_url() {
   local url="$1"
@@ -87,6 +97,7 @@ end_ts=$((start_ts + DURATION_S))
 now_ts="${start_ts}"
 url_index=0
 pdf_index=0
+app_index=0
 
 phase_idle() {
   sleep 2
@@ -113,15 +124,29 @@ phase_file() {
 phase_mixed() {
   phase_domain
   phase_file
-  activate_app "Finder"
+  if [[ ${#APP_ROTATION[@]} -gt 0 ]]; then
+    local app="${APP_ROTATION[${app_index}]}"
+    activate_app "${app}"
+    app_index=$(( (app_index + 1) % ${#APP_ROTATION[@]} ))
+  else
+    activate_app "Finder"
+  fi
   sleep "${CYCLE_PAUSE_S}"
 }
 
 phase_momentum() {
-  activate_app "${MOMENTUM_APP_NAME}"
-  sleep 5
-  activate_app "Safari"
-  sleep 2
+  case "${MOMENTUM_MODE}" in
+    foreground)
+      activate_app "${MOMENTUM_APP_NAME}"
+      sleep "${MOMENTUM_FOREGROUND_S}"
+      ;;
+    pulse|*)
+      activate_app "${MOMENTUM_APP_NAME}"
+      sleep "${MOMENTUM_FOREGROUND_S}"
+      activate_app "${MOMENTUM_BACKGROUND_APP}"
+      sleep 2
+      ;;
+  esac
 }
 
 log_line "phase idle start"

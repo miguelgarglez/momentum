@@ -5,11 +5,14 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUNDLE_ID="${BUNDLE_ID:-miguelgarglez.Momentum}"
 APP_NAME="${APP_NAME:-Momentum}"
 WARMUP_S="${WARMUP_S:-30}"
-CPU_SAMPLE_S="${CPU_SAMPLE_S:-120}"
+CPU_SAMPLE_S="${CPU_SAMPLE_S:-360}"
 CPU_SAMPLE_INTERVAL_S="${CPU_SAMPLE_INTERVAL_S:-2}"
 TIMEPROFILER_S="${TIMEPROFILER_S:-60}"
 SCENARIO_DRIVER_PATH="${SCENARIO_DRIVER_PATH:-}"
 DIAG_FORCE_ACTIVE="${DIAG_FORCE_ACTIVE:-1}"
+DIAG_PRESEED="${DIAG_PRESEED:-1}"
+DIAG_UI="${DIAG_UI:-1}"
+DIAG_UI_INTERVAL_S="${DIAG_UI_INTERVAL_S:-6}"
 
 TIMESTAMP="$(date +"%Y%m%d-%H%M%S")"
 RUN_ROOT="${ROOT_DIR}/diagnostics/runs/${TIMESTAMP}"
@@ -95,6 +98,9 @@ cat <<EOF_RUN >"${RUN_INFO}"
 - timeprofiler_s: ${TIMEPROFILER_S}
 - scenario_driver_path: ${SCENARIO_DRIVER_PATH:-none}
 - diag_force_active: ${DIAG_FORCE_ACTIVE}
+- diag_preseed: ${DIAG_PRESEED}
+- diag_ui: ${DIAG_UI}
+- diag_ui_interval_s: ${DIAG_UI_INTERVAL_S}
 - scenarios:
 EOF_RUN
 for scenario in "${scenarios[@]}"; do
@@ -114,6 +120,15 @@ log_supports_signpost=false
 if log stream --help 2>&1 | rg -q -- "--signpost"; then
   log_supports_signpost=true
 fi
+
+format_duration() {
+  local total_s="$1"
+  local minutes=$((total_s / 60))
+  local seconds=$((total_s % 60))
+  printf "%dm %ds" "${minutes}" "${seconds}"
+}
+
+TOTAL_DURATION_S=0
 
 cleanup_after_signal() {
   if [[ -n "${ACTIVE_DRIVER_PID:-}" ]]; then
@@ -137,6 +152,8 @@ run_scenario() {
   local flags="$2"
   local index="$3"
   local total="$4"
+  local scenario_start_ts
+  scenario_start_ts=$(date +%s)
   local scenario_dir="${RUN_ROOT}/${name}"
   mkdir -p "${scenario_dir}"
 
@@ -153,6 +170,35 @@ run_scenario() {
   local diag_csv="${HOME}/Library/Logs/Momentum/diagnostics.csv"
   rm -f "${diag_csv}"
 
+  local store_root="${HOME}/Library/Containers/${BUNDLE_ID}/Data/Library/Application Support/MomentumDiagnostics/${TIMESTAMP}"
+  local store_dir="${store_root}/${name}"
+  rm -rf "${store_dir}"
+  mkdir -p "${store_dir}"
+
+  if [[ "${DIAG_PRESEED}" == "1" ]]; then
+    local seed_stdout="${scenario_dir}/preseed_stdout.log"
+    local seed_stderr="${scenario_dir}/preseed_stderr.log"
+    local seed_errors="${scenario_dir}/errors.log"
+    set +u
+    env MOM_DIAG_PRESEED=1 \
+      MOMENTUM_SKIP_ONBOARDING=1 \
+      MOMENTUM_STORE_PATH="${store_dir}" \
+      "${APP_EXEC}" --seed-diagnostics-store --skip-debug-seed >"${seed_stdout}" 2>"${seed_stderr}" &
+    local seed_pid=$!
+    set -u
+    local waited=0
+    while ps -p "${seed_pid}" >/dev/null 2>&1; do
+      sleep 1
+      waited=$((waited + 1))
+      if [[ "${waited}" -ge 45 ]]; then
+        echo "Preseed timed out for ${name}" >>"${seed_errors}"
+        kill "${seed_pid}" 2>/dev/null || true
+        break
+      fi
+    done
+    wait "${seed_pid}" 2>/dev/null || true
+  fi
+
   local log_file="${scenario_dir}/logs.txt"
   local log_cmd=(log stream --style compact --predicate "subsystem == \"${BUNDLE_ID}\"")
   if [[ "${log_supports_signpost}" == "true" ]]; then
@@ -162,15 +208,12 @@ run_scenario() {
   local log_pid=$!
   ACTIVE_LOG_PID="${log_pid}"
 
-  local store_root="${HOME}/Library/Containers/${BUNDLE_ID}/Data/Library/Application Support/MomentumDiagnostics/${TIMESTAMP}"
-  local store_dir="${store_root}/${name}"
-  rm -rf "${store_dir}"
-  mkdir -p "${store_dir}"
-
   # Launch app with env vars
   set +u
   env MOM_DIAG=1 \
     MOM_DIAG_SEED=1 \
+    $( [[ "${DIAG_UI}" == "1" ]] && echo "MOM_DIAG_UI=1" ) \
+    $( [[ "${DIAG_UI}" == "1" ]] && echo "MOM_DIAG_UI_INTERVAL_S=${DIAG_UI_INTERVAL_S}" ) \
     MOMENTUM_SKIP_ONBOARDING=1 \
     MOMENTUM_STORE_PATH="${store_dir}" \
     $( [[ "${DIAG_FORCE_ACTIVE}" == "1" ]] && echo "DISABLE_IDLE_CHECK=1" ) \
@@ -200,33 +243,49 @@ run_scenario() {
   local driver_stdout="${scenario_dir}/driver_stdout.log"
   if [[ -n "${SCENARIO_DRIVER_PATH}" ]]; then
     rm -f "${driver_log_src}"
-    DRIVER_DURATION_S="${CPU_SAMPLE_S}" "${SCENARIO_DRIVER_PATH}" >"${driver_stdout}" 2>&1 &
+    local phase_idle_s=$((CPU_SAMPLE_S * 10 / 100))
+    local phase_domain_s=$((CPU_SAMPLE_S * 25 / 100))
+    local phase_file_s=$((CPU_SAMPLE_S * 20 / 100))
+    local phase_mixed_s=$((CPU_SAMPLE_S * 25 / 100))
+    local phase_momentum_s=$((CPU_SAMPLE_S - phase_idle_s - phase_domain_s - phase_file_s - phase_mixed_s))
+    DRIVER_DURATION_S="${CPU_SAMPLE_S}" \
+      DRIVER_PHASE_IDLE_S="${phase_idle_s}" \
+      DRIVER_PHASE_DOMAIN_S="${phase_domain_s}" \
+      DRIVER_PHASE_FILE_S="${phase_file_s}" \
+      DRIVER_PHASE_MIXED_S="${phase_mixed_s}" \
+      DRIVER_PHASE_MOMENTUM_S="${phase_momentum_s}" \
+      "${SCENARIO_DRIVER_PATH}" >"${driver_stdout}" 2>&1 &
     driver_pid=$!
     ACTIVE_DRIVER_PID="${driver_pid}"
   fi
+
+  local cpu_csv="${scenario_dir}/cpu.csv"
+  (
+    echo "timestamp,cpu_percent" >"${cpu_csv}"
+    local start_ts
+    start_ts=$(date +%s)
+    local end_ts=$((start_ts + CPU_SAMPLE_S))
+    while [[ $(date +%s) -lt ${end_ts} ]]; do
+      if ! ps -p "${pid}" >/dev/null 2>&1; then
+        echo "Process exited during sampling" >>"${scenario_dir}/errors.log"
+        break
+      fi
+      local ts
+      ts=$(date +%s)
+      local cpu
+      cpu=$(ps -o %cpu= -p "${pid}" | tr -d ' ')
+      echo "${ts},${cpu}" >>"${cpu_csv}"
+      sleep "${CPU_SAMPLE_INTERVAL_S}"
+    done
+  ) &
+  local cpu_pid=$!
 
   local trace_path="${scenario_dir}/timeprofiler.trace"
   xcrun xctrace record --template "Time Profiler" --attach "${pid}" --time-limit "${TIMEPROFILER_S}s" \
     --output "${trace_path}" >"${scenario_dir}/timeprofiler.log" 2>&1 || \
     echo "Time Profiler failed for ${name}" >>"${scenario_dir}/errors.log"
 
-  local cpu_csv="${scenario_dir}/cpu.csv"
-  echo "timestamp,cpu_percent" >"${cpu_csv}"
-  local start_ts
-  start_ts=$(date +%s)
-  local end_ts=$((start_ts + CPU_SAMPLE_S))
-  while [[ $(date +%s) -lt ${end_ts} ]]; do
-    if ! ps -p "${pid}" >/dev/null 2>&1; then
-      echo "Process exited during sampling" >>"${scenario_dir}/errors.log"
-      break
-    fi
-    local ts
-    ts=$(date +%s)
-    local cpu
-    cpu=$(ps -o %cpu= -p "${pid}" | tr -d ' ')
-    echo "${ts},${cpu}" >>"${cpu_csv}"
-    sleep "${CPU_SAMPLE_INTERVAL_S}"
-  done
+  wait "${cpu_pid}" 2>/dev/null || true
 
   if [[ -f "${diag_csv}" ]]; then
     cp "${diag_csv}" "${scenario_dir}/diagnostics.csv"
@@ -248,17 +307,38 @@ run_scenario() {
   sleep 2
   kill "${log_pid}" 2>/dev/null || true
   ACTIVE_LOG_PID=""
+
+  local scenario_end_ts
+  scenario_end_ts=$(date +%s)
+  local scenario_duration_s=$((scenario_end_ts - scenario_start_ts))
+  TOTAL_DURATION_S=$((TOTAL_DURATION_S + scenario_duration_s))
+  echo "scenario_duration_s_${name}: ${scenario_duration_s}" >>"${RUN_INFO}"
+  echo "${scenario_duration_s}" >"${scenario_dir}/duration_s.txt"
 }
 
 total_scenarios="${#scenarios[@]}"
 index=1
+RUN_START_TS=$(date +%s)
 for scenario in "${scenarios[@]}"; do
   name="${scenario%%:*}"
   flags="${scenario#*:}"
   run_scenario "${name}" "${flags}" "${index}" "${total_scenarios}"
   index=$((index + 1))
 done
+RUN_END_TS=$(date +%s)
+RUN_TOTAL_S=$((RUN_END_TS - RUN_START_TS))
+if [[ "${RUN_TOTAL_S}" -le 0 ]]; then
+  RUN_TOTAL_S="${TOTAL_DURATION_S}"
+fi
+AVG_SCENARIO_S=0
+if [[ "${total_scenarios}" -gt 0 ]]; then
+  AVG_SCENARIO_S=$((RUN_TOTAL_S / total_scenarios))
+fi
+{
+  echo "total_duration_s: ${RUN_TOTAL_S}"
+  echo "avg_scenario_duration_s: ${AVG_SCENARIO_S}"
+} >>"${RUN_INFO}"
 
 python3 "${ROOT_DIR}/scripts/parse_cpu_csv.py" "${RUN_ROOT}" || true
 
-echo "Completed run at ${RUN_ROOT}"
+echo "Completed run at ${RUN_ROOT} (duration: $(format_duration "${RUN_TOTAL_S}"))"
