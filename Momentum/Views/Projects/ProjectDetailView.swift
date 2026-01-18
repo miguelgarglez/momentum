@@ -3,7 +3,6 @@ import SwiftUI
 
 struct ProjectDetailView: View {
     @Bindable var project: Project
-    @Query private var recentSessions: [TrackingSession]
     @State private var usageWindow: UsageWindow = .hour
     let isTrackingActiveForProject: Bool
     let onEdit: (Project) -> Void
@@ -13,6 +12,14 @@ struct ProjectDetailView: View {
     @State private var showClearActivityDialog = false
     @State private var showDeleteDialog = false
     @State private var stats = ProjectDetailStats.empty
+    @State private var lastUsedSnapshot: LastUsedSessionSnapshot?
+    @State private var isProjectEmptyState = false
+    @State private var sessionSnapshots: [ProjectUsageSummarizer.UsageSessionSnapshot] = []
+    @State private var lastRefreshDate: Date?
+    @State private var isRefreshing = false
+    @State private var showsRefreshIndicator = false
+    @State private var refreshIndicatorToken = UUID()
+    @State private var refreshCounter = 0
 
     enum MetricLayout {
         static let minHeight: CGFloat = 110
@@ -34,6 +41,12 @@ struct ProjectDetailView: View {
         static let insetCornerRadius: CGFloat = 12
     }
 
+    private enum RefreshPolicy {
+        static let minInterval: TimeInterval = 3
+        static let refreshInterval: TimeInterval = 600
+        static let indicatorDelay: TimeInterval = 0.4
+    }
+
     init(
         project: Project,
         isTrackingActiveForProject: Bool = false,
@@ -43,13 +56,6 @@ struct ProjectDetailView: View {
         onStartTracking: @escaping (Project) -> Void = { _ in },
     ) {
         _project = Bindable(project)
-        let projectID = project.persistentModelID
-        _recentSessions = Query(
-            filter: #Predicate<TrackingSession> { session in
-                session.project?.persistentModelID == projectID
-            },
-            sort: [SortDescriptor(\TrackingSession.endDate, order: .reverse)],
-        )
         self.isTrackingActiveForProject = isTrackingActiveForProject
         self.onEdit = onEdit
         self.onDelete = onDelete
@@ -67,8 +73,8 @@ struct ProjectDetailView: View {
                     }
                 }
                 summarySection
-                WeeklySummaryChartView(project: project)
-                ActivityHistorySectionView(project: project)
+                WeeklySummaryChartView(project: project, refreshToken: refreshCounter)
+                ActivityHistorySectionView(project: project, refreshToken: refreshCounter)
                 assignmentsSection
                 usageSummarySection
                 lastUsedSection
@@ -112,32 +118,12 @@ struct ProjectDetailView: View {
                 Text("Se eliminará el proyecto y su historial asociado.")
             }
         }
-        .task(id: refreshKey) {
-            let usageInterval = usageWindow.interval
-            let sessionSnapshots = project.sessions.map { session in
-                ProjectUsageSummarizer.UsageSessionSnapshot(
-                    startDate: session.startDate,
-                    endDate: session.endDate,
-                    contextKey: session.contextKey,
-                    title: session.primaryContextLabel,
-                    subtitle: session.secondaryContextLabel,
-                    bundleIdentifier: session.bundleIdentifier,
-                    domain: session.domain,
-                    filePath: session.filePath,
-                )
-            }
-
-            stats = ProjectDetailStats(project: project)
-
-            let summaries = await Task.detached(priority: .userInitiated) {
-                ProjectUsageSummarizer.summaries(
-                    from: sessionSnapshots,
-                    interval: usageInterval,
-                    limit: 6,
-                )
-            }.value
-            guard !Task.isCancelled else { return }
-            stats = stats.withUsageSummaries(summaries)
+        .task(id: project.persistentModelID) {
+            await refreshIfNeeded(force: true)
+            await refreshLoop()
+        }
+        .task(id: usageWindow) {
+            await refreshUsageSummaries()
         }
     }
 
@@ -180,9 +166,12 @@ struct ProjectDetailView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Resumen")
                     .font(.headline)
-                Text("Tu progreso en un vistazo.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Text("Tu progreso en un vistazo.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    refreshIndicator
+                }
             }
 
             VStack(alignment: .leading, spacing: Layout.metricSpacing) {
@@ -222,7 +211,7 @@ struct ProjectDetailView: View {
     }
 
     private var isProjectEmpty: Bool {
-        project.sessions.isEmpty && project.dailySummaries.isEmpty
+        isProjectEmptyState
     }
 
     private var shouldShowEmptyState: Bool {
@@ -331,8 +320,8 @@ struct ProjectDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Último usado")
                 .font(.headline)
-            if let session = recentSessions.first {
-                LastUsedCard(session: session)
+            if let snapshot = lastUsedSnapshot {
+                LastUsedCard(snapshot: snapshot)
             } else {
                 Text("Aún no hay sesiones para este proyecto.")
                     .foregroundStyle(.secondary)
@@ -345,8 +334,120 @@ struct ProjectDetailView: View {
         )
     }
 
-    private var refreshKey: String {
-        "\(usageWindow.rawValue)-\(project.sessions.count)-\(project.dailySummaries.count)"
+    private var refreshIndicator: some View {
+        HStack(spacing: 6) {
+            ProgressView()
+                .scaleEffect(0.7)
+            Text("Actualizando…")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .opacity(showsRefreshIndicator ? 1 : 0)
+        .animation(.easeInOut(duration: 0.2), value: showsRefreshIndicator)
+    }
+
+    @MainActor
+    private func refreshIfNeeded(force: Bool) async {
+        let now = Date()
+        if let lastRefreshDate, !force {
+            let elapsed = now.timeIntervalSince(lastRefreshDate)
+            if elapsed < RefreshPolicy.minInterval {
+                return
+            }
+            if elapsed < RefreshPolicy.refreshInterval {
+                return
+            }
+        }
+
+        await setRefreshing(true)
+        let snapshots = project.sessions.map { session in
+            ProjectUsageSummarizer.UsageSessionSnapshot(
+                startDate: session.startDate,
+                endDate: session.endDate,
+                contextKey: session.contextKey,
+                title: session.primaryContextLabel,
+                subtitle: session.secondaryContextLabel,
+                bundleIdentifier: session.bundleIdentifier,
+                domain: session.domain,
+                filePath: session.filePath,
+            )
+        }
+
+        sessionSnapshots = snapshots
+        stats = ProjectDetailStats(project: project)
+        isProjectEmptyState = project.sessions.isEmpty && project.dailySummaries.isEmpty
+        lastUsedSnapshot = project.sessions.max(by: { $0.endDate < $1.endDate }).map {
+            LastUsedSessionSnapshot(session: $0)
+        }
+        lastRefreshDate = now
+        refreshCounter += 1
+
+        let usageInterval = usageWindow.interval
+        let summaries = await Task.detached(priority: .userInitiated) {
+            ProjectUsageSummarizer.summaries(
+                from: snapshots,
+                interval: usageInterval,
+                limit: 6,
+            )
+        }.value
+        guard !Task.isCancelled else {
+            await setRefreshing(false)
+            return
+        }
+        stats = stats.withUsageSummaries(summaries)
+        await setRefreshing(false)
+    }
+
+    @MainActor
+    private func refreshUsageSummaries() async {
+        let snapshots = sessionSnapshots
+        guard !snapshots.isEmpty else {
+            await refreshIfNeeded(force: true)
+            return
+        }
+        let usageInterval = usageWindow.interval
+        let summaries = await Task.detached(priority: .userInitiated) {
+            ProjectUsageSummarizer.summaries(
+                from: snapshots,
+                interval: usageInterval,
+                limit: 6,
+            )
+        }.value
+        guard !Task.isCancelled else { return }
+        stats = stats.withUsageSummaries(summaries)
+    }
+
+    private func refreshLoop() async {
+        while !Task.isCancelled {
+            do {
+                try await Task.sleep(for: .seconds(RefreshPolicy.refreshInterval))
+            } catch {
+                return
+            }
+            await refreshIfNeeded(force: false)
+        }
+    }
+
+    @MainActor
+    private func setRefreshing(_ refreshing: Bool) async {
+        if refreshing {
+            isRefreshing = true
+            showsRefreshIndicator = false
+            let indicatorToken = UUID()
+            refreshIndicatorToken = indicatorToken
+            Task { @MainActor in
+                do {
+                    try await Task.sleep(for: .seconds(RefreshPolicy.indicatorDelay))
+                } catch {
+                    return
+                }
+                guard isRefreshing, refreshIndicatorToken == indicatorToken else { return }
+                showsRefreshIndicator = true
+            }
+        } else {
+            isRefreshing = false
+            showsRefreshIndicator = false
+        }
     }
 }
 

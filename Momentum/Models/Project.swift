@@ -19,6 +19,32 @@ final class Project {
     var assignedFilesRaw: String = "[]"
     var createdAt: Date
 
+    @Transient private var cachedAssignedApps: [String]?
+    @Transient private var cachedAssignedAppsRaw: String?
+    @Transient private var cachedAssignedDomains: [String]?
+    @Transient private var cachedAssignedDomainsRaw: String?
+    @Transient private var cachedAssignedFiles: [String]?
+    @Transient private var cachedAssignedFilesRaw: String?
+    @Transient private var statsRevision: Int = 0
+    @Transient private var cachedTotalSeconds: CachedValue<TimeInterval>?
+    @Transient private var cachedWeeklySeconds: CachedKeyedValue<TimeInterval, Date>?
+    @Transient private var cachedDailySeconds: CachedKeyedValue<TimeInterval, Date>?
+    @Transient private var cachedMonthlySeconds: CachedKeyedValue<TimeInterval, Date>?
+    @Transient private var cachedStreakCount: CachedKeyedValue<Int, Date>?
+    @Transient private var cachedLongestStreakCount: CachedValue<Int>?
+    @Transient private var cachedLastActivityDate: CachedValue<Date?>?
+
+    private struct CachedValue<T> {
+        let revision: Int
+        let value: T
+    }
+
+    private struct CachedKeyedValue<T, Key: Hashable> {
+        let revision: Int
+        let key: Key
+        let value: T
+    }
+
     @Relationship(deleteRule: .cascade, inverse: \TrackingSession.project)
     var sessions: [TrackingSession] = []
     @Relationship(deleteRule: .cascade, inverse: \DailySummary.project)
@@ -43,26 +69,107 @@ final class Project {
 }
 
 extension Project {
+    func markStatsDirty() {
+        statsRevision += 1
+    }
+
+    private func cachedValue<T>(_ cache: inout CachedValue<T>?, compute: () -> T) -> T {
+        if let cache, cache.revision == statsRevision {
+            return cache.value
+        }
+        let value = compute()
+        cache = CachedValue(revision: statsRevision, value: value)
+        return value
+    }
+
+    private func cachedValue<T, Key: Hashable>(
+        _ cache: inout CachedKeyedValue<T, Key>?,
+        key: Key,
+        compute: () -> T,
+    ) -> T {
+        if let cache,
+           cache.revision == statsRevision,
+           cache.key == key
+        {
+            return cache.value
+        }
+        let value = compute()
+        cache = CachedKeyedValue(revision: statsRevision, key: key, value: value)
+        return value
+    }
+
     var assignedApps: [String] {
-        get { Project.decodeStrings(from: assignedAppsRaw) }
-        set { assignedAppsRaw = Project.encode(strings: newValue) }
+        get {
+            if let cachedRaw = cachedAssignedAppsRaw,
+               let cached = cachedAssignedApps,
+               cachedRaw == assignedAppsRaw
+            {
+                return cached
+            }
+            let decoded = Project.decodeStrings(from: assignedAppsRaw)
+            cachedAssignedAppsRaw = assignedAppsRaw
+            cachedAssignedApps = decoded
+            return decoded
+        }
+        set {
+            let encoded = Project.encode(strings: newValue)
+            assignedAppsRaw = encoded
+            cachedAssignedAppsRaw = encoded
+            cachedAssignedApps = newValue
+        }
     }
 
     var assignedDomains: [String] {
-        get { Project.decodeStrings(from: assignedDomainsRaw) }
-        set { assignedDomainsRaw = Project.encode(strings: newValue.map { $0.lowercased() }) }
+        get {
+            if let cachedRaw = cachedAssignedDomainsRaw,
+               let cached = cachedAssignedDomains,
+               cachedRaw == assignedDomainsRaw
+            {
+                return cached
+            }
+            let decoded = Project.decodeStrings(from: assignedDomainsRaw)
+            cachedAssignedDomainsRaw = assignedDomainsRaw
+            cachedAssignedDomains = decoded
+            return decoded
+        }
+        set {
+            let normalized = newValue.map { $0.lowercased() }
+            let encoded = Project.encode(strings: normalized)
+            assignedDomainsRaw = encoded
+            cachedAssignedDomainsRaw = encoded
+            cachedAssignedDomains = normalized
+        }
     }
 
     var assignedFiles: [String] {
-        get { Project.decodeStrings(from: assignedFilesRaw) }
-        set { assignedFilesRaw = Project.encode(strings: Project.normalizeFiles(newValue)) }
+        get {
+            if let cachedRaw = cachedAssignedFilesRaw,
+               let cached = cachedAssignedFiles,
+               cachedRaw == assignedFilesRaw
+            {
+                return cached
+            }
+            let decoded = Project.decodeStrings(from: assignedFilesRaw)
+            cachedAssignedFilesRaw = assignedFilesRaw
+            cachedAssignedFiles = decoded
+            return decoded
+        }
+        set {
+            let normalized = Project.normalizeFiles(newValue)
+            let encoded = Project.encode(strings: normalized)
+            assignedFilesRaw = encoded
+            cachedAssignedFilesRaw = encoded
+            cachedAssignedFiles = normalized
+        }
     }
 
     var color: Color { Color(hex: colorHex) ?? .accentColor }
 
     @MainActor
     var lastActivityDate: Date? {
-        sessions.max(by: { $0.endDate < $1.endDate })?.endDate
+        cachedValue(&cachedLastActivityDate) {
+            sessions.max(by: { $0.endDate < $1.endDate })?.endDate
+        }
     }
 
     @MainActor
@@ -81,87 +188,105 @@ extension Project {
     }
 
     var totalSeconds: TimeInterval {
-        sessions.reduce(0) { $0 + $1.duration }
+        cachedValue(&cachedTotalSeconds) {
+            sessions.reduce(0) { $0 + $1.duration }
+        }
     }
 
     var weeklySeconds: TimeInterval {
         let calendar = Calendar.current
         let end = Date()
         let startOfWindow = calendar.date(byAdding: .day, value: -6, to: DailySummary.normalize(end)) ?? end
-        guard !dailySummaries.isEmpty else {
-            let interval = DateInterval(start: startOfWindow, end: end)
-            return secondsSpent(in: interval)
-        }
-        return dailySummaries.reduce(0) { partial, summary in
-            summary.date >= startOfWindow ? partial + summary.seconds : partial
+        return cachedValue(&cachedWeeklySeconds, key: startOfWindow) {
+            let end = Date()
+            let startOfWindow = calendar.date(byAdding: .day, value: -6, to: DailySummary.normalize(end)) ?? end
+            guard !dailySummaries.isEmpty else {
+                let interval = DateInterval(start: startOfWindow, end: end)
+                return secondsSpent(in: interval)
+            }
+            return dailySummaries.reduce(0) { partial, summary in
+                summary.date >= startOfWindow ? partial + summary.seconds : partial
+            }
         }
     }
 
     var dailySeconds: TimeInterval {
         let startOfDay = DailySummary.normalize(.now)
-        if let cached = dailySummaries.first(where: { $0.date == startOfDay }) {
-            return cached.seconds
+        return cachedValue(&cachedDailySeconds, key: startOfDay) {
+            let startOfDay = DailySummary.normalize(.now)
+            if let cached = dailySummaries.first(where: { $0.date == startOfDay }) {
+                return cached.seconds
+            }
+            let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay) ?? .now
+            let interval = DateInterval(start: startOfDay, end: min(endOfDay, .now))
+            return secondsSpent(in: interval)
         }
-        let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay) ?? .now
-        let interval = DateInterval(start: startOfDay, end: min(endOfDay, .now))
-        return secondsSpent(in: interval)
     }
 
     var monthlySeconds: TimeInterval {
         let calendar = Calendar.current
-        guard let startOfMonth = calendar.dateInterval(of: .month, for: .now)?.start else {
-            return 0
-        }
-        guard !dailySummaries.isEmpty else {
-            let interval = DateInterval(start: startOfMonth, end: .now)
-            return secondsSpent(in: interval)
-        }
-        return dailySummaries.reduce(0) { partial, summary in
-            summary.date >= startOfMonth ? partial + summary.seconds : partial
+        let startOfMonth = calendar.dateInterval(of: .month, for: .now)?.start ?? .now
+        return cachedValue(&cachedMonthlySeconds, key: startOfMonth) {
+            let calendar = Calendar.current
+            guard let startOfMonth = calendar.dateInterval(of: .month, for: .now)?.start else {
+                return 0
+            }
+            guard !dailySummaries.isEmpty else {
+                let interval = DateInterval(start: startOfMonth, end: .now)
+                return secondsSpent(in: interval)
+            }
+            return dailySummaries.reduce(0) { partial, summary in
+                summary.date >= startOfMonth ? partial + summary.seconds : partial
+            }
         }
     }
 
     var streakCount: Int {
-        let calendar = Calendar.current
-        var streak = 0
-        var date = calendar.startOfDay(for: .now)
+        let today = Calendar.current.startOfDay(for: .now)
+        return cachedValue(&cachedStreakCount, key: today) {
+            let calendar = Calendar.current
+            var streak = 0
+            var date = calendar.startOfDay(for: .now)
 
-        while hasActivity(on: date) {
-            streak += 1
-            guard let previous = calendar.date(byAdding: .day, value: -1, to: date) else {
-                break
+            while hasActivity(on: date) {
+                streak += 1
+                guard let previous = calendar.date(byAdding: .day, value: -1, to: date) else {
+                    break
+                }
+                date = previous
             }
-            date = previous
-        }
 
-        return streak
+            return streak
+        }
     }
 
     var longestStreakCount: Int {
-        let sortedDays = activityDays().sorted()
-        guard let firstDay = sortedDays.first else { return 0 }
-        let calendar = Calendar.current
-        var best = 1
-        var current = 1
-        var previous = firstDay
+        cachedValue(&cachedLongestStreakCount) {
+            let sortedDays = activityDays().sorted()
+            guard let firstDay = sortedDays.first else { return 0 }
+            let calendar = Calendar.current
+            var best = 1
+            var current = 1
+            var previous = firstDay
 
-        for day in sortedDays.dropFirst() {
-            guard let expected = calendar.date(byAdding: .day, value: 1, to: previous) else {
-                current = 1
-                previous = day
+            for day in sortedDays.dropFirst() {
+                guard let expected = calendar.date(byAdding: .day, value: 1, to: previous) else {
+                    current = 1
+                    previous = day
+                    best = max(best, current)
+                    continue
+                }
+                if day == expected {
+                    current += 1
+                } else {
+                    current = 1
+                }
                 best = max(best, current)
-                continue
+                previous = day
             }
-            if day == expected {
-                current += 1
-            } else {
-                current = 1
-            }
-            best = max(best, current)
-            previous = day
-        }
 
-        return best
+            return best
+        }
     }
 
     func hasActivity(on date: Date) -> Bool {

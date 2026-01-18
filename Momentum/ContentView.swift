@@ -34,6 +34,9 @@ struct ContentView: View {
     @State private var toast: ToastMessage?
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var pendingProjectAction: PendingProjectAction?
+    @State private var projectStatsCache: [PersistentIdentifier: ProjectRowView.ProjectRowStats] = [:]
+    @State private var dashboardMetrics = DashboardMetricsDisplay.loading
+    @State private var lastStatsRefreshDate: Date?
     #if os(macOS)
         @Environment(\.openWindow) private var openWindow
         @State private var shouldSuppressInitialWindow = true
@@ -112,6 +115,10 @@ struct ContentView: View {
                 "delete"
             }
         }
+    }
+
+    private enum StatsRefreshPolicy {
+        static let refreshInterval: TimeInterval = 600
     }
 
     var body: some View {
@@ -229,6 +236,9 @@ struct ContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .onboardingProjectCreated)) { notification in
                 handleOnboardingProjectCreated(notification)
             }
+            .onChange(of: projects.map(\.persistentModelID)) { _, _ in
+                Task { await refreshProjectStatsIfNeeded(force: true) }
+            }
             .onChange(of: projects.count) { _, newValue in
                 if newValue > 0 {
                     onboardingState.markProjectCreated()
@@ -242,6 +252,10 @@ struct ContentView: View {
             }
             .task {
                 showWelcomeWindowIfNeeded()
+            }
+            .task {
+                await refreshProjectStatsIfNeeded(force: true)
+                await refreshProjectStatsLoop()
             }
             .alert(item: $pendingProjectAction) { action in
                 Alert(
@@ -305,7 +319,7 @@ struct ContentView: View {
         List(selection: $selectedProjectID) {
             if !projects.isEmpty {
                 Section {
-                    DashboardHeaderView(projects: projects)
+                    DashboardHeaderView(metrics: dashboardMetrics)
                         .listRowInsets(.init(top: 12, leading: 12, bottom: 12, trailing: 12))
                         .listRowBackground(Color.clear)
                         .accessibilityIdentifier("dashboard-header")
@@ -317,7 +331,7 @@ struct ContentView: View {
                     EmptyProjectsView()
                 } else {
                     ForEach(projects) { project in
-                        ProjectRowView(project: project)
+                        ProjectRowView(project: project, stats: projectStatsCache[project.persistentModelID])
                             .tag(project.persistentModelID)
                             .contextMenu {
                                 Button("Editar") {
@@ -340,6 +354,55 @@ struct ContentView: View {
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+    }
+
+    @MainActor
+    private func refreshProjectStatsIfNeeded(force: Bool) async {
+        let now = Date()
+        if let lastStatsRefreshDate, !force {
+            let elapsed = now.timeIntervalSince(lastStatsRefreshDate)
+            if elapsed < StatsRefreshPolicy.refreshInterval {
+                return
+            }
+        }
+
+        var cache: [PersistentIdentifier: ProjectRowView.ProjectRowStats] = [:]
+        var totals = (total: TimeInterval(0), monthly: TimeInterval(0), weekly: TimeInterval(0), daily: TimeInterval(0))
+        for project in projects {
+            let totalSeconds = project.totalSeconds
+            let weeklySeconds = project.weeklySeconds
+            let dailySeconds = project.dailySeconds
+            let monthlySeconds = project.monthlySeconds
+            cache[project.persistentModelID] = ProjectRowView.ProjectRowStats(
+                totalSeconds: totalSeconds,
+                dailySeconds: dailySeconds,
+                weeklySeconds: weeklySeconds,
+            )
+            totals.total += totalSeconds
+            totals.monthly += monthlySeconds
+            totals.weekly += weeklySeconds
+            totals.daily += dailySeconds
+        }
+
+        projectStatsCache = cache
+        dashboardMetrics = DashboardMetricsDisplay(
+            total: totals.total.hoursAndMinutesString,
+            monthly: totals.monthly.hoursAndMinutesString,
+            weekly: totals.weekly.hoursAndMinutesString,
+            daily: totals.daily.hoursAndMinutesString,
+        )
+        lastStatsRefreshDate = now
+    }
+
+    private func refreshProjectStatsLoop() async {
+        while !Task.isCancelled {
+            do {
+                try await Task.sleep(for: .seconds(StatsRefreshPolicy.refreshInterval))
+            } catch {
+                return
+            }
+            await refreshProjectStatsIfNeeded(force: false)
+        }
     }
 
     @ViewBuilder
@@ -470,6 +533,7 @@ struct ContentView: View {
         for session in sessions {
             modelContext.delete(session)
         }
+        project.markStatsDirty()
         do {
             try modelContext.save()
             showToast("Actividad limpiada", style: .success)

@@ -51,6 +51,14 @@ diagnostics/runs/<timestamp>/
 3) Open `timeprofiler.trace` for baseline vs best-improving scenario.
 4) Prioritize fixes where both average CPU and per-phase spikes drop.
 
+## Known Hotspots & Fixes (2026-01-18)
+- Hotspots: `Project.weeklySeconds`, `Project.decodeStrings(from:)`, `ContentView` sidebar/detail recompute.
+- Effective fixes:
+  - Cache project-derived stats and refresh them on a low cadence (e.g., 10 min) instead of on every SwiftUI update.
+  - Refresh detail stats only on project focus + interval; show light loader if refresh is slow.
+  - Cache decoded assignment arrays in `Project` to avoid repeated JSON decode.
+- Writes: batching SwiftData saves helps, but UI recompute dominated baseline CPU.
+
 ## Quick Phase Analysis (optional)
 Use a short script to compute per-phase CPU stats for a run:
 ```bash

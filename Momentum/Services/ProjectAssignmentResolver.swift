@@ -20,6 +20,7 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
     private let cache = Cache()
     private let projectsCacheTTL: TimeInterval = 5
     private let ruleCacheTTL: TimeInterval = 5
+    private let ruleLastUsedUpdateInterval: TimeInterval = 600
 
     init(modelContainer: ModelContainer, settings: TrackerSettings) {
         self.modelContainer = modelContainer
@@ -89,10 +90,12 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
                     }
                 }
             } else if let ruleProject = rule.project {
-                if !RuntimeFlags.isDisabled(.disableSwiftDataWrites) {
+                if shouldUpdateRuleLastUsedAt(rule) {
                     rule.lastUsedAt = .now
-                    try? Diagnostics.record(.swiftDataSave) {
-                        try modelContainer.mainContext.save()
+                    if !RuntimeFlags.isDisabled(.disableSwiftDataWrites) {
+                        try? Diagnostics.record(.swiftDataSave) {
+                            try modelContainer.mainContext.save()
+                        }
                     }
                 }
                 return .assigned(ruleProject, usedRule: true)
@@ -133,6 +136,10 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
     private func isExpired(_ rule: AssignmentRule) -> Bool {
         guard let cutoff = settings.assignmentRuleExpiration.cutoffDate() else { return false }
         return rule.effectiveLastUsedAt < cutoff
+    }
+
+    private func shouldUpdateRuleLastUsedAt(_ rule: AssignmentRule) -> Bool {
+        Date().timeIntervalSince(rule.lastUsedAt) >= ruleLastUsedUpdateInterval
     }
 
     private func normalizedDomainContext(from domain: String?) -> AssignmentContext? {

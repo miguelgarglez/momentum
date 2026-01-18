@@ -9,6 +9,7 @@ Copy this file into a new chat alongside the artifacts folder you want analyzed.
 - macOS version:
 - Release app version/build:
 - Notes about workload during run:
+  - Known hotspots to watch (if any):
 
 ## What was run
 - Command used:
@@ -20,6 +21,7 @@ Copy this file into a new chat alongside the artifacts folder you want analyzed.
 - Any obvious CPU spikes?
 - Any scenario that looked “fixed”?
 - Anything odd (app exits, permissions prompts, logs missing)?
+ - Did the UI sidebar/detail appear “stale” (expected if refresh is throttled)?
 
 ## Artifacts to share
 Paste these paths (or attach the files):

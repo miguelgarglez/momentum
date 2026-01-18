@@ -57,6 +57,7 @@ enum ActivityRange: String, CaseIterable, Identifiable {
 
 struct WeeklySummaryChartView: View {
     let project: Project
+    let refreshToken: Int
     @State private var hoveredDate: Date?
     @State private var range: ActivityRange = .month
     @State private var points: [DailySummaryPoint] = []
@@ -290,7 +291,7 @@ struct WeeklySummaryChartView: View {
     }
 
     private var refreshKey: String {
-        "\(range.rawValue)-\(project.dailySummaries.count)"
+        "\(range.rawValue)-\(refreshToken)"
     }
 }
 

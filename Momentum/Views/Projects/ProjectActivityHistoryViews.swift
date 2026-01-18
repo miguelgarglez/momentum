@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ActivityHistorySectionView: View {
     let project: Project
+    let refreshToken: Int
     @State private var selectedYear: Int = Calendar.current.component(.year, from: .now)
 
     var body: some View {
@@ -20,7 +21,7 @@ struct ActivityHistorySectionView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            ActivityHeatmapView(project: project, selectedYear: $selectedYear)
+            ActivityHeatmapView(project: project, refreshToken: refreshToken, selectedYear: $selectedYear)
         }
         .detailCardStyle(
             padding: 16,
@@ -32,6 +33,7 @@ struct ActivityHistorySectionView: View {
 
 struct ActivityHeatmapView: View {
     let project: Project
+    let refreshToken: Int
     @Binding var selectedYear: Int
     @State private var hoveredDay: Date?
     @State private var days: [HeatmapDay] = []
@@ -180,7 +182,7 @@ struct ActivityHeatmapView: View {
     }
 
     private var refreshKey: String {
-        "\(selectedYear)-\(project.dailySummaries.count)-\(project.sessions.count)"
+        "\(selectedYear)-\(refreshToken)"
     }
 
     private func yearInterval(for year: Int) -> DateInterval {

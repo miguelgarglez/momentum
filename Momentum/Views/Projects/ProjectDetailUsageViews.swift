@@ -62,27 +62,77 @@ struct ContextUsageRow: View {
     }
 }
 
+struct LastUsedSessionSnapshot: Identifiable {
+    let id: UUID
+    let title: String
+    let subtitle: String?
+    let bundleIdentifier: String?
+    let domain: String?
+    let filePath: String?
+    let duration: TimeInterval
+    let endDate: Date
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        subtitle: String?,
+        bundleIdentifier: String?,
+        domain: String?,
+        filePath: String?,
+        duration: TimeInterval,
+        endDate: Date,
+    ) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.bundleIdentifier = bundleIdentifier
+        self.domain = domain
+        self.filePath = filePath
+        self.duration = duration
+        self.endDate = endDate
+    }
+
+    init(session: TrackingSession) {
+        id = UUID()
+        title = session.primaryContextLabel
+        subtitle = session.secondaryContextLabel
+        bundleIdentifier = session.bundleIdentifier
+        domain = session.domain
+        filePath = session.filePath
+        duration = session.duration
+        endDate = session.endDate
+    }
+}
+
 struct LastUsedCard: View {
     @EnvironmentObject private var appCatalog: AppCatalog
-    let session: TrackingSession
+    let snapshot: LastUsedSessionSnapshot
 
-    private var title: String { session.primaryContextLabel }
-    private var subtitle: String? { session.secondaryContextLabel }
+    init(snapshot: LastUsedSessionSnapshot) {
+        self.snapshot = snapshot
+    }
+
+    init(session: TrackingSession) {
+        snapshot = LastUsedSessionSnapshot(session: session)
+    }
+
+    private var title: String { snapshot.title }
+    private var subtitle: String? { snapshot.subtitle }
 
     private var icon: Image {
-        if session.filePath != nil {
+        if snapshot.filePath != nil {
             return Image(systemName: "doc.text")
         }
-        if let bundle = session.bundleIdentifier,
+        if let bundle = snapshot.bundleIdentifier,
            let app = appCatalog.app(for: bundle)
         {
             return app.icon
         }
-        return Image(systemName: session.domain == nil ? "app" : "globe")
+        return Image(systemName: snapshot.domain == nil ? "app" : "globe")
     }
 
     private var relativeTime: String {
-        Self.relativeDateFormatter.localizedString(for: session.endDate, relativeTo: .now)
+        Self.relativeDateFormatter.localizedString(for: snapshot.endDate, relativeTo: .now)
     }
 
     var body: some View {
@@ -102,7 +152,7 @@ struct LastUsedCard: View {
                     }
                 }
                 Spacer()
-                Text(session.duration.hoursAndMinutesString)
+                Text(snapshot.duration.hoursAndMinutesString)
                     .font(.headline)
             }
 

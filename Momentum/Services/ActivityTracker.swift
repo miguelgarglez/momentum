@@ -83,6 +83,10 @@ import SwiftData
         private let rulesCleanupInterval: TimeInterval = 60 * 60 * 24
         /// Max interval for domain/file polling backoff.
         private let maxResolutionInterval: TimeInterval = 60
+        /// Debounce interval for coalescing SwiftData saves.
+        private let saveDebounceInterval: TimeInterval = 2
+        /// Maximum interval before forcing a SwiftData save.
+        private let saveMaxInterval: TimeInterval = 10
         /// Safety floor for timer intervals to avoid hot loops.
         private let minimumTimerInterval: TimeInterval = 1
 
@@ -104,6 +108,10 @@ import SwiftData
         private var idleBeganAt: Date?
         private var manualProjectID: PersistentIdentifier?
         private var manualStartDate: Date?
+        private var pendingSwiftDataSave = false
+        private var pendingSwiftDataSaveSince: Date?
+        private var lastSwiftDataSaveRequestAt: Date?
+        private var swiftDataSaveTask: Task<Void, Never>?
         private var diagnosticsReporter: DiagnosticsReporter?
         private var cancellables: Set<AnyCancellable> = []
 
@@ -328,28 +336,16 @@ import SwiftData
         private func persistSession(context: AppSessionContext, endDate: Date, project: Project) {
             guard !RuntimeFlags.isDisabled(.disableSwiftDataWrites) else { return }
             insertResolvedSession(context: context, endDate: endDate, project: project)
-            do {
-                try Diagnostics.record(.swiftDataSave) {
-                    try modelContainer.mainContext.save()
-                }
-                logger.info("Logged \(endDate.timeIntervalSince(context.startDate), privacy: .public)s for \(context.appName, privacy: .public) project=\(project.name, privacy: .public)")
-            } catch {
-                logger.error("Failed to save session: \(error.localizedDescription, privacy: .public)")
-            }
+            scheduleSwiftDataSave()
+            logger.info("Logged \(endDate.timeIntervalSince(context.startDate), privacy: .public)s for \(context.appName, privacy: .public) project=\(project.name, privacy: .public)")
         }
 
         private func persistManualSession(context: AppSessionContext, endDate: Date, project: Project) {
             guard !RuntimeFlags.isDisabled(.disableSwiftDataWrites) else { return }
             insertResolvedSession(context: context, endDate: endDate, project: project)
             updateManualProjectAssignments(for: project, context: context)
-            do {
-                try Diagnostics.record(.swiftDataSave) {
-                    try modelContainer.mainContext.save()
-                }
-                logger.info("Logged manual \(endDate.timeIntervalSince(context.startDate), privacy: .public)s for \(context.appName, privacy: .public) project=\(project.name, privacy: .public)")
-            } catch {
-                logger.error("Failed to save manual session: \(error.localizedDescription, privacy: .public)")
-            }
+            scheduleSwiftDataSave()
+            logger.info("Logged manual \(endDate.timeIntervalSince(context.startDate), privacy: .public)s for \(context.appName, privacy: .public) project=\(project.name, privacy: .public)")
         }
 
         private func updateManualProjectAssignments(for project: Project, context: AppSessionContext) {
@@ -381,15 +377,9 @@ import SwiftData
                 contextValue: conflictContext.value,
             )
             modelContainer.mainContext.insert(pending)
-            do {
-                try Diagnostics.record(.swiftDataSave) {
-                    try modelContainer.mainContext.save()
-                }
-                refreshPendingConflictCount()
-                logger.info("Stored pending session for \(conflictContext.value, privacy: .public)")
-            } catch {
-                logger.error("Failed to save pending session: \(error.localizedDescription, privacy: .public)")
-            }
+            scheduleSwiftDataSave()
+            refreshPendingConflictCount()
+            logger.info("Stored pending session for \(conflictContext.value, privacy: .public)")
         }
 
         private func insertResolvedSession(
@@ -410,10 +400,17 @@ import SwiftData
                 project: project,
             )
             modelContainer.mainContext.insert(session)
-            for (project, removedInterval) in removedSegments {
-                updateDailySummaries(for: project, interval: removedInterval, sign: -1)
+            var touchedProjects: [PersistentIdentifier: Project] = [:]
+            for (removedProject, removedInterval) in removedSegments {
+                updateDailySummaries(for: removedProject, interval: removedInterval, sign: -1)
+                guard let removedProject else { continue }
+                touchedProjects[removedProject.persistentModelID] = removedProject
             }
             updateDailySummaries(for: project, interval: interval, sign: 1)
+            touchedProjects[project.persistentModelID] = project
+            for (_, touched) in touchedProjects {
+                touched.markStatsDirty()
+            }
         }
 
         private func updateDailySummaries(for project: Project?, interval: DateInterval, sign: Double) {
@@ -1254,6 +1251,68 @@ import SwiftData
             pendingConflictCount = (try? Diagnostics.record(.swiftDataFetch, work: {
                 try modelContainer.mainContext.fetch(descriptor).count
             })) ?? 0
+        }
+
+        private func scheduleSwiftDataSave() {
+            guard !RuntimeFlags.isDisabled(.disableSwiftDataWrites) else { return }
+            pendingSwiftDataSave = true
+            let now = Date()
+            if pendingSwiftDataSaveSince == nil {
+                pendingSwiftDataSaveSince = now
+            }
+            lastSwiftDataSaveRequestAt = now
+            guard swiftDataSaveTask == nil else { return }
+            swiftDataSaveTask = Task { @MainActor [weak self] in
+                await self?.runSwiftDataSaveLoop()
+            }
+        }
+
+        private func runSwiftDataSaveLoop() async {
+            while !Task.isCancelled {
+                guard pendingSwiftDataSave else {
+                    pendingSwiftDataSaveSince = nil
+                    lastSwiftDataSaveRequestAt = nil
+                    swiftDataSaveTask = nil
+                    return
+                }
+
+                let now = Date()
+                let pendingSince = pendingSwiftDataSaveSince ?? now
+                let lastRequestAt = lastSwiftDataSaveRequestAt ?? pendingSince
+                let sinceFirst = now.timeIntervalSince(pendingSince)
+                let sinceLast = now.timeIntervalSince(lastRequestAt)
+                let shouldDelay = sinceLast < saveDebounceInterval && sinceFirst < saveMaxInterval
+
+                if shouldDelay {
+                    let delay = min(saveDebounceInterval - sinceLast, saveMaxInterval - sinceFirst)
+                    do {
+                        try await Task.sleep(for: .seconds(delay))
+                    } catch {
+                        pendingSwiftDataSaveSince = nil
+                        lastSwiftDataSaveRequestAt = nil
+                        swiftDataSaveTask = nil
+                        return
+                    }
+                    continue
+                }
+
+                pendingSwiftDataSave = false
+                pendingSwiftDataSaveSince = nil
+                lastSwiftDataSaveRequestAt = nil
+                do {
+                    try Diagnostics.record(.swiftDataSave) {
+                        try modelContainer.mainContext.save()
+                    }
+                } catch {
+                    logger.error("Failed to save SwiftData: \(error.localizedDescription, privacy: .public)")
+                }
+
+                if !pendingSwiftDataSave {
+                    swiftDataSaveTask = nil
+                    return
+                }
+            }
+            swiftDataSaveTask = nil
         }
 
         private func pauseTimers() {

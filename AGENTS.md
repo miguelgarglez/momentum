@@ -143,3 +143,4 @@ Raw `xcodebuild` commands are still valid and occasionally useful:
 - Runner/driver script notes: `scripts/AGENTS.md`.
 - The runner uses an isolated store per scenario inside the app container and seeds deterministic data (`MOM_DIAG_SEED=1`).
 - Default driver keeps the system active (`caffeinate -u`) and the runner can disable idle checks (`DIAG_FORCE_ACTIVE=1`) for stability.
+ - Known hotspots/fixes summary: `diagnostics/AGENTS.md` (2026-01-18).

@@ -39,6 +39,18 @@ struct EmptyProjectsView: View {
 
 struct ProjectRowView: View {
     let project: Project
+    let stats: ProjectRowStats?
+
+    init(project: Project, stats: ProjectRowStats? = nil) {
+        self.project = project
+        self.stats = stats
+    }
+
+    struct ProjectRowStats {
+        let totalSeconds: TimeInterval
+        let dailySeconds: TimeInterval
+        let weeklySeconds: TimeInterval
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -53,7 +65,7 @@ struct ProjectRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(project.name)
                     .font(.headline)
-                Text("Total \(project.totalSeconds.hoursAndMinutesString) · Hoy \(project.dailySeconds.hoursAndMinutesString)")
+                Text("Total \(totalText) · Hoy \(dailyText)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -61,7 +73,7 @@ struct ProjectRowView: View {
             Spacer()
 
             VStack(alignment: .trailing) {
-                Text(project.weeklySeconds.hoursAndMinutesString)
+                Text(weeklyText)
                     .font(.headline)
                 Text("Semana")
                     .font(.caption2)
@@ -69,5 +81,17 @@ struct ProjectRowView: View {
             }
         }
         .padding(.vertical, 6)
+    }
+
+    private var totalText: String {
+        stats?.totalSeconds.hoursAndMinutesString ?? "…"
+    }
+
+    private var dailyText: String {
+        stats?.dailySeconds.hoursAndMinutesString ?? "…"
+    }
+
+    private var weeklyText: String {
+        stats?.weeklySeconds.hoursAndMinutesString ?? "…"
     }
 }

@@ -1,7 +1,21 @@
 import SwiftUI
 
+struct DashboardMetricsDisplay {
+    let total: String
+    let monthly: String
+    let weekly: String
+    let daily: String
+
+    static let loading = DashboardMetricsDisplay(
+        total: "…",
+        monthly: "…",
+        weekly: "…",
+        daily: "…",
+    )
+}
+
 struct DashboardHeaderView: View {
-    let projects: [Project]
+    let metrics: DashboardMetricsDisplay
     @AppStorage("dashboardSummaryExpanded") private var isExpanded = true
 
     fileprivate enum Layout {
@@ -16,22 +30,6 @@ struct DashboardHeaderView: View {
             GridItem(.flexible(), spacing: metricSpacing),
             GridItem(.flexible(), spacing: metricSpacing),
         ]
-    }
-
-    private var totalSeconds: TimeInterval {
-        projects.reduce(0) { $0 + $1.totalSeconds }
-    }
-
-    private var monthlySeconds: TimeInterval {
-        projects.reduce(0) { $0 + $1.monthlySeconds }
-    }
-
-    private var weeklySeconds: TimeInterval {
-        projects.reduce(0) { $0 + $1.weeklySeconds }
-    }
-
-    private var todaySeconds: TimeInterval {
-        projects.reduce(0) { $0 + $1.dailySeconds }
     }
 
     var body: some View {
@@ -63,10 +61,10 @@ struct DashboardHeaderView: View {
 
             if isExpanded {
                 DashboardMetricsView(
-                    total: totalSeconds,
-                    monthly: monthlySeconds,
-                    weekly: weeklySeconds,
-                    daily: todaySeconds,
+                    total: metrics.total,
+                    monthly: metrics.monthly,
+                    weekly: metrics.weekly,
+                    daily: metrics.daily,
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
             }
@@ -82,10 +80,10 @@ struct DashboardHeaderView: View {
 }
 
 struct DashboardMetricsView: View {
-    let total: TimeInterval
-    let monthly: TimeInterval
-    let weekly: TimeInterval
-    let daily: TimeInterval
+    let total: String
+    let monthly: String
+    let weekly: String
+    let daily: String
 
     private struct MetricInfo: Identifiable {
         let id: String
@@ -101,19 +99,19 @@ struct DashboardMetricsView: View {
             metricsGrid(
                 metrics: [
                     MetricInfo(
-                        id: "total", title: "Total", value: total.hoursAndMinutesString,
+                        id: "total", title: "Total", value: total,
                         icon: "hourglass",
                     ),
                     MetricInfo(
-                        id: "monthly", title: "Este mes", value: monthly.hoursAndMinutesString,
+                        id: "monthly", title: "Este mes", value: monthly,
                         icon: "calendar.badge.clock",
                     ),
                     MetricInfo(
-                        id: "weekly", title: "Esta semana", value: weekly.hoursAndMinutesString,
+                        id: "weekly", title: "Esta semana", value: weekly,
                         icon: "chart.bar",
                     ),
                     MetricInfo(
-                        id: "daily", title: "Hoy", value: daily.hoursAndMinutesString,
+                        id: "daily", title: "Hoy", value: daily,
                         icon: "sun.max",
                     ),
                 ],
@@ -122,19 +120,19 @@ struct DashboardMetricsView: View {
             metricsGrid(
                 metrics: [
                     MetricInfo(
-                        id: "total", title: "Total", value: total.hoursAndMinutesString,
+                        id: "total", title: "Total", value: total,
                         icon: "hourglass",
                     ),
                     MetricInfo(
-                        id: "monthly", title: "Mes", value: monthly.hoursAndMinutesString,
+                        id: "monthly", title: "Mes", value: monthly,
                         icon: "calendar.badge.clock",
                     ),
                     MetricInfo(
-                        id: "weekly", title: "Semana", value: weekly.hoursAndMinutesString,
+                        id: "weekly", title: "Semana", value: weekly,
                         icon: "chart.bar",
                     ),
                     MetricInfo(
-                        id: "daily", title: "Hoy", value: daily.hoursAndMinutesString,
+                        id: "daily", title: "Hoy", value: daily,
                         icon: "sun.max",
                     ),
                 ],
