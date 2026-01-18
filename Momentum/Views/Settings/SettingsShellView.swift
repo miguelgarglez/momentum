@@ -48,28 +48,28 @@ struct SettingsShellView: View {
         .environmentObject(navigationModel)
         .frame(minWidth: Layout.minWidth, minHeight: Layout.minHeight)
         #if os(macOS)
-        .background(WindowCloseObserver {
-            Task { @MainActor in
-                discardChanges()
-            }
-        })
+            .background(WindowCloseObserver {
+                Task { @MainActor in
+                    discardChanges()
+                }
+            })
         #endif
-        .onAppear {
-            if !hasLoadedDraft {
-                draft = TrackerSettingsDraft(from: settings)
-                hasLoadedDraft = true
+            .onAppear {
+                if !hasLoadedDraft {
+                    draft = TrackerSettingsDraft(from: settings)
+                    hasLoadedDraft = true
+                }
+                if themePreview.selection == nil {
+                    themePreview.selection = settings.themePreference
+                }
             }
-            if themePreview.selection == nil {
-                themePreview.selection = settings.themePreference
+            .task(id: themePreview.selection) {
+                try? await Task.sleep(nanoseconds: 450_000_000)
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    themePreview.previewPreference = themePreview.selection
+                }
             }
-        }
-        .task(id: themePreview.selection) {
-            try? await Task.sleep(nanoseconds: 450_000_000)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                themePreview.previewPreference = themePreview.selection
-            }
-        }
     }
 
     @MainActor

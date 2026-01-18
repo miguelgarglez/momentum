@@ -21,7 +21,7 @@ enum DiagnosticsSeedData {
             durationMinutes: Int,
             appName: String,
             bundleID: String,
-            domain: String? = nil
+            domain: String? = nil,
         ) {
             guard let start = calendar.date(byAdding: .hour, value: startHour, to: day(dayOffset)) else { return }
             let session = TrackingSession(
@@ -73,10 +73,10 @@ enum DiagnosticsSeedData {
             startHour: Int,
             appName: String,
             bundleID: String,
-            domain: String? = nil
+            domain: String? = nil,
         ) {
             guard !minutesPattern.isEmpty else { return }
-            for dayOffset in 0..<days {
+            for dayOffset in 0 ..< days {
                 let minutes = minutesPattern[dayOffset % minutesPattern.count]
                 addSession(
                     project: project,
@@ -85,7 +85,7 @@ enum DiagnosticsSeedData {
                     durationMinutes: minutes,
                     appName: appName,
                     bundleID: bundleID,
-                    domain: domain
+                    domain: domain,
                 )
                 addSummary(project: project, dayOffset: dayOffset, minutes: minutes)
             }
@@ -98,7 +98,7 @@ enum DiagnosticsSeedData {
             minutesPattern: [60, 90, 75, 120, 45, 60, 90, 60],
             startHour: 9,
             appName: "Xcode",
-            bundleID: "com.apple.dt.Xcode"
+            bundleID: "com.apple.dt.Xcode",
         )
 
         // Writing: heavier total volume across 120 days.
@@ -109,7 +109,7 @@ enum DiagnosticsSeedData {
             startHour: 14,
             appName: "Pages",
             bundleID: "com.apple.iWork.Pages",
-            domain: "docs.google.com"
+            domain: "docs.google.com",
         )
 
         // Admin: lower volume across 40 days.
@@ -119,7 +119,7 @@ enum DiagnosticsSeedData {
             minutesPattern: [30, 45, 15, 20, 30, 40, 25, 35],
             startHour: 17,
             appName: "Mail",
-            bundleID: "com.apple.Mail"
+            bundleID: "com.apple.Mail",
         )
 
         // Conflict projects: much lower volume for variety.
@@ -129,7 +129,7 @@ enum DiagnosticsSeedData {
             minutesPattern: [20, 25, 15, 30, 10],
             startHour: 16,
             appName: "VSCode",
-            bundleID: conflictBundle
+            bundleID: conflictBundle,
         )
         addDailySeries(
             project: courseB,
@@ -137,7 +137,7 @@ enum DiagnosticsSeedData {
             minutesPattern: [15, 10, 20],
             startHour: 18,
             appName: "VSCode",
-            bundleID: conflictBundle
+            bundleID: conflictBundle,
         )
 
         let pendingAppConflict = PendingTrackingSession(

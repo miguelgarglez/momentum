@@ -1,5 +1,5 @@
-import XCTest
 @testable import Momentum
+import XCTest
 
 @MainActor
 final class DomainNormalizerTests: XCTestCase {

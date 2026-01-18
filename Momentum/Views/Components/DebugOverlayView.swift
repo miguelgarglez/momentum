@@ -27,7 +27,7 @@ struct DebugOverlayView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1),
         )
         .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
         .onReceive(tracker.objectWillChange) { _ in
@@ -68,21 +68,21 @@ struct DebugOverlayView: View {
     private var stateLabel: String {
         switch tracker.statusSummary.state {
         case .inactive:
-            return "inactivo"
+            "inactivo"
         case .tracking:
-            return "tracking"
+            "tracking"
         case .trackingManual:
-            return "manual"
+            "manual"
         case .pendingResolution:
-            return "pendiente"
+            "pendiente"
         case .pausedManual:
-            return "pausa manual"
+            "pausa manual"
         case .pausedIdle:
-            return "pausa idle"
+            "pausa idle"
         case .pausedScreenLocked:
-            return "pausa lock"
+            "pausa lock"
         case .pausedExcluded:
-            return "excluido"
+            "excluido"
         }
     }
 }
@@ -130,14 +130,14 @@ struct DebugOverlayPerformanceView: View {
     }
 
     private var cpuAverageText: String {
-        let values = recentSamples.map { $0.cpuLoad }
+        let values = recentSamples.map(\.cpuLoad)
         guard !values.isEmpty else { return "—" }
         let avg = values.reduce(0, +) / Double(values.count)
         return percentText(avg)
     }
 
     private var cpuPollAverageText: String {
-        let values = recentPollSamples.map { $0.cpuLoad }
+        let values = recentPollSamples.map(\.cpuLoad)
         guard !values.isEmpty else { return "—" }
         let avg = values.reduce(0, +) / Double(values.count)
         return percentText(avg)
@@ -149,7 +149,7 @@ struct DebugOverlayPerformanceView: View {
     }
 
     private var ioAverageText: String {
-        let values = recentSamples.map { $0.ioBytesPerSecond }
+        let values = recentSamples.map(\.ioBytesPerSecond)
         guard !values.isEmpty else { return "—" }
         let avg = values.reduce(0, +) / Double(values.count)
         return ioText(avg)
@@ -163,8 +163,8 @@ struct DebugOverlayPerformanceView: View {
         if value >= 1_000_000 {
             return String(format: "%.1f MB/s", value / 1_000_000)
         }
-        if value >= 1_000 {
-            return String(format: "%.0f KB/s", value / 1_000)
+        if value >= 1000 {
+            return String(format: "%.0f KB/s", value / 1000)
         }
         return String(format: "%.0f B/s", value)
     }
@@ -197,7 +197,7 @@ struct DebugOverlayModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay(alignment: .topTrailing) {
-                if isEnabled && !RuntimeFlags.isDisabled(.disableOverlayUpdates) {
+                if isEnabled, !RuntimeFlags.isDisabled(.disableOverlayUpdates) {
                     DebugOverlayView(tracker: tracker, performanceMonitor: performanceMonitor)
                         .padding(.top, 12)
                         .padding(.trailing, 16)
@@ -212,12 +212,12 @@ extension View {
     func debugOverlay(
         isEnabled: Bool,
         tracker: ActivityTracker,
-        performanceMonitor: PerformanceBudgetMonitor?
+        performanceMonitor: PerformanceBudgetMonitor?,
     ) -> some View {
         modifier(DebugOverlayModifier(
             isEnabled: isEnabled,
             tracker: tracker,
-            performanceMonitor: performanceMonitor
+            performanceMonitor: performanceMonitor,
         ))
     }
 }

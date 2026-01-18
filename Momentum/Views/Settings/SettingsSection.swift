@@ -13,34 +13,34 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .tracking:
-            return "Tracking"
+            "Tracking"
         case .privacy:
-            return "Privacidad"
+            "Privacidad"
         case .appearance:
-            return "Apariencia"
+            "Apariencia"
         case .idle:
-            return "Inactividad"
+            "Inactividad"
         case .exclusions:
-            return "Exclusiones"
+            "Exclusiones"
         case .assignmentRules:
-            return "Reglas"
+            "Reglas"
         }
     }
 
     var systemImageName: String {
         switch self {
         case .tracking:
-            return "dot.scope"
+            "dot.scope"
         case .privacy:
-            return "lock.shield"
+            "lock.shield"
         case .appearance:
-            return "paintbrush"
+            "paintbrush"
         case .idle:
-            return "moon.zzz"
+            "moon.zzz"
         case .exclusions:
-            return "line.3.horizontal.decrease.circle"
+            "line.3.horizontal.decrease.circle"
         case .assignmentRules:
-            return "point.3.connected.trianglepath.dotted"
+            "point.3.connected.trianglepath.dotted"
         }
     }
 }

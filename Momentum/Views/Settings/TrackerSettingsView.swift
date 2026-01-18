@@ -209,7 +209,6 @@ struct TrackerSettingsView: View {
                     onClose()
                 }
             }
-
         }
     }
 #endif

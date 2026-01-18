@@ -38,11 +38,11 @@
                 return false
             }
 
-            func windowDidBecomeKey(_ notification: Notification) {
+            func windowDidBecomeKey(_: Notification) {
                 notifyVisibilityChange()
             }
 
-            func windowDidDeminiaturize(_ notification: Notification) {
+            func windowDidDeminiaturize(_: Notification) {
                 notifyVisibilityChange()
             }
 

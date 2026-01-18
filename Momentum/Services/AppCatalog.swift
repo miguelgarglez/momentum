@@ -67,7 +67,7 @@ private extension AppCatalog {
         return paths
     }
 
-    nonisolated private static func scanApplications(at paths: [URL]) -> [AppDescriptor] {
+    private nonisolated static func scanApplications(at paths: [URL]) -> [AppDescriptor] {
         var results: [String: AppDescriptor] = [:]
         let keys: [URLResourceKey] = [.isDirectoryKey]
         let fm = FileManager.default
@@ -96,7 +96,7 @@ private extension AppCatalog {
         return Array(results.values)
     }
 
-    nonisolated private static func ensureSystemApps(into results: inout [String: AppDescriptor]) {
+    private nonisolated static func ensureSystemApps(into results: inout [String: AppDescriptor]) {
         let fm = FileManager.default
         let entries: [(String, String, String)] = [
             ("com.apple.Safari", "Safari", "/Applications/Safari.app"),
@@ -122,7 +122,7 @@ private extension AppCatalog {
                 bundleIdentifier: descriptor.bundleIdentifier,
                 name: descriptor.name,
                 url: descriptor.url,
-                icon: icon
+                icon: icon,
             )
         }
     }

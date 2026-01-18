@@ -1486,7 +1486,7 @@ import SwiftData
             guard let pendingSessions = try? Diagnostics.record(.swiftDataFetch, work: {
                 try modelContainer.mainContext.fetch(pendingDescriptor)
             }),
-                  !pendingSessions.isEmpty
+                !pendingSessions.isEmpty
             else {
                 refreshPendingConflictCount()
                 return

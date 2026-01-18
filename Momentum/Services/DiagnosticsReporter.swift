@@ -4,14 +4,14 @@ import Foundation
 final class DiagnosticsReporter {
     private let interval: TimeInterval
     private let metricsSource: ResourceMetricsSource
-    private let fileHandle: FileHandle
+    private let fileHandle: FileHandle?
     private var timer: Timer?
     private var lastSnapshot: ResourceSnapshot?
     private var lastCounters: [CounterKey: Int] = [:]
 
     init(
         interval: TimeInterval = 15,
-        metricsSource: ResourceMetricsSource = MachResourceMetricsSource()
+        metricsSource: ResourceMetricsSource = MachResourceMetricsSource(),
     ) {
         self.interval = interval
         self.metricsSource = metricsSource
@@ -19,8 +19,10 @@ final class DiagnosticsReporter {
         let logURL = DiagnosticsReporter.makeLogURL()
         DiagnosticsReporter.ensureLogDirectory(for: logURL)
         FileManager.default.createFile(atPath: logURL.path, contents: nil)
-        fileHandle = try! FileHandle(forWritingTo: logURL)
-        fileHandle.seekToEndOfFile()
+        fileHandle = try? FileHandle(forWritingTo: logURL)
+        fileHandle?.seekToEndOfFile()
+
+        guard fileHandle != nil else { return }
 
         writeHeaderIfNeeded()
         lastSnapshot = metricsSource.snapshot()
@@ -32,7 +34,7 @@ final class DiagnosticsReporter {
         timer?.invalidate()
         timer = nil
         writeSummary()
-        try? fileHandle.close()
+        try? fileHandle?.close()
     }
 
     private func startTimer() {
@@ -75,7 +77,7 @@ final class DiagnosticsReporter {
             duration: duration,
             cpuLoad: cpuLoad,
             ioRate: ioRate,
-            deltas: deltas
+            deltas: deltas,
         )
     }
 
@@ -99,7 +101,7 @@ final class DiagnosticsReporter {
         duration: TimeInterval,
         cpuLoad: Double,
         ioRate: Double,
-        deltas: [CounterKey: Int]
+        deltas: [CounterKey: Int],
     ) {
         var columns: [String] = []
         columns.reserveCapacity(4 + CounterKey.allCases.count)
@@ -116,7 +118,7 @@ final class DiagnosticsReporter {
     private func writeSummary() {
         guard Diagnostics.isEnabled else { return }
         let counters = Diagnostics.snapshot()
-        var columns: [String] = ["#summary"]
+        var columns = ["#summary"]
         columns.append("timestamp=\(String(format: "%.3f", Date().timeIntervalSince1970))")
         for key in CounterKey.allCases {
             columns.append("\(key.rawValue)=\(counters[key, default: 0])")
@@ -125,6 +127,7 @@ final class DiagnosticsReporter {
     }
 
     private func writeString(_ string: String) {
+        guard let fileHandle else { return }
         if let data = string.data(using: .utf8) {
             try? fileHandle.write(contentsOf: data)
         }

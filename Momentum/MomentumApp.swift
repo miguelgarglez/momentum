@@ -179,7 +179,7 @@ struct MomentumApp: App {
             try environment.configure(
                 storeDirectory: configuration.directory,
                 isUITest: Self.isUITestRun,
-                isSeedRun: Self.isDiagnosticsSeedRun
+                isSeedRun: Self.isDiagnosticsSeedRun,
             )
             bootstrapError = nil
             if Self.isDiagnosticsSeedRun {
@@ -321,7 +321,7 @@ final class AppEnvironment: ObservableObject {
         try configure(
             storeDirectory: storeDirectory,
             isUITest: MomentumApp.isUITestRun,
-            isSeedRun: MomentumApp.isDiagnosticsSeedRun
+            isSeedRun: MomentumApp.isDiagnosticsSeedRun,
         )
     }
 

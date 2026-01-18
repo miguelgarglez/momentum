@@ -311,7 +311,6 @@
         @objc private func handleShowSettings(_: Any?) {
             NotificationCenter.default.post(name: .statusItemShowSettings, object: nil)
         }
-
     }
 
     extension Notification.Name {

@@ -185,11 +185,11 @@ struct ContentView: View {
         #if os(macOS)
             .background(
                 MainWindowVisibilityObserver(
-                    shouldSuppressInitialWindow: $shouldSuppressInitialWindow
-                )
+                    shouldSuppressInitialWindow: $shouldSuppressInitialWindow,
+                ),
             )
             .background(
-                WindowCloseAccessoryHandler()
+                WindowCloseAccessoryHandler(),
             )
             .onReceive(NotificationCenter.default.publisher(for: .statusItemShowApp)) { _ in
                 showMainWindowFromStatusItem()
@@ -723,11 +723,11 @@ private enum ProjectSheet: Identifiable {
     private struct MainWindowVisibilityObserver: NSViewRepresentable {
         @Binding var shouldSuppressInitialWindow: Bool
 
-        func makeNSView(context: Context) -> NSView {
+        func makeNSView(context _: Context) -> NSView {
             NSView()
         }
 
-        func updateNSView(_ nsView: NSView, context: Context) {
+        func updateNSView(_ nsView: NSView, context _: Context) {
             DispatchQueue.main.async {
                 guard let window = nsView.window else { return }
                 if shouldSuppressInitialWindow {

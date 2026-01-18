@@ -48,7 +48,7 @@ import SwiftUI
         var style: Style = .plain
         var allowsMultiline: Bool = false
         var accessibilityIdentifier: String?
-        var onSubmit: (() -> Void)? = nil
+        var onSubmit: (() -> Void)?
 
         func makeCoordinator() -> Coordinator {
             Coordinator(text: $text, onSubmit: onSubmit)

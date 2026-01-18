@@ -107,10 +107,10 @@
 
         private func isUserFacingWindow(_ window: NSWindow) -> Bool {
             guard window.isVisible, !window.isMiniaturized else { return false }
-            if !window.canBecomeKey && !window.canBecomeMain { return false }
+            if !window.canBecomeKey, !window.canBecomeMain { return false }
             if !window.styleMask.contains(.titled) { return false }
             if window.isExcludedFromWindowsMenu { return false }
-            if window.level != .normal && window.level != .floating { return false }
+            if window.level != .normal, window.level != .floating { return false }
             if !window.isOnActiveSpace { return false }
             return true
         }
