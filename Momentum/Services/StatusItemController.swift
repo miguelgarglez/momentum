@@ -148,6 +148,10 @@
             appendContextDetails(to: menu, summary: latestSummary)
             menu.addItem(NSMenuItem.separator())
 
+            let showAppItem = NSMenuItem(title: "Abrir Momentum", action: #selector(handleShowApp), keyEquivalent: "")
+            showAppItem.target = self
+            menu.addItem(showAppItem)
+
             let toggleTitle = tracker.isTrackingEnabled ? "Pausar tracking" : "Reanudar tracking"
             let toggleItem = NSMenuItem(title: toggleTitle, action: #selector(handleToggleTracking), keyEquivalent: "")
             toggleItem.target = self
@@ -177,10 +181,6 @@
                 projectItem.target = self
                 menu.addItem(projectItem)
             }
-
-            let showAppItem = NSMenuItem(title: "Abrir Momentum", action: #selector(handleShowApp), keyEquivalent: "")
-            showAppItem.target = self
-            menu.addItem(showAppItem)
 
             let settingsItem = NSMenuItem(title: "Ajustes…", action: #selector(handleShowSettings), keyEquivalent: ",")
             settingsItem.target = self
