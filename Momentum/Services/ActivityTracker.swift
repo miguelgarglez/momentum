@@ -218,6 +218,10 @@ import SwiftData
             refreshStatusSummary()
         }
 
+        func refreshPendingConflicts() {
+            refreshPendingConflictCount()
+        }
+
         func startManualTracking(project: Project) {
             _ = flushCurrentSession()
             if !isTrackingEnabled {
@@ -1247,10 +1251,53 @@ import SwiftData
         }
 
         private func refreshPendingConflictCount() {
-            let descriptor = FetchDescriptor<PendingTrackingSession>()
-            pendingConflictCount = (try? Diagnostics.record(.swiftDataFetch, work: {
-                try modelContainer.mainContext.fetch(descriptor).count
-            })) ?? 0
+            let pendingDescriptor = FetchDescriptor<PendingTrackingSession>()
+            let projectsDescriptor = FetchDescriptor<Project>()
+            let pendingSessions = (try? Diagnostics.record(.swiftDataFetch, work: {
+                try modelContainer.mainContext.fetch(pendingDescriptor)
+            })) ?? []
+            guard !pendingSessions.isEmpty else {
+                pendingConflictCount = 0
+                return
+            }
+            let projects = (try? Diagnostics.record(.swiftDataFetch, work: {
+                try modelContainer.mainContext.fetch(projectsDescriptor)
+            })) ?? []
+            guard !projects.isEmpty else {
+                pendingSessions.forEach(modelContainer.mainContext.delete)
+                pendingConflictCount = 0
+                return
+            }
+            let grouped = Dictionary(grouping: pendingSessions) {
+                "\($0.contextType)::\($0.contextValue)"
+            }
+            var removed = 0
+            let count = grouped.values.reduce(into: 0) { partial, sessions in
+                guard let first = sessions.first else { return }
+                let type = AssignmentContextType(rawValue: first.contextType) ?? .app
+                let hasCandidates = projects.contains { project in
+                    switch type {
+                    case .app:
+                        return project.matches(appBundleIdentifier: first.contextValue)
+                    case .domain:
+                        return project.matches(domain: first.contextValue)
+                    case .file:
+                        return project.matches(filePath: first.contextValue)
+                    }
+                }
+                if hasCandidates {
+                    partial += 1
+                } else {
+                    sessions.forEach(modelContainer.mainContext.delete)
+                    removed += sessions.count
+                }
+            }
+            pendingConflictCount = count
+            if removed > 0, !RuntimeFlags.isDisabled(.disableSwiftDataWrites) {
+                try? Diagnostics.record(.swiftDataSave) {
+                    try modelContainer.mainContext.save()
+                }
+            }
         }
 
         private func scheduleSwiftDataSave() {
@@ -1494,6 +1541,10 @@ import SwiftData
 
             var resolvedCount = 0
             for pending in pendingSessions {
+                guard pending.endDate > pending.startDate else {
+                    modelContainer.mainContext.delete(pending)
+                    continue
+                }
                 let sessionContext = AppSessionContext(
                     appName: pending.appName,
                     bundleIdentifier: pending.bundleIdentifier,

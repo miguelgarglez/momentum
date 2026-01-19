@@ -420,10 +420,19 @@ struct ContentView: View {
                     iconName: draft.iconName,
                     assignedApps: draft.assignedApps,
                     assignedDomains: draft.assignedDomains,
+                    assignedFiles: draft.assignedFiles,
+                )
+                let contexts = AssignmentRuleInvalidator.contextsForNewProject(
+                    apps: draft.assignedApps,
+                    domains: draft.assignedDomains,
+                    files: draft.assignedFiles,
                 )
                 modelContext.insert(project)
+                AssignmentRuleInvalidator(modelContext: modelContext)
+                    .invalidateRules(for: contexts)
                 do {
                     try modelContext.save()
+                    tracker.refreshPendingConflicts()
                     selectedProjectID = project.persistentModelID
                     if shouldAutoStartTracking {
                         startTracking(for: project)
@@ -436,9 +445,30 @@ struct ContentView: View {
             }
         case let .edit(project):
             ProjectFormView(project: project) { draft in
+                let contexts = AssignmentRuleInvalidator.contextsForUpdatedProject(
+                    apps: draft.assignedApps,
+                    domains: draft.assignedDomains,
+                    files: draft.assignedFiles,
+                    previousApps: project.assignedApps,
+                    previousDomains: project.assignedDomains,
+                    previousFiles: project.assignedFiles,
+                )
+                let removedContexts = AssignmentRuleInvalidator.contextsForRemovedProject(
+                    apps: draft.assignedApps,
+                    domains: draft.assignedDomains,
+                    files: draft.assignedFiles,
+                    previousApps: project.assignedApps,
+                    previousDomains: project.assignedDomains,
+                    previousFiles: project.assignedFiles,
+                )
                 project.apply(draft: draft)
+                AssignmentRuleInvalidator(modelContext: modelContext)
+                    .invalidateRules(for: contexts)
+                AssignmentRuleInvalidator(modelContext: modelContext)
+                    .invalidateRules(for: removedContexts, createPendingConflicts: false)
                 do {
                     try modelContext.save()
+                    tracker.refreshPendingConflicts()
                     showToast("Proyecto actualizado", style: .success)
                 } catch {
                     showToast("No pudimos guardar los cambios", style: .error)

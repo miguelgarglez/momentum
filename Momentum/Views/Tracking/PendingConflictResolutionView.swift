@@ -137,8 +137,14 @@ private struct PendingConflictRow: View {
                     }
                 }
                 Spacer()
-                Text(conflict.totalSeconds.hoursAndMinutesString)
-                    .font(.subheadline.weight(.semibold))
+                if conflict.totalSeconds > 0 {
+                    Text(conflict.totalSeconds.hoursAndMinutesString)
+                        .font(.subheadline.weight(.semibold))
+                } else {
+                    Text("Sin registro pendiente")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             HStack(spacing: 10) {

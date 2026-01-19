@@ -90,15 +90,26 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
                     }
                 }
             } else if let ruleProject = rule.project {
-                if shouldUpdateRuleLastUsedAt(rule) {
-                    rule.lastUsedAt = .now
+                if !project(ruleProject, matches: context) || !candidates.contains(where: {
+                    $0.persistentModelID == ruleProject.persistentModelID
+                }) {
                     if !RuntimeFlags.isDisabled(.disableSwiftDataWrites) {
+                        modelContainer.mainContext.delete(rule)
                         try? Diagnostics.record(.swiftDataSave) {
                             try modelContainer.mainContext.save()
                         }
                     }
+                } else {
+                    if shouldUpdateRuleLastUsedAt(rule) {
+                        rule.lastUsedAt = .now
+                        if !RuntimeFlags.isDisabled(.disableSwiftDataWrites) {
+                            try? Diagnostics.record(.swiftDataSave) {
+                                try modelContainer.mainContext.save()
+                            }
+                        }
+                    }
+                    return .assigned(ruleProject, usedRule: true)
                 }
-                return .assigned(ruleProject, usedRule: true)
             }
         }
 
@@ -140,6 +151,17 @@ struct ProjectAssignmentResolver: ProjectAssignmentResolving {
 
     private func shouldUpdateRuleLastUsedAt(_ rule: AssignmentRule) -> Bool {
         Date().timeIntervalSince(rule.lastUsedAt) >= ruleLastUsedUpdateInterval
+    }
+
+    private func project(_ project: Project, matches context: AssignmentContext) -> Bool {
+        switch context.type {
+        case .app:
+            return project.matches(appBundleIdentifier: context.value)
+        case .domain:
+            return project.matches(domain: context.value)
+        case .file:
+            return project.matches(filePath: context.value)
+        }
     }
 
     private func normalizedDomainContext(from domain: String?) -> AssignmentContext? {

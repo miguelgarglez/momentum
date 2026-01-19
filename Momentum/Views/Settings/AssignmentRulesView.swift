@@ -259,7 +259,13 @@ private struct AssignmentRuleRow: View {
                 Picker("Proyecto", selection: $selectedProjectID) {
                     Text("Sin proyecto")
                         .tag(PersistentIdentifier?.none)
-                    ForEach(projects) { project in
+                    if let currentProject = rule.project,
+                       !matchingProjectIDs.contains(currentProject.persistentModelID)
+                    {
+                        Text("Proyecto no compatible: \(currentProject.name)")
+                            .tag(Optional(currentProject.persistentModelID))
+                    }
+                    ForEach(matchingProjects) { project in
                         Text(project.name)
                             .tag(Optional(project.persistentModelID))
                     }
@@ -278,6 +284,12 @@ private struct AssignmentRuleRow: View {
                 .tint(.red)
                 .controlSize(.small)
             }
+
+            if matchingProjects.isEmpty {
+                Text("Añade este contexto a un proyecto para poder asignar la regla.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.vertical, 6)
         .onAppear {
@@ -289,6 +301,9 @@ private struct AssignmentRuleRow: View {
         .onChange(of: selectedProjectID) { _, newValue in
             guard hasLoadedSelection else { return }
             guard newValue != rule.project?.persistentModelID else { return }
+            if let newValue, !matchingProjectIDs.contains(newValue) {
+                return
+            }
             updateRuleProject(to: newValue)
         }
     }
@@ -317,6 +332,23 @@ private struct AssignmentRuleRow: View {
         case .none:
             rule.contextValue
         }
+    }
+
+    private var matchingProjects: [Project] {
+        switch AssignmentContextType(rawValue: rule.contextType) {
+        case .app:
+            return projects.filter { $0.matches(appBundleIdentifier: rule.contextValue) }
+        case .domain:
+            return projects.filter { $0.matches(domain: rule.contextValue) }
+        case .file:
+            return projects.filter { $0.matches(filePath: rule.contextValue) }
+        case .none:
+            return []
+        }
+    }
+
+    private var matchingProjectIDs: Set<PersistentIdentifier> {
+        Set(matchingProjects.map(\.persistentModelID))
     }
 
     @ViewBuilder

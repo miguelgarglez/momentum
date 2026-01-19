@@ -205,6 +205,132 @@ struct MomentumTests {
         }
     }
 
+    @Test("Resolver descarta reglas cuando el proyecto ya no coincide con el contexto")
+    func projectAssignmentDropsRuleWhenProjectNoLongerMatches() throws {
+        let container = try factory.makeContainer()
+        let settings = makeSettings()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [])
+        let projectB = Project(name: "Curso", assignedApps: [bundleID])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+        let rule = AssignmentRule(
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: bundleID,
+            project: projectA,
+        )
+        container.mainContext.insert(rule)
+
+        let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
+        let result = resolver.resolveAssignment(for: bundleID, domain: nil, filePath: nil)
+        switch result {
+        case let .assigned(project, usedRule):
+            #expect(!usedRule)
+            #expect(project === projectB)
+        default:
+            #expect(Bool(false), "Expected assignment to matching project after dropping rule")
+        }
+
+        let remainingRules = try container.mainContext.fetch(FetchDescriptor<AssignmentRule>())
+        #expect(remainingRules.isEmpty)
+    }
+
+    @Test("Invalidator elimina reglas cuando se añade un contexto a otro proyecto")
+    func assignmentRuleInvalidatorDropsRulesForNewlyAddedContext() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [])
+        let projectB = Project(name: "Curso", assignedApps: [])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+        let rule = AssignmentRule(
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: bundleID,
+            project: projectA,
+        )
+        container.mainContext.insert(rule)
+
+        let contexts = AssignmentRuleInvalidator.contextsForUpdatedProject(
+            apps: [bundleID],
+            domains: [],
+            files: [],
+            previousApps: [],
+            previousDomains: [],
+            previousFiles: [],
+        )
+        let invalidator = AssignmentRuleInvalidator(modelContext: container.mainContext)
+        invalidator.invalidateRules(for: contexts)
+        try container.mainContext.save()
+
+        let remainingRules = try container.mainContext.fetch(FetchDescriptor<AssignmentRule>())
+        #expect(remainingRules.isEmpty)
+    }
+
+    @Test("Invalidator crea un pendiente cuando surge un conflicto nuevo")
+    func assignmentRuleInvalidatorCreatesPendingConflict() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [bundleID])
+        let projectB = Project(name: "Curso", assignedApps: [])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+        projectB.addAssignedApp(bundleID)
+        let rule = AssignmentRule(
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: bundleID,
+            project: projectA,
+        )
+        container.mainContext.insert(rule)
+
+        let contexts = AssignmentRuleInvalidator.contextsForUpdatedProject(
+            apps: [bundleID],
+            domains: [],
+            files: [],
+            previousApps: [],
+            previousDomains: [],
+            previousFiles: [],
+        )
+        let invalidator = AssignmentRuleInvalidator(modelContext: container.mainContext)
+        invalidator.invalidateRules(for: contexts)
+        try container.mainContext.save()
+
+        let pending = try container.mainContext.fetch(FetchDescriptor<PendingTrackingSession>())
+        #expect(pending.count == 1)
+        #expect(pending.first?.contextType == AssignmentContextType.app.rawValue)
+        #expect(pending.first?.contextValue == bundleID)
+    }
+
+    @Test("Invalidator elimina reglas al quitar un contexto sin crear pendiente")
+    func assignmentRuleInvalidatorDropsRuleOnRemovalWithoutPending() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [bundleID])
+        container.mainContext.insert(projectA)
+        let rule = AssignmentRule(
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: bundleID,
+            project: projectA,
+        )
+        container.mainContext.insert(rule)
+
+        let contexts = AssignmentRuleInvalidator.contextsForRemovedProject(
+            apps: [],
+            domains: [],
+            files: [],
+            previousApps: [bundleID],
+            previousDomains: [],
+            previousFiles: [],
+        )
+        let invalidator = AssignmentRuleInvalidator(modelContext: container.mainContext)
+        invalidator.invalidateRules(for: contexts, createPendingConflicts: false)
+        try container.mainContext.save()
+
+        let remainingRules = try container.mainContext.fetch(FetchDescriptor<AssignmentRule>())
+        let pending = try container.mainContext.fetch(FetchDescriptor<PendingTrackingSession>())
+        #expect(remainingRules.isEmpty)
+        #expect(pending.isEmpty)
+    }
+
     @Test("Resolver ignora reglas expiradas")
     func projectAssignmentSkipsExpiredRules() throws {
         let container = try factory.makeContainer()
@@ -457,6 +583,55 @@ struct MomentumTests {
         #expect(sessions.count == 1)
         #expect(sessions.first?.project === projectB)
         #expect(tracker.pendingConflictCount == 0)
+    }
+
+    @Test("Resolver conflicto ignora pendientes sin duracion")
+    func activityTrackerResolvesZeroDurationPending() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [bundleID])
+        let projectB = Project(name: "Curso", assignedApps: [bundleID])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+        let suiteName = "MomentumTests.ResolveZero.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fatalError("Unable to create UserDefaults suite")
+        }
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = TrackerSettings(defaults: defaults)
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: MockCrashRecoveryHandler(),
+            performanceMonitor: MockPerformanceMonitor(),
+        )
+
+        let now = Date()
+        let pending = PendingTrackingSession(
+            startDate: now,
+            endDate: now,
+            appName: "VSCode",
+            bundleIdentifier: bundleID,
+            domain: nil,
+            filePath: nil,
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: bundleID,
+        )
+        container.mainContext.insert(pending)
+        try container.mainContext.save()
+
+        tracker.resolveConflict(
+            context: AssignmentContext(type: .app, value: bundleID),
+            project: projectB,
+        )
+
+        let rules = try container.mainContext.fetch(FetchDescriptor<AssignmentRule>())
+        let remainingPending = try container.mainContext.fetch(FetchDescriptor<PendingTrackingSession>())
+        let sessions = try container.mainContext.fetch(FetchDescriptor<TrackingSession>())
+        #expect(rules.count == 1)
+        #expect(rules.first?.project === projectB)
+        #expect(remainingPending.isEmpty)
+        #expect(sessions.isEmpty)
     }
 
     @Test("Manual tracking añade archivos asignados")
