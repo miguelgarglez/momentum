@@ -117,13 +117,16 @@ struct PendingConflictResolutionView: View {
 }
 
 private struct PendingConflictRow: View {
+    @EnvironmentObject private var appCatalog: AppCatalog
+
     let conflict: PendingConflict
     @Binding var selection: PersistentIdentifier?
     let onResolve: (Project) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 12) {
+                contextIcon
                 VStack(alignment: .leading, spacing: 4) {
                     Text(conflict.title)
                         .font(.headline)
@@ -138,24 +141,35 @@ private struct PendingConflictRow: View {
                     .font(.subheadline.weight(.semibold))
             }
 
-            Picker("Proyecto", selection: $selection) {
-                ForEach(conflict.candidates) { project in
-                    Text(project.name)
-                        .tag(project.persistentModelID)
-                }
-            }
-            .pickerStyle(.menu)
-            .labelsHidden()
-            .accessibilityIdentifier("pending-conflict-project-picker-\(conflict.id)")
+            HStack(spacing: 10) {
+                selectedProjectBadge
 
-            Button("Asignar") {
-                guard let selection,
-                      let project = conflict.candidates.first(where: { $0.persistentModelID == selection }) else { return }
-                onResolve(project)
+                Picker("Proyecto", selection: $selection) {
+                    ForEach(conflict.candidates) { project in
+                        Label(project.name, systemImage: ProjectIcon(rawValue: project.iconName)?.systemName ?? "folder")
+                            .tag(project.persistentModelID)
+                    }
+                }
+                #if os(macOS)
+                .pickerStyle(.automatic)
+                #else
+                .pickerStyle(.menu)
+                #endif
+                .labelsHidden()
+                .accessibilityIdentifier("pending-conflict-project-picker-\(conflict.id)")
+
+                Spacer()
+
+                Button("Asignar") {
+                    guard let selection,
+                          let project = conflict.candidates.first(where: { $0.persistentModelID == selection }) else { return }
+                    onResolve(project)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(selection == nil)
+                .accessibilityIdentifier("pending-conflict-assign-button-\(conflict.id)")
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(selection == nil)
-            .accessibilityIdentifier("pending-conflict-assign-button-\(conflict.id)")
         }
         .padding()
         .background(
@@ -170,11 +184,76 @@ private struct PendingConflictRow: View {
             }
         }
     }
+
+    @ViewBuilder
+    private var contextIcon: some View {
+        let size: CGFloat = 34
+        switch conflict.context.type {
+        case .app:
+            contextAppIcon(bundleIdentifier: conflict.bundleIdentifier ?? conflict.context.value, size: size)
+        case .domain:
+            if let bundleIdentifier = conflict.bundleIdentifier {
+                contextAppIcon(bundleIdentifier: bundleIdentifier, size: size)
+            } else {
+                contextFallbackIcon(systemName: "globe", size: size)
+            }
+        case .file:
+            if let bundleIdentifier = conflict.bundleIdentifier {
+                contextAppIcon(bundleIdentifier: bundleIdentifier, size: size)
+            } else {
+                contextFallbackIcon(systemName: "doc.text", size: size)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func contextAppIcon(bundleIdentifier: String, size: CGFloat) -> some View {
+        #if os(macOS)
+            if let app = appCatalog.app(for: bundleIdentifier) {
+                app.icon
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size, height: size)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            } else {
+                contextFallbackIcon(systemName: "app.fill", size: size)
+            }
+        #else
+            contextFallbackIcon(systemName: "app.fill", size: size)
+        #endif
+    }
+
+    private func contextFallbackIcon(systemName: String, size: CGFloat) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 16, weight: .semibold))
+            .frame(width: size, height: size)
+            .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var selectedProject: Project? {
+        conflict.candidates.first { $0.persistentModelID == selection }
+    }
+
+    private var selectedProjectBadge: some View {
+        let project = selectedProject
+        let color = project?.color ?? Color.secondary.opacity(0.25)
+        let iconName = ProjectIcon(rawValue: project?.iconName ?? "")?.systemName ?? "folder"
+        return ZStack {
+            Circle()
+                .fill(color)
+                .frame(width: 24, height: 24)
+            Image(systemName: iconName)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Color.white)
+        }
+        .accessibilityHidden(true)
+    }
 }
 
 struct PendingConflict: Identifiable {
     let id: String
     let context: AssignmentContext
+    let bundleIdentifier: String?
     let title: String
     let subtitle: String?
     let totalSeconds: TimeInterval
@@ -216,6 +295,7 @@ struct PendingConflict: Identifiable {
             return PendingConflict(
                 id: key,
                 context: context,
+                bundleIdentifier: first.bundleIdentifier,
                 title: title,
                 subtitle: subtitle,
                 totalSeconds: totalSeconds,

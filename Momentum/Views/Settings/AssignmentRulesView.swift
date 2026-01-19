@@ -254,7 +254,7 @@ private struct AssignmentRuleRow: View {
             }
 
             HStack(spacing: 10) {
-                projectBadge
+                selectedProjectBadge
 
                 Picker("Proyecto", selection: $selectedProjectID) {
                     Text("Sin proyecto")
@@ -360,25 +360,18 @@ private struct AssignmentRuleRow: View {
         }
     }
 
-    private var projectBadge: some View {
+    private var selectedProjectBadge: some View {
         let project = projects.first { $0.persistentModelID == selectedProjectID }
-        let color = project?.color ?? Color.secondary.opacity(0.4)
+        let color = project?.color ?? Color.secondary.opacity(0.25)
         let iconName = ProjectIcon(rawValue: project?.iconName ?? "")?.systemName ?? "minus"
-        return HStack(spacing: 6) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(project == nil ? 0.25 : 1))
-                    .frame(width: 20, height: 20)
-                Image(systemName: iconName)
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(project == nil ? Color.secondary : Color.white)
-            }
-            Text(project?.name ?? "Sin proyecto")
-                .font(.subheadline)
-                .foregroundStyle(project == nil ? .secondary : .primary)
+        return ZStack {
+            Circle()
+                .fill(color)
+                .frame(width: 24, height: 24)
+            Image(systemName: iconName)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Color.white)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.secondary.opacity(0.12), in: Capsule())
+        .accessibilityHidden(true)
     }
 }
