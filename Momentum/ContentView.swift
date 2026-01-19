@@ -171,16 +171,6 @@ struct ContentView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .overlay(alignment: .topLeading) {
-            if !pendingConflicts.isEmpty {
-                PendingConflictBanner(count: pendingConflicts.count) {
-                    showConflictSheet = true
-                }
-                .padding(.top, 18)
-                .padding(.leading, 24)
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
-        }
         .animation(Layout.toastAnimation, value: toast)
         #if os(macOS)
             .background(
@@ -294,9 +284,18 @@ struct ContentView: View {
             onStartManualTracking: { showManualTrackingSheet = true },
             onCreateProject: { activeProjectSheet = .create },
             settingsControl: settingsControlView,
+            statusAccessory: pendingConflicts.isEmpty
+                ? nil
+                : AnyView(
+                    PendingConflictCompactIndicator(count: pendingConflicts.count) {
+                        showConflictSheet = true
+                    }
+                ),
+            isSidebarCollapsed: columnVisibility == .detailOnly,
         )
         .frame(width: Layout.actionPanelWidth, alignment: .bottomLeading)
         .frame(maxHeight: .infinity, alignment: .bottomLeading)
+        .zIndex(2)
     }
 
     private func sidebarChrome(@ViewBuilder content: () -> some View) -> some View {
