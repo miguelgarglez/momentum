@@ -15,6 +15,8 @@ struct ProjectFormView: View {
     @EnvironmentObject private var appCatalog: AppCatalog
     @State private var draft: ProjectFormDraft
     @State private var domainEntryError: String?
+    @State private var isAppSelectorPresented = false
+    @FocusState private var focusedField: FormFocusField?
     private let mode: FormMode
 
     let onSave: (ProjectFormDraft) -> Void
@@ -27,155 +29,174 @@ struct ProjectFormView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Detalles") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Nombre del proyecto")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        ProjectTitleField(text: $draft.name)
-                    }
-                    Picker("Icono", selection: $draft.iconName) {
-                        ForEach(ProjectIcon.allCases, id: \.self) { icon in
-                            Label(icon.displayName, systemImage: icon.systemName)
-                                .tag(icon.systemName)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    ProjectFormSection(title: "Identidad") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Nombre del proyecto")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            ProjectTitleField(text: $draft.name)
                         }
-                    }
-                }
+                        HStack(alignment: .top, spacing: 24) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Picker("Icono", selection: $draft.iconName) {
+                                    ForEach(ProjectIcon.allCases, id: \.self) { icon in
+                                        Label(icon.displayName, systemImage: icon.systemName)
+                                            .tag(icon.systemName)
+                                    }
+                                }
 
-                Section("Color") {
-                    ColorPicker(
-                        "Selector",
-                        selection: Binding(
-                            get: { Color(hex: draft.colorHex) ?? .accentColor },
-                            set: { newValue in
-                                guard let hex = newValue.hexString() else { return }
-                                draft.colorHex = hex
-                            },
-                        ),
-                        supportsOpacity: false,
-                    )
+                                ColorPicker(
+                                    "Color",
+                                    selection: Binding(
+                                        get: { Color(hex: draft.colorHex) ?? .accentColor },
+                                        set: { newValue in
+                                            guard let hex = newValue.hexString() else { return }
+                                            draft.colorHex = hex
+                                        },
+                                    ),
+                                    supportsOpacity: false,
+                                )
+                            }
+                            .frame(maxWidth: 220, alignment: .leading)
 
-                    colorSwatchSection(title: "Predeterminados", colors: ProjectPalette.colors.map(\.hex))
-                }
-
-                AppAutoTrackingSection(
-                    selection: $draft.selectedAppIDs,
-                    manualApps: $draft.manualApps,
-                )
-
-                Section("Dominios") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        if !draft.assignedDomains.isEmpty {
-                            DomainSelectionChips(
-                                domains: draft.assignedDomains,
-                                onRemove: { domain in
-                                    draft.removeDomain(domain)
-                                },
+                            colorSwatchSection(
+                                title: "Predeterminados",
+                                colors: ProjectPalette.colors.map(\.hex),
+                                swatchSize: 32,
+                                spacing: 12,
                             )
                         }
+                    }
 
-                        #if os(macOS)
-                            HStack {
-                                LTRTextField(
-                                    text: $draft.domainEntry,
-                                    placeholder: "Dominios o URLs (separados por coma)",
-                                    accessibilityIdentifier: "project-domains-field",
-                                    onSubmit: {
-                                        saveDomainEntry()
+                    ProjectFormSection(title: "Apps instaladas") {
+                        AppAutoTrackingSection(
+                            selection: $draft.selectedAppIDs,
+                            manualApps: $draft.manualApps,
+                            isSelectorPresented: $isAppSelectorPresented,
+                            focusedField: $focusedField,
+                        )
+                    }
+
+                    ProjectFormSection(title: "Dominios") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            if !draft.assignedDomains.isEmpty {
+                                DomainSelectionChips(
+                                    domains: draft.assignedDomains,
+                                    onRemove: { domain in
+                                        draft.removeDomain(domain)
                                     },
                                 )
-                                .macRoundedTextFieldStyle()
-
-                                Button("Guardar") {
-                                    saveDomainEntry()
-                                }
-                                .disabled(draft.isDomainEntryEmpty)
                             }
-                            .padding(.vertical, 4)
-                        #else
-                            HStack {
-                                TextField(
-                                    "Dominios o URLs (separados por coma)",
-                                    text: $draft.domainEntry,
+
+                            #if os(macOS)
+                                HStack {
+                                    LTRTextField(
+                                        text: $draft.domainEntry,
+                                        placeholder: "Dominios o URLs (separados por coma)",
+                                        accessibilityIdentifier: "project-domains-field",
+                                        onSubmit: {
+                                            saveDomainEntry()
+                                        },
+                                    )
+                                    .macRoundedTextFieldStyle()
+
+                                    Button("Guardar") {
+                                        saveDomainEntry()
+                                    }
+                                    .disabled(draft.isDomainEntryEmpty)
+                                }
+                                .padding(.vertical, 4)
+                            #else
+                                HStack {
+                                    TextField(
+                                        "Dominios o URLs (separados por coma)",
+                                        text: $draft.domainEntry,
+                                    )
+                                    .accessibilityIdentifier("project-domains-field")
+                                    .textFieldStyle(.roundedBorder)
+                                    .onSubmit {
+                                        saveDomainEntry()
+                                    }
+
+                                    Button("Guardar") {
+                                        saveDomainEntry()
+                                    }
+                                    .disabled(draft.isDomainEntryEmpty)
+                                }
+                                .padding(.vertical, 4)
+                            #endif
+
+                            Text("Pega URLs completas o dominios. Guardamos solo el dominio.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if let domainEntryError {
+                                Text(domainEntryError)
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                            }
+                        }
+                        .onChange(of: draft.domainEntry) { _, _ in
+                            domainEntryError = nil
+                        }
+                    }
+
+                    ProjectFormSection(title: "Archivos") {
+                        #if os(macOS)
+                            if !draft.assignedFiles.isEmpty {
+                                FileSelectionChips(
+                                    filePaths: draft.assignedFiles,
+                                    onRemove: { path in
+                                        draft.removeFile(path)
+                                    },
                                 )
-                                .accessibilityIdentifier("project-domains-field")
-                                .textFieldStyle(.roundedBorder)
-                                .onSubmit {
-                                    saveDomainEntry()
-                                }
-
-                                Button("Guardar") {
-                                    saveDomainEntry()
-                                }
-                                .disabled(draft.isDomainEntryEmpty)
                             }
-                            .padding(.vertical, 4)
-                        #endif
 
-                        Text("Pega URLs completas o dominios. Guardamos solo el dominio.")
+                            Button("Seleccionar archivos…") {
+                                selectFiles()
+                            }
+                            .buttonStyle(.bordered)
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Añadir rutas manualmente")
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(.secondary)
+                                HStack {
+                                    LTRTextField(
+                                        text: $draft.manualFilesEntry,
+                                        placeholder: "Rutas de archivo (separadas por coma)",
+                                        accessibilityIdentifier: "project-files-field",
+                                    )
+                                    .macRoundedTextFieldStyle()
+                                    Button("Añadir") {
+                                        draft.addManualFilesEntry()
+                                    }
+                                    .disabled(draft.manualFilesEntry.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                }
+                            }
+                        #else
+                            TextField("Rutas de archivo (separadas por coma)", text: $draft.manualFilesEntry)
+                                .accessibilityIdentifier("project-files-field")
+                                .textFieldStyle(.roundedBorder)
+                                .padding(.vertical, 4)
+                        #endif
+                        Text("Guardamos la ruta del archivo para reconocerlo en el tracking.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        if let domainEntryError {
-                            Text(domainEntryError)
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                        }
-                    }
-                    .onChange(of: draft.domainEntry) { _, _ in
-                        domainEntryError = nil
                     }
                 }
-
-                Section("Archivos") {
-                    #if os(macOS)
-                        if !draft.assignedFiles.isEmpty {
-                            FileSelectionChips(
-                                filePaths: draft.assignedFiles,
-                                onRemove: { path in
-                                    draft.removeFile(path)
-                                },
-                            )
-                        }
-
-                        Button("Seleccionar archivos…") {
-                            selectFiles()
-                        }
-                        .buttonStyle(.bordered)
-
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Añadir rutas manualmente")
-                                .font(.footnote.weight(.medium))
-                                .foregroundStyle(.secondary)
-                            HStack {
-                                LTRTextField(
-                                    text: $draft.manualFilesEntry,
-                                    placeholder: "Rutas de archivo (separadas por coma)",
-                                    accessibilityIdentifier: "project-files-field",
-                                )
-                                .macRoundedTextFieldStyle()
-                                Button("Añadir") {
-                                    draft.addManualFilesEntry()
-                                }
-                                .disabled(draft.manualFilesEntry.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                            }
-                        }
-                    #else
-                        TextField("Rutas de archivo (separadas por coma)", text: $draft.manualFilesEntry)
-                            .accessibilityIdentifier("project-files-field")
-                            .textFieldStyle(.roundedBorder)
-                            .padding(.vertical, 4)
-                    #endif
-                    Text("Guardamos la ruta del archivo para reconocerlo en el tracking.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                .padding(20)
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
             .background(Color(nsColor: .windowBackgroundColor))
             .navigationTitle(mode == .create ? "Nuevo proyecto" : "Editar proyecto")
             .frame(minWidth: 540, maxWidth: 640)
+            .onChange(of: isAppSelectorPresented) { _, isPresented in
+                guard !isPresented else { return }
+                DispatchQueue.main.async {
+                    focusedField = .appSelectorButton
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar") {
@@ -201,17 +222,22 @@ struct ProjectFormView: View {
     }
 
     @ViewBuilder
-    private func colorSwatchSection(title: String, colors: [String]) -> some View {
+    private func colorSwatchSection(
+        title: String,
+        colors: [String],
+        swatchSize: CGFloat = 44,
+        spacing: CGFloat = 16
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
+                HStack(spacing: spacing) {
                     ForEach(colors, id: \.self) { hex in
                         Circle()
                             .fill(Color(hex: hex) ?? .accentColor)
-                            .frame(width: 44, height: 44)
+                            .frame(width: swatchSize, height: swatchSize)
                             .overlay {
                                 if hex == draft.colorHex {
                                     Image(systemName: "checkmark")
@@ -246,6 +272,7 @@ struct ProjectFormView: View {
             domainEntryError = nil
         }
     }
+
 }
 
 #if os(macOS)
@@ -372,8 +399,8 @@ struct AppAutoTrackingSection: View {
     @EnvironmentObject private var appCatalog: AppCatalog
     @Binding var selection: Set<String>
     @Binding var manualApps: String
-
-    @State private var isSelectorPresented = false
+    @Binding var isSelectorPresented: Bool
+    @FocusState.Binding fileprivate var focusedField: FormFocusField?
 
     private var selectedApps: [InstalledApp] {
         selection.compactMap { appCatalog.app(for: $0) }
@@ -381,73 +408,77 @@ struct AppAutoTrackingSection: View {
     }
 
     var body: some View {
-        Section("Apps instaladas") {
-            VStack(alignment: .leading, spacing: 16) {
-                if appCatalog.isLoading {
-                    ProgressView("Escaneando aplicaciones…")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+        VStack(alignment: .leading, spacing: 16) {
+            if appCatalog.isLoading {
+                ProgressView("Escaneando aplicaciones…")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
-                if !selectedApps.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Asignadas")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(.secondary)
-                        SelectedAppChips(apps: selectedApps, selection: $selection)
-                    }
+            if !selectedApps.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Asignadas")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    SelectedAppChips(apps: selectedApps, selection: $selection)
                 }
+            }
 
-                HStack {
-                    Spacer()
-                    Button {
-                        isSelectorPresented.toggle()
-                    } label: {
-                        Label("Seleccionar apps instaladas", systemImage: "rectangle.stack")
-                    }
-                    .popover(
-                        isPresented: $isSelectorPresented,
-                        attachmentAnchor: .rect(.bounds),
-                        arrowEdge: .top,
-                    ) {
-                        ProjectAppCatalogSelectionPanel(selection: $selection)
-                            .frame(width: 360, height: 420)
-                            .padding()
-                    }
-                    .contextMenu {
-                        if appCatalog.apps.isEmpty {
-                            Text("Catálogo vacío")
-                        } else {
-                            ForEach(appCatalog.apps.prefix(8)) { app in
-                                Button(app.name) {
-                                    selection.insert(app.bundleIdentifier)
-                                }
+            HStack {
+                Spacer()
+                Button {
+                    isSelectorPresented.toggle()
+                } label: {
+                    Label("Seleccionar apps instaladas", systemImage: "rectangle.stack")
+                }
+                .focusable(true)
+                .focused($focusedField, equals: .appSelectorButton)
+                .popover(
+                    isPresented: $isSelectorPresented,
+                    attachmentAnchor: .rect(.bounds),
+                    arrowEdge: .top,
+                ) {
+                    ProjectAppCatalogSelectionPanel(
+                        selection: $selection,
+                        onDone: {
+                            isSelectorPresented = false
+                        },
+                    )
+                    .frame(width: 360, height: 420)
+                    .padding()
+                }
+                .contextMenu {
+                    if appCatalog.apps.isEmpty {
+                        Text("Catálogo vacío")
+                    } else {
+                        ForEach(appCatalog.apps.prefix(8)) { app in
+                            Button(app.name) {
+                                selection.insert(app.bundleIdentifier)
                             }
-                            if appCatalog.apps.count > 8 {
-                                Divider()
-                                Text("Abre el selector para ver todas las apps")
-                                    .font(.caption)
-                            }
+                        }
+                        if appCatalog.apps.count > 8 {
+                            Divider()
+                            Text("Abre el selector para ver todas las apps")
+                                .font(.caption)
                         }
                     }
                 }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Bundle IDs adicionales")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    #if os(macOS)
-                        LTRTextField(
-                            text: $manualApps,
-                            placeholder: "com.ejemplo.app, com.otro.bundle",
-                        )
-                        .macRoundedTextFieldStyle()
-                    #else
-                        TextField("com.ejemplo.app, com.otro.bundle", text: $manualApps)
-                            .textFieldStyle(.roundedBorder)
-                    #endif
-                }
             }
-            .padding(.vertical, 4)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Bundle IDs adicionales")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+                #if os(macOS)
+                    LTRTextField(
+                        text: $manualApps,
+                        placeholder: "com.ejemplo.app, com.otro.bundle",
+                    )
+                    .macRoundedTextFieldStyle()
+                #else
+                    TextField("com.ejemplo.app, com.otro.bundle", text: $manualApps)
+                        .textFieldStyle(.roundedBorder)
+                #endif
+            }
         }
     }
 }
@@ -481,6 +512,7 @@ private struct ProjectAppCatalogSelectionPanel: View {
     @EnvironmentObject private var appCatalog: AppCatalog
     @Binding var selection: Set<String>
     @State private var searchText: String = ""
+    let onDone: () -> Void
 
     private var filteredApps: [InstalledApp] {
         guard !searchText.isEmpty else { return appCatalog.apps }
@@ -527,9 +559,17 @@ private struct ProjectAppCatalogSelectionPanel: View {
                 }
             }
 
-            Text("Haz clic para alternar la asignación. Cierra el panel cuando termines.")
+            Text("Haz clic para alternar la asignación. Pulsa Hecho o cierra el panel cuando termines.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            HStack {
+                Spacer()
+                Button("Hecho") {
+                    onDone()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
         }
     }
 
@@ -540,6 +580,24 @@ private struct ProjectAppCatalogSelectionPanel: View {
             selection.insert(identifier)
         }
     }
+}
+
+private struct ProjectFormSection<Content: View>: View {
+    let title: String
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+            content()
+        }
+        .detailCardStyle()
+    }
+}
+
+fileprivate enum FormFocusField: Hashable {
+    case appSelectorButton
 }
 
 struct AppSelectionRow: View {
