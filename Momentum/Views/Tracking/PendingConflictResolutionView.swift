@@ -152,8 +152,11 @@ private struct PendingConflictRow: View {
 
                 Picker("Proyecto", selection: $selection) {
                     ForEach(conflict.candidates) { project in
-                        Label(project.name, systemImage: ProjectIcon(rawValue: project.iconName)?.systemName ?? "folder")
-                            .tag(project.persistentModelID)
+                        HStack(spacing: 8) {
+                            ProjectIconGlyph(name: project.iconName, size: 14)
+                            Text(project.name)
+                        }
+                        .tag(project.persistentModelID)
                     }
                 }
                 #if os(macOS)
@@ -243,14 +246,17 @@ private struct PendingConflictRow: View {
     private var selectedProjectBadge: some View {
         let project = selectedProject
         let color = project?.color ?? Color.secondary.opacity(0.25)
-        let iconName = ProjectIcon(rawValue: project?.iconName ?? "")?.systemName ?? "folder"
+        let iconName = project?.iconName ?? "folder"
         return ZStack {
             Circle()
                 .fill(color)
                 .frame(width: 24, height: 24)
-            Image(systemName: iconName)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Color.white)
+            ProjectIconGlyph(
+                name: iconName,
+                size: 11,
+                weight: .bold,
+                symbolStyle: AnyShapeStyle(.white)
+            )
         }
         .accessibilityHidden(true)
     }

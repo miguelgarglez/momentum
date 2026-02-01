@@ -16,6 +16,7 @@ struct ProjectFormView: View {
     @State private var draft: ProjectFormDraft
     @State private var domainEntryError: String?
     @State private var isAppSelectorPresented = false
+    @State private var isIconPickerPresented = false
     @FocusState private var focusedField: FormFocusField?
     private let mode: FormMode
 
@@ -38,35 +39,64 @@ struct ProjectFormView: View {
                                 .foregroundStyle(.secondary)
                             ProjectTitleField(text: $draft.name)
                         }
-                        HStack(alignment: .top, spacing: 24) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Picker("Icono", selection: $draft.iconName) {
-                                    ForEach(ProjectIcon.allCases, id: \.self) { icon in
-                                        Label(icon.displayName, systemImage: icon.systemName)
-                                            .tag(icon.systemName)
-                                    }
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack(alignment: .center, spacing: 12) {
+                                iconPreview
+
+                                Button {
+                                    isIconPickerPresented.toggle()
+                                } label: {
+                                    Label("Iconos del sistema", systemImage: "square.grid.2x2")
+                                }
+                                .buttonStyle(.bordered)
+                                .popover(
+                                    isPresented: $isIconPickerPresented,
+                                    attachmentAnchor: .rect(.bounds),
+                                    arrowEdge: .top
+                                ) {
+                                    ProjectIconPickerPopoverView(selection: $draft.iconName, onDismiss: {
+                                        isIconPickerPresented = false
+                                    })
                                 }
 
-                                ColorPicker(
-                                    "Color",
-                                    selection: Binding(
-                                        get: { Color(hex: draft.colorHex) ?? .accentColor },
-                                        set: { newValue in
-                                            guard let hex = newValue.hexString() else { return }
-                                            draft.colorHex = hex
-                                        },
-                                    ),
-                                    supportsOpacity: false,
+                                SystemEmojiPickerButton(
+                                    title: "Elegir emoji",
+                                    accessibilityIdentifier: "project-icon-emoji-system",
+                                    selection: $draft.iconName
                                 )
-                            }
-                            .frame(maxWidth: 220, alignment: .leading)
 
-                            colorSwatchSection(
-                                title: "Predeterminados",
-                                colors: ProjectPalette.colors.map(\.hex),
-                                swatchSize: 32,
-                                spacing: 12,
-                            )
+                                Spacer()
+                            }
+
+                            HStack(alignment: .top, spacing: 24) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Color")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    ColorPicker(
+                                        "",
+                                        selection: Binding(
+                                            get: { Color(hex: draft.colorHex) ?? .accentColor },
+                                            set: { newValue in
+                                                guard let hex = newValue.hexString() else { return }
+                                                draft.colorHex = hex
+                                            },
+                                        ),
+                                        supportsOpacity: false,
+                                    )
+                                    .labelsHidden()
+                                    .padding(.top, 6)
+                                }
+                                .frame(width: 140, alignment: .leading)
+
+                                colorSwatchSection(
+                                    title: "Predeterminados",
+                                    colors: ProjectPalette.colors.map(\.hex),
+                                    swatchSize: 32,
+                                    spacing: 12,
+                                )
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
                         }
                     }
 
@@ -271,6 +301,21 @@ struct ProjectFormView: View {
         } else {
             domainEntryError = nil
         }
+    }
+
+    private var iconPreview: some View {
+        ZStack {
+            Circle()
+                .fill(Color(hex: draft.colorHex) ?? .accentColor)
+                .frame(width: 44, height: 44)
+            ProjectIconGlyph(
+                name: draft.iconName,
+                size: 18,
+                weight: .semibold,
+                symbolStyle: AnyShapeStyle(.white)
+            )
+        }
+        .accessibilityHidden(true)
     }
 
 }

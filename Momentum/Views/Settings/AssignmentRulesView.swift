@@ -395,14 +395,17 @@ private struct AssignmentRuleRow: View {
     private var selectedProjectBadge: some View {
         let project = projects.first { $0.persistentModelID == selectedProjectID }
         let color = project?.color ?? Color.secondary.opacity(0.25)
-        let iconName = ProjectIcon(rawValue: project?.iconName ?? "")?.systemName ?? "minus"
+        let iconName = project?.iconName ?? "minus"
         return ZStack {
             Circle()
                 .fill(color)
                 .frame(width: 24, height: 24)
-            Image(systemName: iconName)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Color.white)
+            ProjectIconGlyph(
+                name: iconName,
+                size: 11,
+                weight: .bold,
+                symbolStyle: AnyShapeStyle(.white)
+            )
         }
         .accessibilityHidden(true)
     }

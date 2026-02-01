@@ -522,7 +522,7 @@ struct ContentView: View {
     private func createManualProjectAndStart(from draft: ManualTrackingNewProjectDraft) {
         let trimmedName = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
         let projectName = manualProjectName(from: trimmedName)
-        let iconName = draft.icon?.systemName ?? randomManualProjectIcon()
+        let iconName = draft.iconName ?? randomManualProjectIcon()
         let project = Project(
             name: projectName,
             colorHex: ProjectPalette.defaultColor.hex,

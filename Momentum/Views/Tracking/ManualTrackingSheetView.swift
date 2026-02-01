@@ -31,7 +31,8 @@ struct ManualTrackingSheetView: View {
     @State private var mode: Mode
     @State private var selectedProjectID: PersistentIdentifier?
     @State private var newProjectName: String = ""
-    @State private var newProjectIcon: ProjectIcon?
+    @State private var newProjectIconName: String?
+    @State private var isIconPickerPresented = false
 
     init(
         projects: [Project],
@@ -44,7 +45,7 @@ struct ManualTrackingSheetView: View {
         let initialMode: Mode = projects.isEmpty ? .new : .existing
         _mode = State(initialValue: initialMode)
         _selectedProjectID = State(initialValue: projects.first?.persistentModelID)
-        _newProjectIcon = State(initialValue: nil)
+        _newProjectIconName = State(initialValue: nil)
     }
 
     var body: some View {
@@ -94,16 +95,40 @@ struct ManualTrackingSheetView: View {
                             #endif
                         }
 
-                        Picker("Icono", selection: $newProjectIcon) {
+                        Picker("Icono", selection: $newProjectIconName) {
                             Text("Aleatorio")
-                                .tag(ProjectIcon?.none)
+                                .tag(String?.none)
                             ForEach(ProjectIcon.allCases, id: \.self) { icon in
                                 Label(icon.displayName, systemImage: icon.systemName)
-                                    .tag(Optional(icon))
+                                    .tag(Optional(icon.systemName))
                             }
                         }
                         .pickerStyle(.menu)
                         .accessibilityIdentifier("manual-tracking-icon-picker")
+
+                        Button {
+                            isIconPickerPresented.toggle()
+                        } label: {
+                            Label("Iconos del sistema", systemImage: "square.grid.2x2")
+                        }
+                        .buttonStyle(.bordered)
+                        .popover(
+                            isPresented: $isIconPickerPresented,
+                            attachmentAnchor: .rect(.bounds),
+                            arrowEdge: .top
+                        ) {
+                            ProjectIconPickerPopoverView(selection: symbolPickerSelection, onDismiss: {
+                                isIconPickerPresented = false
+                            })
+                        }
+
+                        SystemEmojiPickerButton(
+                            title: "Elegir emoji",
+                            accessibilityIdentifier: "manual-tracking-icon-emoji-system",
+                            selection: symbolPickerSelection
+                        )
+
+                        iconPreview
                     }
                 }
             }
@@ -139,10 +164,32 @@ struct ManualTrackingSheetView: View {
             }
             onStartExisting(project)
         case .new:
-            let draft = ManualTrackingNewProjectDraft(name: newProjectName, icon: newProjectIcon)
+            let draft = ManualTrackingNewProjectDraft(name: newProjectName, iconName: newProjectIconName)
             onCreateAndStart(draft)
         }
         dismiss()
+    }
+
+    private var symbolPickerSelection: Binding<String> {
+        Binding(
+            get: { newProjectIconName ?? ProjectIcon.spark.systemName },
+            set: { newProjectIconName = $0 }
+        )
+    }
+
+    private var iconPreview: some View {
+        ZStack {
+            Circle()
+                .fill(Color(hex: ProjectPalette.defaultColor.hex) ?? .accentColor)
+                .frame(width: 32, height: 32)
+            ProjectIconGlyph(
+                name: newProjectIconName ?? ProjectIcon.spark.systemName,
+                size: 13,
+                weight: .semibold,
+                symbolStyle: AnyShapeStyle(.white)
+            )
+        }
+        .accessibilityHidden(true)
     }
 }
 

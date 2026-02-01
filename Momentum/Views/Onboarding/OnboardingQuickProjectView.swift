@@ -16,7 +16,8 @@ struct OnboardingQuickProjectView: View {
     private var projects: [Project]
 
     @State private var name: String = ""
-    @State private var icon: ProjectIcon?
+    @State private var iconName: String?
+    @State private var isIconPickerPresented = false
 
     let onComplete: (Project) -> Void
 
@@ -41,16 +42,33 @@ struct OnboardingQuickProjectView: View {
                         #endif
                     }
 
-                    Picker("Icono", selection: $icon) {
-                        Text("Aleatorio")
-                            .tag(ProjectIcon?.none)
-                        ForEach(ProjectIcon.allCases, id: \.self) { icon in
-                            Label(icon.displayName, systemImage: icon.systemName)
-                                .tag(Optional(icon))
+                    HStack(alignment: .center, spacing: 12) {
+                        iconPreview
+
+                        Button {
+                            isIconPickerPresented.toggle()
+                        } label: {
+                            Label("Iconos del sistema", systemImage: "square.grid.2x2")
                         }
+                        .buttonStyle(.bordered)
+                        .popover(
+                            isPresented: $isIconPickerPresented,
+                            attachmentAnchor: .rect(.bounds),
+                            arrowEdge: .top
+                        ) {
+                            ProjectIconPickerPopoverView(selection: symbolPickerSelection, onDismiss: {
+                                isIconPickerPresented = false
+                            })
+                        }
+
+                        SystemEmojiPickerButton(
+                            title: "Elegir emoji",
+                            accessibilityIdentifier: "onboarding-icon-emoji-system",
+                            selection: symbolPickerSelection
+                        )
+
+                        Spacer()
                     }
-                    .pickerStyle(.menu)
-                    .accessibilityIdentifier("onboarding-icon-picker")
                 }
 
                 Section("Qué ocurre ahora") {
@@ -86,7 +104,7 @@ struct OnboardingQuickProjectView: View {
     private func handleCreate() {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let projectName = uniqueProjectName(from: trimmedName)
-        let iconName = icon?.systemName ?? ProjectIcon.allCases.randomElement()?.systemName ?? ProjectIcon.spark.systemName
+        let iconName = iconName ?? ProjectIcon.allCases.randomElement()?.systemName ?? ProjectIcon.spark.systemName
         let project = Project(
             name: projectName,
             colorHex: ProjectPalette.defaultColor.hex,
@@ -101,6 +119,28 @@ struct OnboardingQuickProjectView: View {
         } catch {
             dismiss()
         }
+    }
+
+    private var iconPreview: some View {
+        ZStack {
+            Circle()
+                .fill(Color(hex: ProjectPalette.defaultColor.hex) ?? .accentColor)
+                .frame(width: 36, height: 36)
+            ProjectIconGlyph(
+                name: iconName ?? ProjectIcon.spark.systemName,
+                size: 14,
+                weight: .semibold,
+                symbolStyle: AnyShapeStyle(.white)
+            )
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var symbolPickerSelection: Binding<String> {
+        Binding(
+            get: { iconName ?? ProjectIcon.spark.systemName },
+            set: { iconName = $0 }
+        )
     }
 
     private func uniqueProjectName(from baseName: String) -> String {

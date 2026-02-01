@@ -134,9 +134,12 @@ struct ProjectDetailView: View {
                     .fill(project.color.gradient)
                     .frame(width: Layout.heroIconSize, height: Layout.heroIconSize)
                     .overlay(
-                        Image(systemName: project.iconName)
-                            .font(.title2)
-                            .foregroundStyle(.white),
+                        ProjectIconGlyph(
+                            name: project.iconName,
+                            size: heroIconGlyphSize,
+                            weight: .semibold,
+                            symbolStyle: AnyShapeStyle(.white)
+                        ),
                     )
                 VStack(alignment: .leading, spacing: 6) {
                     Text(project.name)
@@ -199,6 +202,10 @@ struct ProjectDetailView: View {
             cornerRadius: Layout.cardCornerRadius,
             strokeOpacity: Layout.cardStrokeOpacity,
         )
+    }
+
+    private var heroIconGlyphSize: CGFloat {
+        EmojiDetector.isEmoji(project.iconName) ? 30 : 24
     }
 
     private var streakPillText: String {
