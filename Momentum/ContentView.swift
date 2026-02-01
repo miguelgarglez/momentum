@@ -54,6 +54,7 @@ struct ContentView: View {
         static let sidebarMinWidth: CGFloat = 350
         static let sidebarIdealWidth: CGFloat = 400
         static let sidebarMaxWidth: CGFloat = 450
+        static let windowMinHeight: CGFloat = ActionPanelView.minimumHeight + sidebarInset * 2 + 125
     }
 
     private static let diagnosticsUIEnabled = ProcessInfo.processInfo.environment["MOM_DIAG_UI"] == "1"
@@ -125,7 +126,8 @@ struct ContentView: View {
         ZStack(alignment: .bottom) {
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 HStack(spacing: 0) {
-                    actionPanel
+                    Color.clear
+                        .frame(width: Layout.actionPanelWidth)
                     Divider()
                     sidebarList
                 }
@@ -156,12 +158,7 @@ struct ContentView: View {
                 )
             }
             .overlay(alignment: .leading) {
-                if columnVisibility == .detailOnly {
-                    sidebarChrome {
-                        actionPanel
-                    }
-                    .transition(.move(edge: .leading).combined(with: .opacity))
-                }
+                actionPanelOverlay
             }
 
             if let toast {
@@ -172,6 +169,7 @@ struct ContentView: View {
             }
         }
         .animation(Layout.toastAnimation, value: toast)
+        .frame(minHeight: Layout.windowMinHeight)
         #if os(macOS)
             .background(
                 MainWindowVisibilityObserver(
@@ -291,27 +289,30 @@ struct ContentView: View {
                         showConflictSheet = true
                     }
                 ),
-            isSidebarCollapsed: columnVisibility == .detailOnly,
         )
         .frame(width: Layout.actionPanelWidth, alignment: .bottomLeading)
         .frame(maxHeight: .infinity, alignment: .bottomLeading)
         .zIndex(2)
     }
 
-    private func sidebarChrome(@ViewBuilder content: () -> some View) -> some View {
-        content()
-            .background(
-                RoundedRectangle(cornerRadius: Layout.sidebarCornerRadius, style: .continuous)
-                    .fill(.regularMaterial),
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Layout.sidebarCornerRadius, style: .continuous)
-                    .stroke(Color.primary.opacity(Layout.sidebarBorderOpacity), lineWidth: 1),
-            )
-            .padding(.horizontal, Layout.sidebarInset)
-            .padding(.bottom, Layout.sidebarInset)
-            .padding(.top, Layout.sidebarInset)
-            .ignoresSafeArea(.container, edges: .top)
+    private var actionPanelOverlay: some View {
+        actionPanel
+            .background {
+                if columnVisibility == .detailOnly {
+                    RoundedRectangle(cornerRadius: Layout.sidebarCornerRadius, style: .continuous)
+                        .fill(.regularMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Layout.sidebarCornerRadius, style: .continuous)
+                                .stroke(Color.primary.opacity(Layout.sidebarBorderOpacity), lineWidth: 1)
+                        )
+                        .padding(.leading, Layout.sidebarInset)
+                        // Negative trailing padding aligns the chrome edge with the window border in collapsed mode.
+                        // This offsets the extra material inset introduced by the split view + overlay composition.
+                        .padding(.trailing, -4)
+                        .padding(.vertical, Layout.sidebarInset)
+                        .ignoresSafeArea(.container, edges: .top)
+                }
+            }
     }
 
     private var sidebarList: some View {
