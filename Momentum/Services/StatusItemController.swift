@@ -1,6 +1,7 @@
 #if os(macOS)
     import AppKit
     import Combine
+    import SwiftUI
 
     @MainActor
     final class StatusItemController: NSObject {
@@ -12,8 +13,9 @@
         private var latestSummary: ActivityTracker.StatusSummary
         private var pendingConflictCount: Int
         private var isManualTrackingActive: Bool
-        private weak var badgeView: NSView?
-        private weak var manualBadgeView: NSView?
+        private let symbolViewModel = StatusItemSymbolViewModel()
+        private weak var symbolHostingView: NSHostingView<StatusItemSymbolView>?
+        private var isConflictActive: Bool = false
 
         private lazy var timeFormatter: DateFormatter = {
             let formatter = DateFormatter()
@@ -25,10 +27,12 @@
         @MainActor
         init(tracker: ActivityTracker) {
             self.tracker = tracker
-            statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+            statusItem = NSStatusBar.system.statusItem(withLength: 12)
             latestSummary = tracker.statusSummary
             pendingConflictCount = tracker.pendingConflictCount
             isManualTrackingActive = tracker.isManualTrackingActive
+            isConflictActive = pendingConflictCount > 0 && !isManualTrackingActive
+            symbolViewModel.isManualTrackingActive = isManualTrackingActive
             super.init()
             configureButton()
             updateClockLabel()
@@ -47,6 +51,7 @@
                     guard let self else { return }
                     self.pendingConflictCount = count
                     self.updateButtonBadge()
+                    self.updateSymbolView()
                     self.rebuildMenu()
                 }
                 .store(in: &cancellables)
@@ -56,6 +61,7 @@
                     guard let self else { return }
                     self.isManualTrackingActive = isActive
                     self.updateButtonBadge()
+                    self.updateSymbolView()
                     self.rebuildMenu()
                 }
                 .store(in: &cancellables)
@@ -64,9 +70,10 @@
 
         @MainActor
         private func configureButton() {
-            statusItem.button?.image = NSImage(systemSymbolName: "flame", accessibilityDescription: "Momentum")
+            installSymbolViewIfNeeded()
             statusItem.button?.imagePosition = .imageOnly
             statusItem.button?.appearsDisabled = false
+            updateSymbolView()
             updateButtonBadge()
         }
 
@@ -75,50 +82,41 @@
             guard let button = statusItem.button else { return }
             button.title = ""
             button.attributedTitle = NSAttributedString(string: "")
+        }
 
-            if pendingConflictCount > 0, !isManualTrackingActive {
-                if badgeView == nil {
-                    let badgeSize: CGFloat = 6
-                    let dot = NSView()
-                    dot.wantsLayer = true
-                    dot.layer?.backgroundColor = NSColor.systemOrange.cgColor
-                    dot.layer?.cornerRadius = badgeSize / 2
-                    dot.translatesAutoresizingMaskIntoConstraints = false
-                    button.addSubview(dot)
-                    NSLayoutConstraint.activate([
-                        dot.widthAnchor.constraint(equalToConstant: badgeSize),
-                        dot.heightAnchor.constraint(equalToConstant: badgeSize),
-                        dot.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -7),
-                        dot.topAnchor.constraint(equalTo: button.topAnchor, constant: 4),
-                    ])
-                    badgeView = dot
-                }
-            } else {
-                badgeView?.removeFromSuperview()
-                badgeView = nil
-            }
+        @MainActor
+        private func installSymbolViewIfNeeded() {
+            guard let button = statusItem.button else { return }
+            button.image = nil
+            button.title = ""
+            button.attributedTitle = NSAttributedString(string: "")
 
-            if isManualTrackingActive {
-                if manualBadgeView == nil {
-                    let badgeSize: CGFloat = 6
-                    let dot = NSView()
-                    dot.wantsLayer = true
-                    dot.layer?.backgroundColor = NSColor.systemTeal.cgColor
-                    dot.layer?.cornerRadius = badgeSize / 2
-                    dot.translatesAutoresizingMaskIntoConstraints = false
-                    button.addSubview(dot)
-                    NSLayoutConstraint.activate([
-                        dot.widthAnchor.constraint(equalToConstant: badgeSize),
-                        dot.heightAnchor.constraint(equalToConstant: badgeSize),
-                        dot.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -7),
-                        dot.topAnchor.constraint(equalTo: button.topAnchor, constant: 4),
-                    ])
-                    manualBadgeView = dot
-                }
-            } else {
-                manualBadgeView?.removeFromSuperview()
-                manualBadgeView = nil
+            if symbolHostingView == nil {
+                let hostingView = NSHostingView(
+                    rootView: StatusItemSymbolView(model: symbolViewModel))
+                hostingView.translatesAutoresizingMaskIntoConstraints = false
+                button.addSubview(hostingView)
+                NSLayoutConstraint.activate([
+                    hostingView.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+                    hostingView.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+                    hostingView.widthAnchor.constraint(equalToConstant: 16),
+                    hostingView.heightAnchor.constraint(equalToConstant: 16),
+                ])
+                symbolHostingView = hostingView
             }
+        }
+
+        @MainActor
+        private func updateSymbolView() {
+            let hasConflict = pendingConflictCount > 0 && !isManualTrackingActive
+            if hasConflict != isConflictActive {
+                isConflictActive = hasConflict
+                symbolViewModel.isConflicting = hasConflict
+                symbolViewModel.conflictChangeToken += 1
+            } else {
+                symbolViewModel.isConflicting = hasConflict
+            }
+            symbolViewModel.isManualTrackingActive = isManualTrackingActive
         }
 
         @MainActor
