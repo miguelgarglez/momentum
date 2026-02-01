@@ -14,10 +14,6 @@ struct OnboardingWelcomeWindowView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var onboardingState: OnboardingState
     @State private var showQuickCreate = false
-    @State private var symbolIndex = 0
-    @State private var symbolAnimationTask: Task<Void, Never>?
-    @State private var outgoingSymbol: String?
-    @State private var outgoingSymbolClearTask: Task<Void, Never>?
 
     private let symbols = [
         "infinity.circle",
@@ -29,7 +25,11 @@ struct OnboardingWelcomeWindowView: View {
     var body: some View {
         VStack(spacing: 20) {
             VStack(spacing: 10) {
-                symbolImage
+                AnimatedSymbolSequenceView(
+                    symbols: symbols,
+                    size: 40,
+                    frameSize: 44
+                )
                 Text("Bienvenido a Momentum")
                     .font(.title2.weight(.semibold))
                 Text("Crea tu primer proyecto y empieza a convertir tu tiempo en progreso visible.")
@@ -68,11 +68,6 @@ struct OnboardingWelcomeWindowView: View {
         .frame(minWidth: 420, maxWidth: 480)
         .onAppear {
             onboardingState.markWelcomeSeen()
-            startSymbolAnimation()
-        }
-        .onDisappear {
-            symbolAnimationTask?.cancel()
-            symbolAnimationTask = nil
         }
         .onReceive(NotificationCenter.default.publisher(for: .onboardingProjectCreated)) { _ in
             showQuickCreate = false
@@ -99,39 +94,6 @@ struct OnboardingWelcomeWindowView: View {
         }
     }
 
-    @ViewBuilder
-    private var symbolImage: some View {
-        ZStack {
-            let image = Image(systemName: symbols[symbolIndex])
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-                .animation(.snappy(duration: 0.6), value: symbolIndex)
-
-            if #available(macOS 26.0, *) {
-                image
-                    .contentTransition(
-                        .symbolEffect(
-                            .replace.magic(fallback: .downUp.byLayer),
-                            options: .nonRepeating
-                        )
-                    )
-            } else {
-                image
-                    .contentTransition(
-                        .symbolEffect(.replace.downUp.byLayer, options: .nonRepeating)
-                    )
-            }
-
-            if #available(macOS 26.0, *), let outgoingSymbol {
-                Image(systemName: outgoingSymbol)
-                    .font(.system(size: 40))
-                    .foregroundStyle(.secondary)
-                    .symbolEffect(.drawOff.byLayer, options: .nonRepeating)
-            }
-        }
-        .frame(width: 44, height: 44, alignment: .center)
-    }
-
     private func onboardingBullet(icon: String, text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Image(systemName: icon)
@@ -142,33 +104,6 @@ struct OnboardingWelcomeWindowView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private func startSymbolAnimation() {
-        symbolAnimationTask?.cancel()
-        symbolAnimationTask = Task { @MainActor in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2.4))
-                let previousIndex = symbolIndex
-                withAnimation(.snappy(duration: 0.6)) {
-                    symbolIndex = (symbolIndex + 1) % symbols.count
-                }
-                setOutgoingSymbol(symbols[previousIndex])
-            }
-        }
-    }
-
-    private func setOutgoingSymbol(_ symbol: String) {
-        let isInfinity = symbol == "infinity.circle"
-        let clearDelay: Duration = isInfinity ? .seconds(1.05) : .seconds(0.7)
-        outgoingSymbol = symbol
-        outgoingSymbolClearTask?.cancel()
-        outgoingSymbolClearTask = Task { @MainActor in
-            try? await Task.sleep(for: clearDelay)
-            if !Task.isCancelled {
-                outgoingSymbol = nil
-            }
         }
     }
 

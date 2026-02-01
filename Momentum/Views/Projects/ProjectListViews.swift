@@ -8,11 +8,20 @@
 import SwiftUI
 
 struct WelcomeView: View {
+    private let symbols = [
+        "infinity.circle",
+        "chart.bar.xaxis",
+        "clock.arrow.trianglehead.2.counterclockwise.rotate.90",
+        "chart.line.uptrend.xyaxis",
+    ]
+
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
+            AnimatedSymbolSequenceView(
+                symbols: symbols,
+                size: 48,
+                frameSize: 52
+            )
             Text("Revela tu Momentum")
                 .font(.title2.weight(.semibold))
             Text("Crea tu primer proyecto para convertir cada minuto en progreso visible.")
@@ -32,6 +41,8 @@ struct EmptyProjectsView: View {
             Text("Añade un proyecto para medir tu dedicación sin fricción.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.vertical, 8)
     }

@@ -27,7 +27,7 @@
         }
 
         var body: some View {
-            Image(systemName: "infinity.circle")
+            let baseView = Image(systemName: "infinity.circle")
                 .symbolRenderingMode(.palette)
                 .foregroundStyle(infinityColor, ringColor)
                 .font(.system(size: 16, weight: .regular))
@@ -38,6 +38,12 @@
                 .onAppear {
                     appearToken += 1
                 }
+
+            if #available(macOS 15.0, *) {
+                baseView.symbolEffect(.breathe, options: .repeating, value: model.isManualTrackingActive)
+            } else {
+                baseView
+            }
         }
     }
 #endif
