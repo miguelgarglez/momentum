@@ -9,3 +9,4 @@
 - Prefer focused extensions over large grab‑bag files.
 - Keep naming explicit about units and formatting rules.
 - Avoid side effects; utilities should be deterministic.
+ - When reading system resources (e.g. symbol catalogs), provide a fallback list for resilience.

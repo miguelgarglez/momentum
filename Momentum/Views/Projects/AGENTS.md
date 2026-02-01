@@ -10,6 +10,7 @@
 - Keep `ProjectDetailView` focused on composition; move heavy UI blocks into sibling views.
 - Keep form state in `ProjectFormDraft` and pass bindings into view sections.
 - Prefer `detailCardStyle` and related shared styles for cards.
+ - For project icon selection, use shared components (`ProjectIconGlyph`, `ProjectIconPickerPopoverView`, `SystemEmojiPickerButton`) to keep behavior consistent across forms.
 
 ## Data and State
 - Avoid duplicating derived data; compute in view-only helpers where needed.
