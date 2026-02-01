@@ -16,38 +16,22 @@ struct ActionPanelView: View {
     let onCreateProject: () -> Void
     let settingsControl: AnyView
     let statusAccessory: AnyView?
-    let isSidebarCollapsed: Bool
-
-    @State private var statusAccessoryTopPadding: CGFloat = 2
-    @State private var statusAccessoryPaddingTask: Task<Void, Never>?
 
     private enum Layout {
-        static let expandedTopPadding: CGFloat = 0
-        static let collapsedTopPadding: CGFloat = 44
-        static let collapseDelay: UInt64 = 220_000_000
+        static let statusAccessoryOffset: CGFloat = 0
+        static let leadingInset: CGFloat = 22
+        static let trailingInset: CGFloat = 12
     }
 
-    init(
-        summary: ActivityTracker.StatusSummary,
-        isTrackingEnabled: Bool,
-        isManualTrackingActive: Bool,
-        onToggleTracking: @escaping () -> Void,
-        onStartManualTracking: @escaping () -> Void,
-        onCreateProject: @escaping () -> Void,
-        settingsControl: AnyView,
-        statusAccessory: AnyView? = nil,
-        isSidebarCollapsed: Bool = false
-    ) {
-        self.summary = summary
-        self.isTrackingEnabled = isTrackingEnabled
-        self.isManualTrackingActive = isManualTrackingActive
-        self.onToggleTracking = onToggleTracking
-        self.onStartManualTracking = onStartManualTracking
-        self.onCreateProject = onCreateProject
-        self.settingsControl = settingsControl
-        self.statusAccessory = statusAccessory
-        self.isSidebarCollapsed = isSidebarCollapsed
-    }
+    static let minimumHeight: CGFloat = {
+        let iconSize: CGFloat = 36
+        let iconPadding: CGFloat = 6
+        let buttonSize = iconSize + iconPadding * 2
+        let buttonCount: CGFloat = 4
+        let buttonSpacing: CGFloat = 10
+        let verticalPadding: CGFloat = 40
+        return buttonCount * buttonSize + (buttonCount - 1) * buttonSpacing + verticalPadding
+    }()
 
     init(
         summary: ActivityTracker.StatusSummary,
@@ -59,17 +43,14 @@ struct ActionPanelView: View {
         settingsControl: AnyView,
         statusAccessory: AnyView? = nil
     ) {
-        self.init(
-            summary: summary,
-            isTrackingEnabled: isTrackingEnabled,
-            isManualTrackingActive: isManualTrackingActive,
-            onToggleTracking: onToggleTracking,
-            onStartManualTracking: onStartManualTracking,
-            onCreateProject: onCreateProject,
-            settingsControl: settingsControl,
-            statusAccessory: statusAccessory,
-            isSidebarCollapsed: false
-        )
+        self.summary = summary
+        self.isTrackingEnabled = isTrackingEnabled
+        self.isManualTrackingActive = isManualTrackingActive
+        self.onToggleTracking = onToggleTracking
+        self.onStartManualTracking = onStartManualTracking
+        self.onCreateProject = onCreateProject
+        self.settingsControl = settingsControl
+        self.statusAccessory = statusAccessory
     }
 
     private var primaryActionLabel: String {
@@ -115,72 +96,64 @@ struct ActionPanelView: View {
         }
     }
 
+    private var statusAccessoryTopPadding: CGFloat {
+        Layout.statusAccessoryOffset
+    }
+
     var body: some View {
-        VStack(alignment: .center, spacing: 16) {
+        ZStack(alignment: .top) {
             if let statusAccessory {
                 statusAccessory
-                    .padding(.top, statusAccessoryTopPadding)
+                    .offset(y: statusAccessoryTopPadding)
                     .animation(.none, value: statusAccessoryTopPadding)
+                    .transaction { transaction in
+                        transaction.animation = nil
+                    }
             }
 
-            Spacer(minLength: 0)
+            VStack(alignment: .center, spacing: 16) {
+                Spacer(minLength: 0)
 
-            VStack(alignment: .center, spacing: 10) {
-                ActionPanelIconButton(
-                    systemName: primaryActionIcon,
-                    tint: trackingBadgeColor,
-                    accessibilityLabel: primaryActionLabel,
-                    accessibilityIdentifier: "action-panel-primary",
-                    tooltipText: primaryActionLabel,
-                    action: onToggleTracking,
-                )
+                VStack(alignment: .center, spacing: 10) {
+                    ActionPanelIconButton(
+                        systemName: primaryActionIcon,
+                        tint: trackingBadgeColor,
+                        accessibilityLabel: primaryActionLabel,
+                        accessibilityIdentifier: "action-panel-primary",
+                        tooltipText: primaryActionLabel,
+                        action: onToggleTracking,
+                    )
 
-                ActionPanelIconButton(
-                    systemName: "record.circle",
-                    tint: manualTint,
-                    accessibilityLabel: manualLabel,
-                    accessibilityIdentifier: "action-panel-manual",
-                    tooltipText: manualLabel,
-                    action: onStartManualTracking,
-                    isActive: isManualTrackingActive,
-                )
-                .disabled(isManualTrackingActive)
+                    ActionPanelIconButton(
+                        systemName: "record.circle",
+                        tint: manualTint,
+                        accessibilityLabel: manualLabel,
+                        accessibilityIdentifier: "action-panel-manual",
+                        tooltipText: manualLabel,
+                        action: onStartManualTracking,
+                        isActive: isManualTrackingActive,
+                    )
+                    .disabled(isManualTrackingActive)
 
-                ActionPanelIconButton(
-                    systemName: "plus",
-                    tint: .primary,
-                    accessibilityLabel: "Nuevo proyecto",
-                    accessibilityIdentifier: "action-panel-create-project",
-                    tooltipText: "Nuevo proyecto",
-                    action: onCreateProject,
-                )
+                    ActionPanelIconButton(
+                        systemName: "plus",
+                        tint: .primary,
+                        accessibilityLabel: "Nuevo proyecto",
+                        accessibilityIdentifier: "action-panel-create-project",
+                        tooltipText: "Nuevo proyecto",
+                        action: onCreateProject,
+                    )
 
-                settingsControl
-                    .actionPanelTooltip("Ajustes")
+                    settingsControl
+                        .actionPanelTooltip("Ajustes")
+                }
             }
         }
         .padding(.vertical, 20)
-        .padding(.horizontal, 12)
+        .padding(.leading, Layout.leadingInset)
+        .padding(.trailing, Layout.trailingInset)
         .frame(maxHeight: .infinity, alignment: .bottomLeading)
         .frame(maxWidth: .infinity, alignment: .center)
-        .onAppear {
-            statusAccessoryTopPadding = isSidebarCollapsed ? Layout.collapsedTopPadding : Layout.expandedTopPadding
-        }
-        .onChange(of: isSidebarCollapsed) { _, newValue in
-            statusAccessoryPaddingTask?.cancel()
-            if newValue {
-                statusAccessoryPaddingTask = Task {
-                    try? await Task.sleep(nanoseconds: Layout.collapseDelay)
-                    guard !Task.isCancelled else { return }
-                    statusAccessoryTopPadding = Layout.collapsedTopPadding
-                }
-            } else {
-                statusAccessoryTopPadding = Layout.expandedTopPadding
-            }
-        }
-        .onDisappear {
-            statusAccessoryPaddingTask?.cancel()
-        }
     }
 }
 

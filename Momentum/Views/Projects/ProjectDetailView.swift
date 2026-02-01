@@ -155,9 +155,6 @@ struct ProjectDetailView: View {
                             tint: .orange,
                         )
                     }
-                    .transaction { transaction in
-                        transaction.animation = nil
-                    }
                 }
             }
             Spacer()
