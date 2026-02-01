@@ -704,7 +704,13 @@ struct ContentView: View {
             guard !onboardingState.hasSeenWelcome, !hasPresentedWelcome else { return }
             hasPresentedWelcome = true
             if #available(macOS 13.0, *) {
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                NSApplication.shared.unhide(nil)
                 openWindow(id: OnboardingWindowID.welcome)
+                NotificationCenter.default.post(name: .momentumWindowVisibilityNeedsUpdate, object: nil)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    bringWelcomeWindowToFrontIfNeeded()
+                }
             }
         }
 
@@ -728,6 +734,14 @@ struct ContentView: View {
                 let selector = Selector(("showSettingsWindow:"))
                 NSApplication.shared.sendAction(selector, to: nil, from: nil)
             }
+        }
+
+        private func bringWelcomeWindowToFrontIfNeeded() {
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            guard let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeKey }) else { return }
+            window.makeKeyAndOrderFront(nil)
+            window.makeMain()
+            window.orderFrontRegardless()
         }
     #else
         private func showWelcomeWindowIfNeeded() {}
