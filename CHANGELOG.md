@@ -1,5 +1,59 @@
 # Changelog
 
+## [1.7.0](https://github.com/miguelgarglez/momentum/compare/v1.6.0...v1.7.0) (2026-02-01)
+
+
+### Features
+
+* add diagnostics signposts ([5843b92](https://github.com/miguelgarglez/momentum/commit/5843b9241626eb2a2b0f11e20439b6b2169d1cd7))
+* add release cpu diag runner ([34522fa](https://github.com/miguelgarglez/momentum/commit/34522fa00a264902b18c0dc4ec2c1b61839de092))
+* add runtime kill switches ([e70a56e](https://github.com/miguelgarglez/momentum/commit/e70a56e5d9103feb71a6700d2ae0cefdcd697c8b))
+* log diagnostics to file ([d130052](https://github.com/miguelgarglez/momentum/commit/d130052720270e7c63fb988d64dc510a0e9f4227))
+* **onboarding:** Add animated welcome sequence ([d9941d8](https://github.com/miguelgarglez/momentum/commit/d9941d86d1229117fbd2b9105831fc0dbca50ebd))
+* refine action panel tooltips ([d79b263](https://github.com/miguelgarglez/momentum/commit/d79b263624d50df2368b61e188d44decd39a45de))
+* **settings:** add window helpers ([716b212](https://github.com/miguelgarglez/momentum/commit/716b2129e8d9bef56f4fac58fdb405387ffd40a9))
+* **status-item:** Reflect manual tracking in symbol ring ([eaff538](https://github.com/miguelgarglez/momentum/commit/eaff5384e33720756e6d081b9ef91d608481e34b))
+* summarize cpu diagnostics ([4245c03](https://github.com/miguelgarglez/momentum/commit/4245c03f25c5c20ee114832d1c96f0b406b3d7e4))
+* **ui:** polish conflict UI icons ([482e8eb](https://github.com/miguelgarglez/momentum/commit/482e8ebbd761a3c44db5165c2fdd3cdcd7057e03))
+
+
+### Bug Fixes
+
+* add timer guardrails ([bf25845](https://github.com/miguelgarglez/momentum/commit/bf25845d82a0673e062a54c9b25d5213466d0ec7))
+* **onboarding:** Focus welcome window on first launch ([20cf915](https://github.com/miguelgarglez/momentum/commit/20cf91560478f15a9eb2754d22cb8cf2548cd24f))
+* **tracking:** normalize conflict handling ([6594395](https://github.com/miguelgarglez/momentum/commit/6594395dec23c9ef142ac237712de7c76faf8e3d))
+* **tracking:** reduce polling noise improve cpu consumption ([615d077](https://github.com/miguelgarglez/momentum/commit/615d0771619c85f45d0b6de7b0341334446dfad2))
+* **ui:** move open app menu item ([c5e3dc2](https://github.com/miguelgarglez/momentum/commit/c5e3dc20ae609abf1d3796647d0e6ca8b12a91f4))
+
+
+### Refactors
+
+* **ui:** update project form layout ([096967a](https://github.com/miguelgarglez/momentum/commit/096967adc0e1cf83471af9451d304561eef665cb))
+
+
+### Documentation
+
+* add diagnostic context template ([ab4f951](https://github.com/miguelgarglez/momentum/commit/ab4f9512c374ed43987dcf1a6ab7455957161278))
+* add diagnostic start guide ([3abf3f2](https://github.com/miguelgarglez/momentum/commit/3abf3f28e039232443cef56eb84b3b672d277695))
+
+
+### Chores
+
+* **components:** clarify MainActor use ([e517a41](https://github.com/miguelgarglez/momentum/commit/e517a418b534c580abc7cd700ef2567f0481dc1f))
+* **diagnostics:** improve cpu tooling ([1ee6a5f](https://github.com/miguelgarglez/momentum/commit/1ee6a5f8e0c452250a113248b6611fb6d525457a))
+
+
+### Performance
+
+* add timer tolerance ([041a374](https://github.com/miguelgarglez/momentum/commit/041a3742169b8d95c63d1f9061f322a25dbc90df))
+* **diag:** improve diagnostics runs ([cf7f62a](https://github.com/miguelgarglez/momentum/commit/cf7f62a953cd1e5aedc7489d98e00bc99cb5f8a4))
+* **ui:** cache project stats refresh ([0826874](https://github.com/miguelgarglez/momentum/commit/08268749cd29e1b9790d878bf7a1cf38604c1ec2))
+
+
+### Style
+
+* apply swiftformat ([e38850e](https://github.com/miguelgarglez/momentum/commit/e38850e9c20acc36d1063da67c3fdb966dabc114))
+
 ## [1.6.0](https://github.com/miguelgarglez/momentum/compare/v1.5.0...v1.6.0) (2026-01-11)
 
 
