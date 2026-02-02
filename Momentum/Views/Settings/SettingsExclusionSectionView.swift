@@ -112,6 +112,11 @@ private struct AppExclusionEditor: View {
                     }
                 }
             }
+            .onChange(of: isSelectorPresented) { _, isPresented in
+                if isPresented {
+                    appCatalog.refreshIfStale()
+                }
+            }
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Bundle ID manual")

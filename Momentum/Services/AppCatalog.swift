@@ -20,6 +20,8 @@ final class AppCatalog: ObservableObject {
     @Published private(set) var isLoading = false
 
     private let searchPaths: [URL]
+    private let refreshCooldown: TimeInterval = 10
+    private var lastRefresh: Date?
 
     init(searchPaths: [URL]? = nil, initialApps: [InstalledApp]? = nil) {
         self.searchPaths = searchPaths ?? AppCatalog.defaultSearchPaths
@@ -33,6 +35,7 @@ final class AppCatalog: ObservableObject {
     func refresh() {
         guard !isLoading else { return }
         isLoading = true
+        lastRefresh = Date()
         Task.detached { [weak self, searchPaths] in
             guard let self else { return }
             let discovered = Self.scanApplications(at: searchPaths)
@@ -42,6 +45,14 @@ final class AppCatalog: ObservableObject {
                 self.isLoading = false
             }
         }
+    }
+
+    func refreshIfStale() {
+        let now = Date()
+        if let lastRefresh, now.timeIntervalSince(lastRefresh) < refreshCooldown {
+            return
+        }
+        refresh()
     }
 
     func app(for identifier: String) -> InstalledApp? {

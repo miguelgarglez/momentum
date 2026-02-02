@@ -222,10 +222,16 @@ struct ProjectFormView: View {
             .navigationTitle(mode == .create ? "Nuevo proyecto" : "Editar proyecto")
             .frame(minWidth: 540, maxWidth: 640)
             .onChange(of: isAppSelectorPresented) { _, isPresented in
+                if isPresented {
+                    appCatalog.refreshIfStale()
+                }
                 guard !isPresented else { return }
                 DispatchQueue.main.async {
                     focusedField = .appSelectorButton
                 }
+            }
+            .onAppear {
+                appCatalog.refreshIfStale()
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
