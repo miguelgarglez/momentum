@@ -117,6 +117,8 @@ struct TrackerSettingsView: View {
                 draft: $draft,
                 showingAutomationInfo: $showingAutomationInfo,
             )
+        case .raycast:
+            SettingsRaycastSectionView(draft: $draft)
         case .appearance:
             SettingsAppearanceSectionView(themeSelection: themeSelectionBinding)
         case .idle:
@@ -224,6 +226,7 @@ struct TrackerSettingsDraft {
     var excludedFiles: [String]
     var isDatabaseEncryptionEnabled: Bool
     var assignmentRuleExpiration: AssignmentRuleExpirationOption
+    var isRaycastIntegrationEnabled: Bool
 
     init(from settings: TrackerSettings) {
         detectionInterval = settings.detectionInterval
@@ -235,6 +238,7 @@ struct TrackerSettingsDraft {
         excludedFiles = settings.excludedFiles
         isDatabaseEncryptionEnabled = settings.isDatabaseEncryptionEnabled
         assignmentRuleExpiration = settings.assignmentRuleExpiration
+        isRaycastIntegrationEnabled = settings.isRaycastIntegrationEnabled
     }
 
     init() {
@@ -247,5 +251,6 @@ struct TrackerSettingsDraft {
         excludedFiles = []
         isDatabaseEncryptionEnabled = false
         assignmentRuleExpiration = .never
+        isRaycastIntegrationEnabled = false
     }
 }

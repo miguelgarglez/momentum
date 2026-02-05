@@ -158,6 +158,12 @@ final class TrackerSettings: ObservableObject {
         }
     }
 
+    @Published var isRaycastIntegrationEnabled: Bool {
+        didSet {
+            defaults.set(isRaycastIntegrationEnabled, forKey: Keys.raycastIntegrationEnabled)
+        }
+    }
+
     @Published var themePreference: AppThemePreference {
         didSet {
             defaults.set(themePreference.rawValue, forKey: Keys.themePreference)
@@ -185,6 +191,7 @@ final class TrackerSettings: ObservableObject {
         } else {
             assignmentRuleExpiration = .never
         }
+        isRaycastIntegrationEnabled = defaults.object(forKey: Keys.raycastIntegrationEnabled) as? Bool ?? false
         if let rawValue = defaults.string(forKey: Keys.themePreference),
            let option = AppThemePreference(rawValue: rawValue)
         {
@@ -271,6 +278,7 @@ final class TrackerSettings: ObservableObject {
         static let excludedFiles = "tracker.excludedFiles"
         static let encryptionEnabled = "tracker.encryptionEnabled"
         static let assignmentRuleExpiration = "assignmentRules.expiration"
+        static let raycastIntegrationEnabled = "integrations.raycast.enabled"
         static let themePreference = "app.themePreference"
     }
 }

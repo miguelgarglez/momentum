@@ -14,6 +14,9 @@ import SwiftUI
 @main
 @MainActor
 struct MomentumApp: App {
+    #if os(macOS)
+        @NSApplicationDelegateAdaptor(MomentumAppDelegate.self) private var appDelegate
+    #endif
     @StateObject private var trackerSettings: TrackerSettings
     @StateObject private var environment: AppEnvironment
     @StateObject private var onboardingState = OnboardingState()
@@ -41,6 +44,7 @@ struct MomentumApp: App {
                         .environmentObject(tracker)
                         .environmentObject(environment.trackerSettings)
                         .environmentObject(environment.appCatalog)
+                        .environmentObject(environment.raycastIntegrationManager)
                         .environmentObject(onboardingState)
                         .environmentObject(automationPermissionManager)
                         .environmentObject(trackingSessionManager)
@@ -78,12 +82,6 @@ struct MomentumApp: App {
         .defaultSize(width: 620, height: 460)
 
         #if os(macOS)
-            WindowGroup(id: SettingsWindowID.main) {
-                settingsContent(effectiveThemePreference: effectiveThemePreference)
-            }
-            .windowResizability(.contentSize)
-            .defaultSize(width: 620, height: 460)
-
             WindowGroup(id: OnboardingWindowID.welcome) {
                 Group {
                     if let container = environment.container,
@@ -93,6 +91,7 @@ struct MomentumApp: App {
                             .environmentObject(tracker)
                             .environmentObject(environment.trackerSettings)
                             .environmentObject(environment.appCatalog)
+                            .environmentObject(environment.raycastIntegrationManager)
                             .environmentObject(onboardingState)
                             .environmentObject(automationPermissionManager)
                             .environmentObject(trackingSessionManager)
@@ -140,6 +139,7 @@ struct MomentumApp: App {
                 SettingsShellView()
                     .environmentObject(environment.trackerSettings)
                     .environmentObject(environment.appCatalog)
+                    .environmentObject(environment.raycastIntegrationManager)
                     .environmentObject(onboardingState)
                     .environmentObject(automationPermissionManager)
                     .environmentObject(trackingSessionManager)
@@ -190,6 +190,7 @@ struct MomentumApp: App {
             bootstrapError = error.localizedDescription
         }
     }
+
 }
 
 // MARK: - Store configuration
@@ -296,6 +297,7 @@ private extension MomentumApp {
 final class AppEnvironment: ObservableObject {
     let trackerSettings: TrackerSettings
     let appCatalog = AppCatalog()
+    let raycastIntegrationManager: RaycastIntegrationManager
     private(set) var container: ModelContainer?
     @Published private(set) var tracker: ActivityTracker?
     private var dataProtection: DataProtectionCoordinator?
@@ -307,6 +309,7 @@ final class AppEnvironment: ObservableObject {
 
     init(trackerSettings: TrackerSettings) {
         self.trackerSettings = trackerSettings
+        raycastIntegrationManager = RaycastIntegrationManager(settings: trackerSettings)
         #if os(macOS)
             NSApp.setActivationPolicy(.accessory)
             dockVisibilityCoordinator.start()
@@ -379,6 +382,11 @@ final class AppEnvironment: ObservableObject {
         self.container = container
         self.tracker = tracker
         self.dataProtection = dataProtection
+        raycastIntegrationManager.configure(
+            modelContainer: container,
+            isUITest: isUITest,
+            isSeedRun: isSeedRun,
+        )
         #if os(macOS)
             statusItemCoordinator.configure(with: tracker)
         #endif

@@ -5,6 +5,7 @@
     final class DockVisibilityCoordinator {
         private var observers: [NSObjectProtocol] = []
         private var pendingEvaluation: DispatchWorkItem?
+        private var visibilityHoldUntil: Date?
         private var hasStarted = false
 
         func start() {
@@ -69,6 +70,18 @@
             }
             observers.append(manualUpdate)
 
+            let holdVisibility = center.addObserver(
+                forName: .momentumHoldDockVisibility,
+                object: nil,
+                queue: .main,
+            ) { [weak self] notification in
+                let duration = notification.userInfo?["MomentumHoldDockVisibilityDuration"] as? TimeInterval ?? 1.0
+                Task { @MainActor in
+                    self?.holdVisibility(for: duration)
+                }
+            }
+            observers.append(holdVisibility)
+
             scheduleEvaluation(delay: 0.1)
         }
 
@@ -91,7 +104,18 @@
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
         }
 
+        private func holdVisibility(for duration: TimeInterval) {
+            visibilityHoldUntil = Date().addingTimeInterval(duration)
+            scheduleEvaluation(delay: 0.0)
+        }
+
         private func applyVisibility() {
+            if let holdUntil = visibilityHoldUntil, Date() < holdUntil {
+                if NSApp.activationPolicy() != .regular {
+                    NSApp.setActivationPolicy(.regular)
+                }
+                return
+            }
             let hasVisibleWindow = NSApp.windows.contains(where: isUserFacingWindow)
             if hasVisibleWindow {
                 if NSApp.activationPolicy() != .regular {
@@ -109,7 +133,6 @@
             guard window.isVisible, !window.isMiniaturized else { return false }
             if !window.canBecomeKey, !window.canBecomeMain { return false }
             if !window.styleMask.contains(.titled) { return false }
-            if window.isExcludedFromWindowsMenu { return false }
             if window.level != .normal, window.level != .floating { return false }
             if !window.isOnActiveSpace { return false }
             return true
@@ -118,5 +141,7 @@
 
     extension Notification.Name {
         static let momentumWindowVisibilityNeedsUpdate = Notification.Name("MomentumWindowVisibilityNeedsUpdate")
+        static let momentumHoldDockVisibility = Notification.Name("MomentumHoldDockVisibility")
     }
+
 #endif

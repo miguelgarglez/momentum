@@ -2,6 +2,7 @@ import Foundation
 
 enum SettingsSection: String, CaseIterable, Identifiable {
     case tracking
+    case raycast
     case privacy
     case appearance
     case idle
@@ -14,6 +15,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .tracking:
             "Tracking"
+        case .raycast:
+            "Raycast Extension"
         case .privacy:
             "Privacidad"
         case .appearance:
@@ -31,6 +34,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .tracking:
             "dot.scope"
+        case .raycast:
+            "command"
         case .privacy:
             "lock.shield"
         case .appearance:

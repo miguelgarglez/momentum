@@ -168,8 +168,8 @@ struct ContentView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(Layout.toastAnimation, value: toast)
-        .frame(minHeight: Layout.windowMinHeight)
+            .animation(Layout.toastAnimation, value: toast)
+            .frame(minHeight: Layout.windowMinHeight)
         #if os(macOS)
             .background(
                 MainWindowVisibilityObserver(
@@ -189,8 +189,14 @@ struct ContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .statusItemStartManualTracking)) { _ in
                 showManualTrackingSheet = true
             }
+            .onReceive(NotificationCenter.default.publisher(for: .raycastShowConflicts)) { _ in
+                showMainWindowFromStatusItem()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    showConflictSheet = true
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .statusItemShowSettings)) { _ in
-                showSettingsFromStatusItem()
+                MomentumDeepLink.openSettings(section: nil)
             }
         #endif
             .onReceive(tracker.$manualStopEvent.compactMap(\.self)) { event in
@@ -726,15 +732,7 @@ struct ContentView: View {
         }
 
         private func showSettingsFromStatusItem() {
-            NSApplication.shared.activate(ignoringOtherApps: true)
-            NSApplication.shared.unhide(nil)
-            if #available(macOS 13.0, *) {
-                NSApp.setActivationPolicy(.regular)
-                openWindow(id: SettingsWindowID.main)
-            } else {
-                let selector = Selector(("showSettingsWindow:"))
-                NSApplication.shared.sendAction(selector, to: nil, from: nil)
-            }
+            SettingsWindowPresenter.open(section: nil)
         }
 
         private func bringWelcomeWindowToFrontIfNeeded() {
@@ -764,18 +762,53 @@ private enum ProjectSheet: Identifiable {
 }
 
 #if os(macOS)
+    private final class WindowAttachmentView: NSView {
+        var onWindowChange: ((NSWindow) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window {
+                onWindowChange?(window)
+            }
+        }
+    }
+
     private struct MainWindowVisibilityObserver: NSViewRepresentable {
         @Binding var shouldSuppressInitialWindow: Bool
 
-        func makeNSView(context _: Context) -> NSView {
-            NSView()
+        func makeNSView(context: Context) -> WindowAttachmentView {
+            let view = WindowAttachmentView()
+            view.onWindowChange = { window in
+                context.coordinator.handle(window: window, shouldSuppressInitialWindow: $shouldSuppressInitialWindow)
+            }
+            return view
         }
 
-        func updateNSView(_ nsView: NSView, context _: Context) {
-            DispatchQueue.main.async {
-                guard let window = nsView.window else { return }
-                if shouldSuppressInitialWindow {
-                    shouldSuppressInitialWindow = false
+        func updateNSView(_ nsView: WindowAttachmentView, context: Context) {
+            nsView.onWindowChange = { window in
+                context.coordinator.handle(window: window, shouldSuppressInitialWindow: $shouldSuppressInitialWindow)
+            }
+            if let window = nsView.window {
+                context.coordinator.handle(window: window, shouldSuppressInitialWindow: $shouldSuppressInitialWindow)
+            }
+        }
+
+        func makeCoordinator() -> Coordinator {
+            Coordinator()
+        }
+
+        final class Coordinator {
+            private weak var lastWindow: NSWindow?
+
+            func handle(window: NSWindow, shouldSuppressInitialWindow: Binding<Bool>) {
+                guard lastWindow !== window else { return }
+                lastWindow = window
+                if MainWindowSuppression.consume() {
+                    window.orderOut(nil)
+                    return
+                }
+                if shouldSuppressInitialWindow.wrappedValue {
+                    shouldSuppressInitialWindow.wrappedValue = false
                     window.orderOut(nil)
                     return
                 }

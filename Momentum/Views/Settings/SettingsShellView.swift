@@ -62,6 +62,12 @@ struct SettingsShellView: View {
                 if themePreview.selection == nil {
                     themePreview.selection = settings.themePreference
                 }
+                if let requestedSection = UserDefaults.standard.string(forKey: RaycastSettingsRequest.sectionKey),
+                   let section = SettingsSection(rawValue: requestedSection)
+                {
+                    navigationModel.selection = section
+                    UserDefaults.standard.removeObject(forKey: RaycastSettingsRequest.sectionKey)
+                }
             }
             .task(id: themePreview.selection) {
                 try? await Task.sleep(nanoseconds: 450_000_000)
@@ -83,6 +89,7 @@ struct SettingsShellView: View {
         settings.excludedFiles = draft.excludedFiles
         settings.isDatabaseEncryptionEnabled = draft.isDatabaseEncryptionEnabled
         settings.assignmentRuleExpiration = draft.assignmentRuleExpiration
+        settings.isRaycastIntegrationEnabled = draft.isRaycastIntegrationEnabled
         settings.themePreference = themePreview.selection ?? settings.themePreference
         clearThemePreview()
     }

@@ -307,7 +307,7 @@
         }
 
         @objc private func handleShowSettings(_: Any?) {
-            NotificationCenter.default.post(name: .statusItemShowSettings, object: nil)
+            SettingsWindowPresenter.open(section: nil)
         }
     }
 
@@ -316,6 +316,7 @@
         static let statusItemStartManualTracking = Notification.Name("StatusItemStartManualTracking")
         static let statusItemShowApp = Notification.Name("StatusItemShowApp")
         static let statusItemShowSettings = Notification.Name("StatusItemShowSettings")
+        static let raycastShowConflicts = Notification.Name("RaycastShowConflicts")
     }
 
     enum StatusItemUserInfoKey {
