@@ -13,6 +13,7 @@
 - `Momentum/Assets.xcassets` stores images and color assets.
 - `Momentum/Documentation.docc` contains in-app documentation.
 - `PRDs/` stores product requirement docs and plans (see `PRDs/README.md`).
+- `RaycastExtension/momentum/` contains the Raycast extension (TypeScript).
 - Tests live in `MomentumTests/` (unit) and `MomentumUITests/` (UI).
 - `MomentumUITests/` includes its own `AGENTS.md` with UI test-specific guidance.
 - `Momentum.xcodeproj` is the Xcode project entry point.
@@ -34,6 +35,10 @@ Prefer `Makefile` targets for local development:
 - `make install-release`
 - `make archive-release`
 - `make clean`
+- For the Raycast extension:
+  - `cd RaycastExtension/momentum && npm run dev`
+  - `cd RaycastExtension/momentum && npm run build`
+  - `cd RaycastExtension/momentum && npm run lint`
 - For local builds in this environment, the agent needs full filesystem access (danger-full-access).
 - If builds fail with SwiftData macro errors (`swift-plugin-server` malformed response), the issue is typically the local Xcode toolchain rather than project code.
 
@@ -123,6 +128,7 @@ Raw `xcodebuild` commands are still valid and occasionally useful:
 - If installed, `xcpretty` can be used to format `xcodebuild` output.
 - SwiftLint config lives in `.swiftlint.yml` (rules are error-level only).
 - SwiftFormat config lives in `.swiftformat`, with Swift version set via `.swift-version`.
+- Raycast extension metadata lives in `RaycastExtension/momentum/package.json`.
 
 ## Local Dev Convenience
 - For cleaner local `xcodebuild` output, use `xcbeautify` (preferred) or `xcpretty`.

@@ -7,6 +7,7 @@
 - PRDs/Features/AssignmentConflicts.md
 - PRDs/Features/FileTracking.md
 - PRDs/Features/ManualTracking.md
+- PRDs/Features/RaycastIntegration.md
 
 ## Plans
 - PRDs/Plans/FileTracking-Plan.md
