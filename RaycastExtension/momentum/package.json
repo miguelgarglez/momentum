@@ -1,0 +1,71 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "momentum",
+  "title": "Momentum",
+  "description": "Handle Momentum app from Raycast. Track your time spent on different apps, files and web domains grouped by projects. And track time spent manually.",
+  "icon": "extension-icon.png",
+  "author": "miguel_garcia_gonzalez",
+  "platforms": [
+    "macOS",
+    "Windows"
+  ],
+  "categories": [
+    "Productivity",
+    "Applications"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "open-momentum",
+      "title": "Open Momentum",
+      "subtitle": "Open main Momentum window",
+      "description": "Open Momentum main window like the status item action",
+      "icon": "extension-icon.png",
+      "mode": "no-view"
+    },
+    {
+      "name": "list-projects",
+      "title": "List projects",
+      "subtitle": "Show all projects",
+      "description": "Show all user's projects in Momentum app",
+      "icon": "extension-icon.png",
+      "mode": "view"
+    },
+    {
+      "name": "open-settings",
+      "title": "Open Momentum Settings",
+      "subtitle": "Open the Raycast settings section",
+      "description": "Open Momentum settings focused on the Raycast section",
+      "icon": "extension-icon.png",
+      "mode": "no-view"
+    },
+    {
+      "name": "resolve-conflicts",
+      "title": "Resolve conflicts",
+      "subtitle": "Open conflict resolution if needed",
+      "description": "Open Momentum conflict resolution dialog when there are pending conflicts",
+      "icon": "extension-icon.png",
+      "mode": "view"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.104.4",
+    "@raycast/utils": "^1.17.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
