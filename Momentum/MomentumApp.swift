@@ -384,6 +384,7 @@ final class AppEnvironment: ObservableObject {
         self.dataProtection = dataProtection
         raycastIntegrationManager.configure(
             modelContainer: container,
+            tracker: tracker,
             isUITest: isUITest,
             isSeedRun: isSeedRun,
         )

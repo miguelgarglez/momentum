@@ -8,6 +8,12 @@
 import SwiftData
 import SwiftUI
 
+enum ManualTrackingSheetInitialMode {
+    case automatic
+    case existing
+    case new
+}
+
 struct ManualTrackingSheetView: View {
     private enum Mode: String, CaseIterable, Identifiable {
         case existing
@@ -38,12 +44,20 @@ struct ManualTrackingSheetView: View {
         projects: [Project],
         onStartExisting: @escaping (Project) -> Void,
         onCreateAndStart: @escaping (ManualTrackingNewProjectDraft) -> Void,
+        initialMode: ManualTrackingSheetInitialMode = .automatic,
     ) {
         self.projects = projects
         self.onStartExisting = onStartExisting
         self.onCreateAndStart = onCreateAndStart
-        let initialMode: Mode = projects.isEmpty ? .new : .existing
-        _mode = State(initialValue: initialMode)
+        let resolvedMode: Mode = switch initialMode {
+        case .automatic:
+            projects.isEmpty ? .new : .existing
+        case .existing:
+            projects.isEmpty ? .new : .existing
+        case .new:
+            .new
+        }
+        _mode = State(initialValue: resolvedMode)
         _selectedProjectID = State(initialValue: projects.first?.persistentModelID)
         _newProjectIconName = State(initialValue: nil)
     }

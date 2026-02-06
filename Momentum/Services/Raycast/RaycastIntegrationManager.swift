@@ -20,6 +20,7 @@ final class RaycastIntegrationManager: ObservableObject {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Momentum", category: "Raycast")
     private var cancellables: Set<AnyCancellable> = []
     private var modelContainer: ModelContainer?
+    private weak var tracker: ActivityTracker?
     private var isAvailable = false
     private var isStarting = false
     private var statusTask: Task<Void, Never>?
@@ -55,8 +56,9 @@ final class RaycastIntegrationManager: ObservableObject {
             .store(in: &cancellables)
     }
 
-    func configure(modelContainer: ModelContainer?, isUITest: Bool, isSeedRun: Bool) {
+    func configure(modelContainer: ModelContainer?, tracker: ActivityTracker?, isUITest: Bool, isSeedRun: Bool) {
         self.modelContainer = modelContainer
+        self.tracker = tracker
         isAvailable = !(isUITest || isSeedRun)
         refreshTokenStatus()
         evaluateState()
@@ -266,8 +268,16 @@ final class RaycastIntegrationManager: ObservableObject {
         switch command.action {
         case "projects.list":
             return handleProjectsList()
+        case "project.open":
+            return handleProjectOpen(command)
         case "conflicts.open":
             return handleConflictsOpen(command)
+        case "manual.start":
+            return handleManualStart(command)
+        case "manual.stop":
+            return handleManualStop()
+        case "manual.open":
+            return handleManualOpen(command)
         default:
             return RaycastHTTPError.response(code: 422, error: "UnsupportedAction", message: "Acción no soportada.")
         }
@@ -301,6 +311,41 @@ final class RaycastIntegrationManager: ObservableObject {
         }
     }
 
+    private func handleProjectOpen(_ command: RaycastCommandRequest) -> RaycastHTTPResponse {
+        guard let modelContainer else {
+            return RaycastHTTPError.response(code: 503, error: "StoreNotReady", message: "La base de datos no está lista.")
+        }
+        guard let payload = command.payload else {
+            return RaycastHTTPError.response(code: 422, error: "InvalidPayload", message: "Proyecto requerido.")
+        }
+
+        let project = findProject(by: payload.projectID, name: payload.projectName, in: modelContainer.mainContext)
+        guard let project else {
+            return RaycastHTTPError.response(code: 404, error: "ProjectNotFound", message: "No encontramos el proyecto indicado.")
+        }
+
+        NotificationCenter.default.post(name: .statusItemShowApp, object: nil)
+        NotificationCenter.default.post(name: .statusItemOpenProject, object: nil, userInfo: [
+            StatusItemUserInfoKey.projectID: project.persistentModelID,
+        ])
+
+        let response = RaycastEnvelope(
+            ok: true,
+            data: RaycastProjectOpenResponse(
+                opened: true,
+                project: RaycastProjectSummary(
+                    id: String(describing: project.persistentModelID),
+                    name: project.name,
+                    colorHex: project.colorHex,
+                    iconName: project.iconName,
+                )
+            ),
+            error: nil,
+            message: nil,
+        )
+        return RaycastHTTPResponse.json(statusCode: 200, payload: response)
+    }
+
     private func handleConflictsOpen(_ command: RaycastCommandRequest) -> RaycastHTTPResponse {
         guard let modelContainer else {
             return RaycastHTTPError.response(code: 503, error: "StoreNotReady", message: "La base de datos no está lista.")
@@ -330,11 +375,139 @@ final class RaycastIntegrationManager: ObservableObject {
         }
     }
 
+    private func handleManualStart(_ command: RaycastCommandRequest) -> RaycastHTTPResponse {
+        guard let modelContainer else {
+            return RaycastHTTPError.response(code: 503, error: "StoreNotReady", message: "La base de datos no está lista.")
+        }
+        guard let tracker else {
+            return RaycastHTTPError.response(code: 503, error: "TrackerNotReady", message: "El rastreador no está listo.")
+        }
+
+        let payload = command.payload
+        let selectedProject: Project
+
+        if let projectID = payload?.projectID {
+            guard let existingProject = findProject(by: projectID, name: payload?.projectName, in: modelContainer.mainContext) else {
+                return RaycastHTTPError.response(code: 422, error: "ProjectNotFound", message: "No encontramos el proyecto indicado.")
+            }
+            selectedProject = existingProject
+        } else {
+            let baseName = payload?.newProjectName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let projectName = manualProjectName(from: baseName, in: modelContainer.mainContext)
+            let iconName = validatedProjectIconName(payload?.newProjectIconName)
+            let createdProject = Project(
+                name: projectName,
+                colorHex: ProjectPalette.defaultColor.hex,
+                iconName: iconName,
+            )
+            modelContainer.mainContext.insert(createdProject)
+            do {
+                try modelContainer.mainContext.save()
+            } catch {
+                logger.error("Failed to create manual project from Raycast: \(error.localizedDescription, privacy: .public)")
+                return RaycastHTTPError.response(code: 500, error: "ProjectCreateFailed", message: "No pudimos crear el proyecto.")
+            }
+            selectedProject = createdProject
+        }
+
+        tracker.startManualTracking(project: selectedProject)
+
+        let result = RaycastManualStartResponse(
+            project: RaycastProjectSummary(
+                id: String(describing: selectedProject.persistentModelID),
+                name: selectedProject.name,
+                colorHex: selectedProject.colorHex,
+                iconName: selectedProject.iconName,
+            )
+        )
+        let response = RaycastEnvelope(
+            ok: true,
+            data: result,
+            error: nil,
+            message: nil,
+        )
+        return RaycastHTTPResponse.json(statusCode: 200, payload: response)
+    }
+
+    private func handleManualOpen(_ command: RaycastCommandRequest) -> RaycastHTTPResponse {
+        let mode = command.payload?.mode == "existing" ? "existing" : "new"
+        NotificationCenter.default.post(
+            name: .raycastStartManualTracking,
+            object: nil,
+            userInfo: ["mode": mode],
+        )
+        let payload = RaycastEnvelope(
+            ok: true,
+            data: RaycastEmptyPayload(),
+            error: nil,
+            message: nil,
+        )
+        return RaycastHTTPResponse.json(statusCode: 200, payload: payload)
+    }
+
+    private func handleManualStop() -> RaycastHTTPResponse {
+        guard let tracker else {
+            return RaycastHTTPError.response(code: 503, error: "TrackerNotReady", message: "El rastreador no está listo.")
+        }
+
+        let wasActive = tracker.isManualTrackingActive
+        if wasActive {
+            tracker.stopManualTracking(reason: .manual)
+        }
+
+        let payload = RaycastEnvelope(
+            ok: true,
+            data: RaycastManualStopResponse(wasActive: wasActive),
+            error: nil,
+            message: nil,
+        )
+        return RaycastHTTPResponse.json(statusCode: 200, payload: payload)
+    }
+
     private func parseBearerToken(_ request: RaycastHTTPRequest) -> String? {
         guard let header = request.headerValue(for: "authorization") else { return nil }
         let parts = header.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
         guard parts.count == 2, parts[0].lowercased() == "bearer" else { return nil }
         return String(parts[1])
+    }
+
+    private func findProject(by id: String?, name: String?, in context: ModelContext) -> Project? {
+        let descriptor = FetchDescriptor<Project>(sortBy: [SortDescriptor(\.name, order: .forward)])
+        guard let projects = try? context.fetch(descriptor) else { return nil }
+        if let id, !id.isEmpty {
+            if let byID = projects.first(where: { String(describing: $0.persistentModelID) == id }) {
+                return byID
+            }
+        }
+        if let name, !name.isEmpty {
+            return projects.first(where: { $0.name == name })
+        }
+        return nil
+    }
+
+    private func manualProjectName(from baseName: String, in context: ModelContext) -> String {
+        let descriptor = FetchDescriptor<Project>(sortBy: [SortDescriptor(\.name, order: .forward)])
+        let existingProjects = (try? context.fetch(descriptor)) ?? []
+        let existingNames = Set(existingProjects.map { $0.name.lowercased() })
+        let seed = baseName.isEmpty ? "New cool project" : baseName
+        let needsSuffix = baseName.isEmpty || existingNames.contains(seed.lowercased())
+        guard needsSuffix else { return seed }
+
+        var index = 1
+        while true {
+            let candidate = "\(seed) (\(index))"
+            if !existingNames.contains(candidate.lowercased()) {
+                return candidate
+            }
+            index += 1
+        }
+    }
+
+    private func validatedProjectIconName(_ rawValue: String?) -> String {
+        if let rawValue, ProjectIcon.allCases.contains(where: { $0.systemName == rawValue }) {
+            return rawValue
+        }
+        return ProjectIcon.allCases.randomElement()?.systemName ?? ProjectIcon.spark.systemName
     }
 
     private func refreshTokenStatus() {
@@ -392,7 +565,24 @@ private struct RaycastCommandRequest: Decodable {
     let action: String
     let requestId: String?
     let present: Bool?
+    let payload: RaycastCommandPayload?
     let apiVersion: Int?
+}
+
+private struct RaycastCommandPayload: Decodable {
+    let projectID: String?
+    let projectName: String?
+    let newProjectName: String?
+    let newProjectIconName: String?
+    let mode: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case projectID = "projectId"
+        case projectName
+        case newProjectName
+        case newProjectIconName
+        case mode
+    }
 }
 
 private struct RaycastProjectSummary: Encodable {
@@ -405,6 +595,19 @@ private struct RaycastProjectSummary: Encodable {
 private struct RaycastConflictsOpenResponse: Encodable {
     let conflictsCount: Int
     let opened: Bool
+}
+
+private struct RaycastManualStartResponse: Encodable {
+    let project: RaycastProjectSummary
+}
+
+private struct RaycastManualStopResponse: Encodable {
+    let wasActive: Bool
+}
+
+private struct RaycastProjectOpenResponse: Encodable {
+    let opened: Bool
+    let project: RaycastProjectSummary
 }
 
 struct RaycastStatusMessage: Equatable {

@@ -30,6 +30,7 @@ struct ContentView: View {
     @State private var activeProjectSheet: ProjectSheet?
     @State private var showConflictSheet = false
     @State private var showManualTrackingSheet = false
+    @State private var manualTrackingSheetInitialMode: ManualTrackingSheetInitialMode = .automatic
     @State private var showAutomationPrompt = false
     @State private var toast: ToastMessage?
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -155,6 +156,7 @@ struct ContentView: View {
                     onCreateAndStart: { draft in
                         createManualProjectAndStart(from: draft)
                     },
+                    initialMode: manualTrackingSheetInitialMode,
                 )
             }
             .overlay(alignment: .leading) {
@@ -187,6 +189,7 @@ struct ContentView: View {
                 selectedProjectID = identifier
             }
             .onReceive(NotificationCenter.default.publisher(for: .statusItemStartManualTracking)) { _ in
+                manualTrackingSheetInitialMode = .automatic
                 showManualTrackingSheet = true
             }
             .onReceive(NotificationCenter.default.publisher(for: .raycastShowConflicts)) { _ in
@@ -194,6 +197,9 @@ struct ContentView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     showConflictSheet = true
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .raycastStartManualTracking)) { notification in
+                handleRaycastStartManualTracking(notification)
             }
             .onReceive(NotificationCenter.default.publisher(for: .statusItemShowSettings)) { _ in
                 MomentumDeepLink.openSettings(section: nil)
@@ -285,7 +291,10 @@ struct ContentView: View {
             isTrackingEnabled: tracker.isTrackingEnabled,
             isManualTrackingActive: tracker.isManualTrackingActive,
             onToggleTracking: handlePrimaryTrackingAction,
-            onStartManualTracking: { showManualTrackingSheet = true },
+            onStartManualTracking: {
+                manualTrackingSheetInitialMode = .automatic
+                showManualTrackingSheet = true
+            },
             onCreateProject: { activeProjectSheet = .create },
             settingsControl: settingsControlView,
             statusAccessory: pendingConflicts.isEmpty
@@ -705,6 +714,19 @@ struct ContentView: View {
         guard let project = onboardingTrackingStarter.resolve(projects: projects) else { return }
         startTracking(for: project)
     }
+
+    #if os(macOS)
+        private func handleRaycastStartManualTracking(_ notification: Notification) {
+            let requestedMode = notification.userInfo?["mode"] as? String
+            manualTrackingSheetInitialMode = requestedMode == "new" ? .new : .automatic
+            showMainWindowFromStatusItem()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                showManualTrackingSheet = true
+            }
+        }
+    #else
+        private func handleRaycastStartManualTracking(_: Notification) {}
+    #endif
 
     #if os(macOS)
         private func showWelcomeWindowIfNeeded() {

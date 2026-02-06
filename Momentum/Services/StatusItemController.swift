@@ -317,6 +317,7 @@
         static let statusItemShowApp = Notification.Name("StatusItemShowApp")
         static let statusItemShowSettings = Notification.Name("StatusItemShowSettings")
         static let raycastShowConflicts = Notification.Name("RaycastShowConflicts")
+        static let raycastStartManualTracking = Notification.Name("RaycastStartManualTracking")
     }
 
     enum StatusItemUserInfoKey {
