@@ -14,25 +14,19 @@ import {
   Toast,
 } from "@raycast/api";
 import { useEffect, useMemo, useState } from "react";
-import { postMomentumCommand } from "./momentum";
+import {
+  loadManualStartProjects,
+  ManualStartProject,
+  openManualStartForm,
+  startManualTrackingExisting,
+} from "./commands/manualStartService";
 
 const TOKEN_KEY = "momentum.token";
-
-type Project = {
-  id: string;
-  name: string;
-  colorHex: string;
-  iconName: string;
-};
-
-type ManualStartResponse = {
-  project: Project;
-};
 
 type StartMode = "existing" | "new";
 export default function Command() {
   const [token, setToken] = useState<string | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<ManualStartProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pairingRequired, setPairingRequired] = useState(false);
   const [mode, setMode] = useState<StartMode>("existing");
@@ -57,21 +51,17 @@ export default function Command() {
   async function fetchProjects(activeToken: string) {
     setIsLoading(true);
     try {
-      const { response, payload } = await postMomentumCommand<Project[]>(activeToken, {
-        action: "projects.list",
-        apiVersion: 1,
-      });
-      if (!response.ok || !payload.ok) {
-        if (response.status === 401) {
-          await LocalStorage.removeItem(TOKEN_KEY);
-          setPairingRequired(true);
-          setToken(null);
-          return;
-        }
-        throw new Error(payload.message ?? "No pudimos leer los proyectos.");
+      const result = await loadManualStartProjects(activeToken);
+      if (result.kind == "unauthorized") {
+        await LocalStorage.removeItem(TOKEN_KEY);
+        setPairingRequired(true);
+        setToken(null);
+        return;
       }
-
-      const listedProjects = payload.data ?? [];
+      if (result.kind == "error") {
+        throw new Error(result.message);
+      }
+      const listedProjects = result.projects;
       setProjects(listedProjects);
       if (listedProjects.length > 0) {
         setProjectId((current) => current || listedProjects[0].id);
@@ -110,16 +100,9 @@ export default function Command() {
 
     const selectedProject = projects.find((project) => project.id == projectId);
     try {
-      const { response, payload } = await postMomentumCommand<ManualStartResponse>(token, {
-        action: "manual.start",
-        apiVersion: 1,
-        payload: {
-          projectId,
-          projectName: selectedProject?.name,
-        },
-      });
-      if (!response.ok || !payload.ok || !payload.data?.project) {
-        if (response.status === 401) {
+      const result = await startManualTrackingExisting(token, projectId, selectedProject?.name);
+      if (result.kind !== "ok") {
+        if (result.kind === "unauthorized") {
           await LocalStorage.removeItem(TOKEN_KEY);
           setPairingRequired(true);
           setToken(null);
@@ -130,18 +113,18 @@ export default function Command() {
           });
           return;
         }
-        if (payload.error === "UnsupportedAction") {
+        if (result.kind === "unsupported") {
           throw new Error(
             "La app abierta no soporta este comando. Cierra Momentum release, abre la versión dev y vuelve a emparejar.",
           );
         }
-        throw new Error(payload.message ?? "No pudimos iniciar el tracking manual.");
+        throw new Error(result.message);
       }
 
       await showToast({
         style: Toast.Style.Success,
         title: "Tracking manual iniciado",
-        message: payload.data.project.name,
+        message: result.project.name,
       });
       await popToRoot({ clearSearchBar: true });
       await closeMainWindow({ clearRootSearch: true });
@@ -156,15 +139,9 @@ export default function Command() {
 
   async function openNativeManualForm(activeToken: string) {
     try {
-      const { response, payload } = await postMomentumCommand<Record<string, never>>(activeToken, {
-        action: "manual.open",
-        apiVersion: 1,
-        payload: {
-          mode: "new",
-        },
-      });
-      if (!response.ok || !payload.ok) {
-        if (response.status === 401) {
+      const result = await openManualStartForm(activeToken);
+      if (result.kind !== "ok") {
+        if (result.kind === "unauthorized") {
           await LocalStorage.removeItem(TOKEN_KEY);
           setPairingRequired(true);
           setToken(null);
@@ -175,12 +152,12 @@ export default function Command() {
           });
           return;
         }
-        if (payload.error === "UnsupportedAction") {
+        if (result.kind === "unsupported") {
           throw new Error(
             "La app abierta no soporta este comando. Cierra Momentum release, abre la versión dev y vuelve a emparejar.",
           );
         }
-        throw new Error(payload.message ?? "No pudimos abrir el formulario en Momentum.");
+        throw new Error(result.message);
       }
 
       await showHUD("✓ Abriendo formulario en Momentum");

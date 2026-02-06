@@ -13,7 +13,7 @@ import {
   showToast,
 } from "@raycast/api";
 import { useEffect, useMemo, useState } from "react";
-import { Envelope, openMomentumApp, openMomentumSettings, postMomentumCommand } from "./momentum";
+import { Envelope, isCommandSupported, openMomentumApp, openMomentumSettings, postMomentumCommand } from "./momentum";
 
 const TOKEN_KEY = "momentum.token";
 
@@ -92,6 +92,16 @@ export default function Command() {
     }
 
     try {
+      const support = await isCommandSupported("project.open");
+      if (support === "unsupported") {
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "Comando no soportado",
+          message: "Actualiza Momentum para abrir proyectos desde Raycast.",
+        });
+        return;
+      }
+
       const { response, payload } = await postMomentumCommand<Record<string, never>>(token, {
         action: "project.open",
         apiVersion: 1,

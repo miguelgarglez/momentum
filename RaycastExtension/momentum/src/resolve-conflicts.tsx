@@ -1,13 +1,8 @@
 import { Detail, LocalStorage, PopToRootType, popToRoot, showHUD, showToast, Toast } from "@raycast/api";
 import { useEffect } from "react";
-import { postMomentumCommand } from "./momentum";
+import { resolveConflicts } from "./commands/resolveConflictsService";
 
 const TOKEN_KEY = "momentum.token";
-
-type ConflictsOpenResponse = {
-  conflictsCount: number;
-  opened: boolean;
-};
 
 export default function Command() {
   useEffect(() => {
@@ -27,28 +22,22 @@ export default function Command() {
         return;
       }
 
-      const { response, payload } = await postMomentumCommand<ConflictsOpenResponse>(token, {
-        action: "conflicts.open",
-        present: true,
-        apiVersion: 1,
-      });
-      if (!response.ok || !payload.ok) {
-        if (response.status === 401) {
-          await LocalStorage.removeItem(TOKEN_KEY);
-          await showToast({
-            style: Toast.Style.Failure,
-            title: "Token inválido",
-            message: "Empareja de nuevo desde List projects.",
-          });
-          await popToRoot({ clearSearchBar: true });
-          return;
-        }
-        throw new Error(payload.message ?? "No pudimos comprobar los conflictos pendientes.");
+      const result = await resolveConflicts(token);
+      if (result.kind === "unauthorized") {
+        await LocalStorage.removeItem(TOKEN_KEY);
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "Token inválido",
+          message: "Empareja de nuevo desde List projects.",
+        });
+        await popToRoot({ clearSearchBar: true });
+        return;
       }
-
-      const conflictsCount = payload.data?.conflictsCount ?? 0;
-      if (conflictsCount > 0) {
-        await showHUD(`✓ Abriendo resolución (${conflictsCount})`, {
+      if (result.kind === "error") {
+        throw new Error(result.message);
+      }
+      if (result.kind === "opened") {
+        await showHUD(`✓ Abriendo resolución (${result.conflictsCount})`, {
           clearRootSearch: true,
           popToRootType: PopToRootType.Immediate,
         });

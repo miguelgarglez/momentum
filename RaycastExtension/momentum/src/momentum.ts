@@ -9,6 +9,8 @@ const MOMENTUM_BUNDLE_IDS = ["miguelgarglez.Momentum.dev", "miguelgarglez.Moment
 const execFileAsync = promisify(execFile);
 let openSettingsInFlight = false;
 let openAppInFlight = false;
+const CAPABILITIES_CACHE_TTL_MS = 15_000;
+let cachedCapabilities: { value: MomentumCapabilities | null; expiresAt: number } | null = null;
 
 type Envelope<T> = {
   ok: boolean;
@@ -20,6 +22,20 @@ type Envelope<T> = {
 type CommandEnvelope<T> = {
   response: Response;
   payload: Envelope<T>;
+};
+
+type HealthPayload = {
+  apiVersion: number;
+  capabilities?: {
+    supportedCommandActions?: string[];
+    requiresPairing?: boolean;
+  };
+};
+
+type MomentumCapabilities = {
+  apiVersion: number;
+  supportedCommandActions: string[];
+  requiresPairing: boolean;
 };
 
 function sleep(ms: number) {
@@ -219,4 +235,61 @@ export async function postMomentumCommand<T>(
   throw lastFailure ?? new Error("No pudimos contactar con Momentum.");
 }
 
-export { API_BASE, Envelope };
+export async function getMomentumCapabilities(options?: { force?: boolean }): Promise<MomentumCapabilities | null> {
+  const force = options?.force ?? false;
+  const now = Date.now();
+
+  if (!force && cachedCapabilities && cachedCapabilities.expiresAt > now) {
+    return cachedCapabilities.value;
+  }
+
+  for (const baseURL of API_BASE_CANDIDATES) {
+    try {
+      const response = await fetch(`${baseURL}/health`);
+      if (!response.ok) {
+        continue;
+      }
+
+      const payload = (await response.json()) as Envelope<HealthPayload>;
+      if (!payload.ok || !payload.data) {
+        continue;
+      }
+
+      const value: MomentumCapabilities = {
+        apiVersion: payload.data.apiVersion ?? 1,
+        supportedCommandActions: payload.data.capabilities?.supportedCommandActions ?? [],
+        requiresPairing: payload.data.capabilities?.requiresPairing ?? true,
+      };
+      cachedCapabilities = {
+        value,
+        expiresAt: now + CAPABILITIES_CACHE_TTL_MS,
+      };
+      return value;
+    } catch {
+      // Try next port.
+    }
+  }
+
+  cachedCapabilities = {
+    value: null,
+    expiresAt: now + CAPABILITIES_CACHE_TTL_MS,
+  };
+  return null;
+}
+
+export async function isCommandSupported(
+  action: string,
+  options?: { force?: boolean },
+): Promise<"supported" | "unsupported" | "unknown"> {
+  const capabilities = await getMomentumCapabilities(options);
+  if (!capabilities) {
+    return "unknown";
+  }
+  if (capabilities.supportedCommandActions.length == 0) {
+    return "unknown";
+  }
+  return capabilities.supportedCommandActions.includes(action) ? "supported" : "unsupported";
+}
+
+export { API_BASE };
+export type { Envelope, MomentumCapabilities };

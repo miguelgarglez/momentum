@@ -1,5 +1,5 @@
 import { LocalStorage, PopToRootType, popToRoot, showHUD, showToast, Toast } from "@raycast/api";
-import { postMomentumCommand } from "./momentum";
+import { isCommandSupported, postMomentumCommand } from "./momentum";
 
 const TOKEN_KEY = "momentum.token";
 
@@ -19,6 +19,16 @@ export default async function Command() {
   }
 
   try {
+    const support = await isCommandSupported("manual.stop");
+    if (support === "unsupported") {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Comando no soportado",
+        message: "Actualiza Momentum para poder detener tracking manual desde Raycast.",
+      });
+      return;
+    }
+
     const { response, payload } = await postMomentumCommand<ManualStopResponse>(token, {
       action: "manual.stop",
       apiVersion: 1,
