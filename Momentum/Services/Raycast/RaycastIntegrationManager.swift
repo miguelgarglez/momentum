@@ -5,6 +5,15 @@ import SwiftData
 
 @MainActor
 final class RaycastIntegrationManager: ObservableObject {
+    private static let supportedCommandActions: [String] = [
+        "projects.list",
+        "project.open",
+        "conflicts.open",
+        "manual.start",
+        "manual.stop",
+        "manual.open",
+    ]
+
     @Published private(set) var isEnabled: Bool
     @Published private(set) var isRunning: Bool = false
     @Published private(set) var pairingCode: String?
@@ -156,7 +165,13 @@ final class RaycastIntegrationManager: ObservableObject {
         case ("GET", "/health"):
             let payload = RaycastEnvelope(
                 ok: true,
-                data: RaycastHealthPayload(apiVersion: 1),
+                data: RaycastHealthPayload(
+                    apiVersion: 1,
+                    capabilities: RaycastCapabilitiesPayload(
+                        supportedCommandActions: Self.supportedCommandActions,
+                        requiresPairing: true,
+                    )
+                ),
                 error: nil,
                 message: nil,
             )
@@ -539,6 +554,12 @@ final class RaycastIntegrationManager: ObservableObject {
 
 private struct RaycastHealthPayload: Encodable {
     let apiVersion: Int
+    let capabilities: RaycastCapabilitiesPayload
+}
+
+private struct RaycastCapabilitiesPayload: Encodable {
+    let supportedCommandActions: [String]
+    let requiresPairing: Bool
 }
 
 private struct RaycastPairingRequest: Decodable {
