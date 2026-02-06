@@ -40,7 +40,7 @@
                 }
 
             if #available(macOS 15.0, *) {
-                baseView.symbolEffect(.breathe, options: .repeating, value: model.isManualTrackingActive)
+                baseView.symbolEffect(.breathe, options: .repeating, isActive: model.isManualTrackingActive)
             } else {
                 baseView
             }
