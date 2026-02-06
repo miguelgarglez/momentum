@@ -46,6 +46,22 @@
       "description": "Open Momentum conflict resolution dialog when there are pending conflicts",
       "icon": "extension-icon.png",
       "mode": "view"
+    },
+    {
+      "name": "manual-start",
+      "title": "Start manual tracking",
+      "subtitle": "Use existing or new project",
+      "description": "Start manual tracking with an existing project or creating a new one",
+      "icon": "extension-icon.png",
+      "mode": "view"
+    },
+    {
+      "name": "manual-stop",
+      "title": "Stop manual tracking",
+      "subtitle": "Stop current manual tracking session",
+      "description": "Stop manual tracking in Momentum",
+      "icon": "extension-icon.png",
+      "mode": "no-view"
     }
   ],
   "dependencies": {

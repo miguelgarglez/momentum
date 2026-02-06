@@ -3,6 +3,8 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 
 const API_BASE = "http://127.0.0.1:51637";
+const COMMAND_BASE_CANDIDATES = Array.from(new Set([API_BASE, "http://127.0.0.1:51638"]));
+const API_BASE_CANDIDATES = COMMAND_BASE_CANDIDATES;
 const MOMENTUM_BUNDLE_IDS = ["miguelgarglez.Momentum.dev", "miguelgarglez.Momentum"];
 const execFileAsync = promisify(execFile);
 let openSettingsInFlight = false;
@@ -15,45 +17,65 @@ type Envelope<T> = {
   message?: string;
 };
 
+type CommandEnvelope<T> = {
+  response: Response;
+  payload: Envelope<T>;
+};
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function requestOpenSettings(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE}/v1/settings/open`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ section: "raycast", apiVersion: 1 }),
-    });
-    const payload = (await response.json()) as Envelope<unknown>;
-    return response.ok && payload.ok;
-  } catch {
-    return false;
+  for (const baseURL of API_BASE_CANDIDATES) {
+    try {
+      const response = await fetch(`${baseURL}/v1/settings/open`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section: "raycast", apiVersion: 1 }),
+      });
+      const payload = (await response.json()) as Envelope<unknown>;
+      if (response.ok && payload.ok) {
+        return true;
+      }
+    } catch {
+      // Try next port.
+    }
   }
+  return false;
 }
 
 async function requestOpenApp(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE}/v1/app/open`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apiVersion: 1 }),
-    });
-    const payload = (await response.json()) as Envelope<unknown>;
-    return response.ok && payload.ok;
-  } catch {
-    return false;
+  for (const baseURL of API_BASE_CANDIDATES) {
+    try {
+      const response = await fetch(`${baseURL}/v1/app/open`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiVersion: 1 }),
+      });
+      const payload = (await response.json()) as Envelope<unknown>;
+      if (response.ok && payload.ok) {
+        return true;
+      }
+    } catch {
+      // Try next port.
+    }
   }
+  return false;
 }
 
 async function pingServer(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE}/health`);
-    return response.ok;
-  } catch {
-    return false;
+  for (const baseURL of API_BASE_CANDIDATES) {
+    try {
+      const response = await fetch(`${baseURL}/health`);
+      if (response.ok) {
+        return true;
+      }
+    } catch {
+      // Try next port.
+    }
   }
+  return false;
 }
 
 async function launchMomentum(): Promise<boolean> {
@@ -151,6 +173,50 @@ export async function openMomentumApp(): Promise<void> {
   } finally {
     openAppInFlight = false;
   }
+}
+
+export async function postMomentumCommand<T>(
+  activeToken: string,
+  body: Record<string, unknown>,
+): Promise<CommandEnvelope<T>> {
+  let fallbackUnauthorized: CommandEnvelope<T> | null = null;
+  let fallbackUnsupported: CommandEnvelope<T> | null = null;
+  let lastFailure: Error | null = null;
+
+  for (const baseURL of COMMAND_BASE_CANDIDATES) {
+    try {
+      const response = await fetch(`${baseURL}/v1/commands`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${activeToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      const payload = (await response.json()) as Envelope<T>;
+      const attempt = { response, payload };
+
+      if (response.status === 401) {
+        fallbackUnauthorized = attempt;
+        continue;
+      }
+      if (response.status === 422 && payload.error === "UnsupportedAction") {
+        fallbackUnsupported = attempt;
+        continue;
+      }
+      return attempt;
+    } catch (error) {
+      lastFailure = error instanceof Error ? error : new Error("No pudimos contactar con Momentum.");
+    }
+  }
+
+  if (fallbackUnauthorized) {
+    return fallbackUnauthorized;
+  }
+  if (fallbackUnsupported) {
+    return fallbackUnsupported;
+  }
+  throw lastFailure ?? new Error("No pudimos contactar con Momentum.");
 }
 
 export { API_BASE, Envelope };

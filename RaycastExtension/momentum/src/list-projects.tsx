@@ -2,6 +2,7 @@ import {
   Action,
   ActionPanel,
   Clipboard,
+  popToRoot,
   closeMainWindow,
   Detail,
   Form,
@@ -12,7 +13,7 @@ import {
   showToast,
 } from "@raycast/api";
 import { useEffect, useMemo, useState } from "react";
-import { API_BASE, Envelope, openMomentumApp, openMomentumSettings } from "./momentum";
+import { Envelope, openMomentumApp, openMomentumSettings, postMomentumCommand } from "./momentum";
 
 const TOKEN_KEY = "momentum.token";
 
@@ -50,18 +51,10 @@ export default function Command() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/v1/commands`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${activeToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "projects.list",
-          apiVersion: 1,
-        }),
+      const { response, payload } = await postMomentumCommand<Project[]>(activeToken, {
+        action: "projects.list",
+        apiVersion: 1,
       });
-      const payload = (await response.json()) as Envelope<Project[]>;
       if (!response.ok || !payload.ok) {
         if (response.status === 401) {
           await LocalStorage.removeItem(TOKEN_KEY);
@@ -92,6 +85,50 @@ export default function Command() {
     await openMomentumApp();
   }
 
+  async function openProjectFromAction(project: Project) {
+    if (!token) {
+      setNeedsPairing(true);
+      return;
+    }
+
+    try {
+      const { response, payload } = await postMomentumCommand<Record<string, never>>(token, {
+        action: "project.open",
+        apiVersion: 1,
+        payload: {
+          projectId: project.id,
+          projectName: project.name,
+        },
+      });
+      if (!response.ok || !payload.ok) {
+        if (response.status === 401) {
+          await LocalStorage.removeItem(TOKEN_KEY);
+          setToken(null);
+          setNeedsPairing(true);
+          await showToast({
+            style: Toast.Style.Failure,
+            title: "Token inválido",
+            message: "Empareja de nuevo para abrir proyectos.",
+          });
+          return;
+        }
+        if (payload.error === "UnsupportedAction") {
+          throw new Error("La app abierta no soporta este comando. Abre la versión más reciente de Momentum.");
+        }
+        throw new Error(payload.message ?? "No pudimos abrir el proyecto.");
+      }
+
+      await popToRoot({ clearSearchBar: true });
+      await closeMainWindow({ clearRootSearch: true });
+    } catch (err) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "No pudimos abrir el proyecto",
+        message: err instanceof Error ? err.message : "Error desconocido",
+      });
+    }
+  }
+
   if (needsPairing) {
     return <PairingView onPaired={handlePaired} error={error} />;
   }
@@ -108,7 +145,10 @@ export default function Command() {
         actions={
           <ActionPanel>
             <Action title="Reintentar" onAction={() => token && fetchProjects(token)} />
-            <Action.OpenInBrowser title="Abrir documentación" url="https://developers.raycast.com/basics/create-your-first-extension" />
+            <Action.OpenInBrowser
+              title="Abrir documentación"
+              url="https://developers.raycast.com/basics/create-your-first-extension"
+            />
           </ActionPanel>
         }
       />
@@ -125,6 +165,11 @@ export default function Command() {
           icon={Icon.Folder}
           actions={
             <ActionPanel>
+              <Action
+                title="Abrir proyecto en Momentum"
+                onAction={() => openProjectFromAction(project)}
+                icon={Icon.AppWindow}
+              />
               <Action title="Abrir Momentum" onAction={openMomentumFromAction} icon={Icon.AppWindow} />
             </ActionPanel>
           }
@@ -134,13 +179,7 @@ export default function Command() {
   );
 }
 
-function PairingView({
-  onPaired,
-  error,
-}: {
-  onPaired: (token: string) => Promise<void>;
-  error: string | null;
-}) {
+function PairingView({ onPaired, error }: { onPaired: (token: string) => Promise<void>; error: string | null }) {
   const [code, setCode] = useState("");
   const trimmed = useMemo(() => code.trim(), [code]);
   const validationError = trimmed.length > 0 && trimmed.length !== 4 ? "Introduce 4 dígitos." : undefined;

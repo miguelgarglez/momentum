@@ -1,6 +1,6 @@
 import { Detail, LocalStorage, PopToRootType, popToRoot, showHUD, showToast, Toast } from "@raycast/api";
 import { useEffect } from "react";
-import { API_BASE, Envelope } from "./momentum";
+import { postMomentumCommand } from "./momentum";
 
 const TOKEN_KEY = "momentum.token";
 
@@ -27,20 +27,11 @@ export default function Command() {
         return;
       }
 
-      const response = await fetch(`${API_BASE}/v1/commands`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "conflicts.open",
-          present: true,
-          apiVersion: 1,
-        }),
+      const { response, payload } = await postMomentumCommand<ConflictsOpenResponse>(token, {
+        action: "conflicts.open",
+        present: true,
+        apiVersion: 1,
       });
-
-      const payload = (await response.json()) as Envelope<ConflictsOpenResponse>;
       if (!response.ok || !payload.ok) {
         if (response.status === 401) {
           await LocalStorage.removeItem(TOKEN_KEY);
@@ -61,6 +52,7 @@ export default function Command() {
           clearRootSearch: true,
           popToRootType: PopToRootType.Immediate,
         });
+        await popToRoot({ clearSearchBar: true });
         return;
       }
 
