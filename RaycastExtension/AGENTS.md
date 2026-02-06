@@ -7,6 +7,7 @@
 - Dev: `cd RaycastExtension/momentum && npm run dev`
 - Build: `cd RaycastExtension/momentum && npm run build`
 - Lint: `cd RaycastExtension/momentum && npm run lint`
+- Test: `cd RaycastExtension/momentum && npm run test`
 
 ## Integration Rules
 - Use the local API (`http://127.0.0.1:51637`) as the primary integration channel.
