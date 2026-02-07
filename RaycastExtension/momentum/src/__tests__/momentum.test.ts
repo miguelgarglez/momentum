@@ -107,7 +107,7 @@ describe("momentum transport", () => {
 
     expect(showToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "No pudimos abrir Momentum",
+        title: "Couldn't open Momentum",
       }),
     );
   });

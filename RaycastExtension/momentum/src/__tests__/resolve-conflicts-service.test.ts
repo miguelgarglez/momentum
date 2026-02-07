@@ -50,7 +50,7 @@ describe("resolveConflictsService", () => {
     const supportsCommand = vi.fn().mockResolvedValue("supported");
 
     const result = await resolveConflicts("token", postCommand as never, supportsCommand as never);
-    expect(result).toEqual({ kind: "error", message: "No pudimos comprobar los conflictos pendientes." });
+    expect(result).toEqual({ kind: "error", message: "Couldn't check pending conflicts." });
   });
 
   it("returns error when capabilities report unsupported command", async () => {
@@ -60,7 +60,7 @@ describe("resolveConflictsService", () => {
     const result = await resolveConflicts("token", postCommand as never, supportsCommand as never);
     expect(result).toEqual({
       kind: "error",
-      message: "Tu versión de Momentum no soporta resolución de conflictos desde Raycast.",
+      message: "Your Momentum build does not support conflict resolution from Raycast.",
     });
     expect(postCommand).not.toHaveBeenCalled();
   });

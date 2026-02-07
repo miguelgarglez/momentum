@@ -1,5 +1,6 @@
 import { LocalStorage, PopToRootType, popToRoot, showHUD, showToast, Toast } from "@raycast/api";
 import { isCommandSupported, postMomentumCommand } from "./momentum";
+import { copy } from "./copy";
 
 const TOKEN_KEY = "momentum.token";
 
@@ -12,8 +13,8 @@ export default async function Command() {
   if (!token) {
     await showToast({
       style: Toast.Style.Failure,
-      title: "Emparejamiento requerido",
-      message: "Empareja primero la extensión desde List projects.",
+      title: copy.pairingRequiredTitle,
+      message: copy.pairFirstFromListProjects,
     });
     return;
   }
@@ -23,8 +24,8 @@ export default async function Command() {
     if (support === "unsupported") {
       await showToast({
         style: Toast.Style.Failure,
-        title: "Comando no soportado",
-        message: "Actualiza Momentum para poder detener tracking manual desde Raycast.",
+        title: copy.unsupportedCommandTitle,
+        message: copy.unsupportedManualStopMessage,
       });
       return;
     }
@@ -39,22 +40,20 @@ export default async function Command() {
         await LocalStorage.removeItem(TOKEN_KEY);
         await showToast({
           style: Toast.Style.Failure,
-          title: "Token inválido",
-          message: "Empareja de nuevo desde List projects.",
+          title: copy.invalidTokenTitle,
+          message: copy.pairAgainFromListProjects,
         });
         return;
       }
       if (payload.error === "UnsupportedAction") {
-        throw new Error(
-          "La app abierta no soporta este comando. Cierra Momentum release, abre la versión dev y vuelve a emparejar.",
-        );
+        throw new Error(copy.unsupportedAppCommandMessage);
       }
-      throw new Error(payload.message ?? "No pudimos detener el tracking manual.");
+      throw new Error(payload.message ?? "Couldn't stop manual tracking.");
     }
 
     const wasActive = payload.data?.wasActive ?? false;
     if (wasActive) {
-      await showHUD("✓ Tracking manual detenido", {
+      await showHUD("✓ Manual tracking stopped", {
         clearRootSearch: true,
         popToRootType: PopToRootType.Immediate,
       });
@@ -63,14 +62,14 @@ export default async function Command() {
 
     await showToast({
       style: Toast.Style.Success,
-      title: "Tracking manual ya estaba detenido",
+      title: "Manual tracking was already stopped",
     });
     await popToRoot({ clearSearchBar: true });
   } catch (error) {
     await showToast({
       style: Toast.Style.Failure,
-      title: "No pudimos detener tracking manual",
-      message: error instanceof Error ? error.message : "Error desconocido",
+      title: "Couldn't stop manual tracking",
+      message: error instanceof Error ? error.message : copy.unknownError,
     });
   }
 }

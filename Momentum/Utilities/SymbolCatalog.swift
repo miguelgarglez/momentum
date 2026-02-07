@@ -84,7 +84,11 @@ enum SymbolCatalog {
 
         return categoryDisplayNames.compactMap { entry in
             let list = symbolsForCategory[entry.id] ?? []
-            return list.isEmpty ? nil : SymbolCategory(id: entry.id, title: entry.title, symbols: list)
+            return list.isEmpty ? nil : SymbolCategory(
+                id: entry.id,
+                title: NSLocalizedString(entry.title, comment: ""),
+                symbols: list
+            )
         }
     }()
 

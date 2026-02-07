@@ -25,7 +25,7 @@
     },
     {
       "name": "list-projects",
-      "title": "List projects",
+      "title": "List Projects",
       "subtitle": "Show all projects",
       "description": "Show all user's projects in Momentum app",
       "icon": "extension-icon.png",
@@ -41,7 +41,7 @@
     },
     {
       "name": "resolve-conflicts",
-      "title": "Resolve conflicts",
+      "title": "Resolve Conflicts",
       "subtitle": "Open conflict resolution if needed",
       "description": "Open Momentum conflict resolution dialog when there are pending conflicts",
       "icon": "extension-icon.png",
@@ -49,7 +49,7 @@
     },
     {
       "name": "manual-start",
-      "title": "Start manual tracking",
+      "title": "Start Manual Tracking",
       "subtitle": "Use existing or new project",
       "description": "Start manual tracking with an existing project or creating a new one",
       "icon": "extension-icon.png",
@@ -57,7 +57,7 @@
     },
     {
       "name": "manual-stop",
-      "title": "Stop manual tracking",
+      "title": "Stop Manual Tracking",
       "subtitle": "Stop current manual tracking session",
       "description": "Stop manual tracking in Momentum",
       "icon": "extension-icon.png",

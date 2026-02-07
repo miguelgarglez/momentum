@@ -1,4 +1,5 @@
 import { isCommandSupported, postMomentumCommand } from "../momentum";
+import { copy } from "../copy";
 
 type PostMomentumCommand = typeof postMomentumCommand;
 type SupportsCommand = typeof isCommandSupported;
@@ -21,7 +22,7 @@ export async function resolveConflicts(
 ): Promise<ResolveConflictsResult> {
   const support = await supportsCommand("conflicts.open");
   if (support === "unsupported") {
-    return { kind: "error", message: "Tu versión de Momentum no soporta resolución de conflictos desde Raycast." };
+    return { kind: "error", message: copy.unsupportedConflictsMessage };
   }
 
   const { response, payload } = await postCommand<ConflictsOpenResponse>(token, {
@@ -34,7 +35,7 @@ export async function resolveConflicts(
     return { kind: "unauthorized" };
   }
   if (!response.ok || !payload.ok) {
-    return { kind: "error", message: payload.message ?? "No pudimos comprobar los conflictos pendientes." };
+    return { kind: "error", message: payload.message ?? "Couldn't check pending conflicts." };
   }
 
   const conflictsCount = payload.data?.conflictsCount ?? 0;

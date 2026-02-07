@@ -21,7 +21,7 @@ struct SettingsRaycastSectionView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(statusText)
                     .font(.subheadline)
-                Text("Configura Raycast para usar 127.0.0.1:\(raycastIntegration.port).")
+                Text(configurationHintText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if let error = raycastIntegration.lastError {
@@ -32,41 +32,46 @@ struct SettingsRaycastSectionView: View {
                 statusPills
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Código de emparejamiento")
-                    .font(.subheadline)
-                if let code = raycastIntegration.pairingCode {
-                    HStack(spacing: 12) {
-                        Text(code)
-                            .font(.title2.weight(.semibold))
-                            .monospacedDigit()
-                        Button("Copiar") {
-                            copyToPasteboard(code)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                } else {
-                    Text("Genera un código para emparejar Raycast.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                if let expiresAt = raycastIntegration.pairingExpiresAt {
-                    Text("Expira \(expiresAt, style: .time) · válido 10 min")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            if raycastIntegration.hasActiveToken {
                 HStack(spacing: 8) {
-                    Button(raycastIntegration.pairingCode == nil ? "Generar código" : "Regenerar código") {
-                        raycastIntegration.refreshPairingCode()
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button("Revocar tokens") {
+                    Button(String(localized: "Desemparejar")) {
                         raycastIntegration.revokeTokens()
                     }
                     .buttonStyle(.bordered)
                 }
                 .disabled(!raycastIntegration.isEnabled)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Código de emparejamiento")
+                        .font(.subheadline)
+                    if let code = raycastIntegration.pairingCode {
+                        HStack(spacing: 12) {
+                            Text(code)
+                                .font(.title2.weight(.semibold))
+                                .monospacedDigit()
+                            Button("Copiar") {
+                                copyToPasteboard(code)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    } else {
+                        Text("Genera un código para emparejar Raycast.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let expiresAt = raycastIntegration.pairingExpiresAt {
+                        Text(pairingExpiryText(expiresAt))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 8) {
+                        Button(raycastIntegration.pairingCode == nil ? String(localized: "Generar código") : String(localized: "Regenerar código")) {
+                            raycastIntegration.refreshPairingCode()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .disabled(!raycastIntegration.isEnabled)
+                }
             }
         } header: {
             SettingsSectionHeader(
@@ -78,37 +83,63 @@ struct SettingsRaycastSectionView: View {
 
     private var statusText: String {
         if !raycastIntegration.isEnabled {
-            return "Integración desactivada."
+            return String(localized: "Integración desactivada.")
         }
         if raycastIntegration.isRunning {
-            return "Servidor activo en 127.0.0.1:\(raycastIntegration.port)."
+            return String.localizedStringWithFormat(
+                String(localized: "Servidor activo en 127.0.0.1:%lld."),
+                raycastIntegration.port
+            )
         }
-        return "Servidor detenido."
+        return String(localized: "Servidor detenido.")
+    }
+
+    private var configurationHintText: String {
+        String.localizedStringWithFormat(
+            String(localized: "Configura Raycast para usar 127.0.0.1:%lld."),
+            raycastIntegration.port
+        )
+    }
+
+    private func pairingExpiryText(_ expiresAt: Date) -> String {
+        let localizedTime = expiresAt.formatted(date: .omitted, time: .shortened)
+        return String.localizedStringWithFormat(
+            String(localized: "Expira %@ · válido 10 min"),
+            localizedTime
+        )
     }
 
     @ViewBuilder
     private var statusPills: some View {
         HStack(spacing: 8) {
             if raycastIntegration.hasActiveToken {
-                statusPill(text: "Emparejado", systemImage: "checkmark.circle.fill", style: .success)
+                statusPill(text: String(localized: "Emparejado"), systemImage: "checkmark.circle.fill", style: .success)
             }
             if let message = raycastIntegration.statusMessage {
                 statusPill(text: message.text, systemImage: message.systemImage, style: message.style)
             }
             if didCopyCode {
-                statusPill(text: "Código copiado", systemImage: "doc.on.doc.fill", style: .info)
+                statusPill(text: String(localized: "Código copiado"), systemImage: "doc.on.doc.fill", style: .info)
             }
         }
     }
 
     private func statusPill(text: String, systemImage: String, style: RaycastStatusMessage.Style) -> some View {
         let (foreground, background) = colors(for: style)
-        return Label(text, systemImage: systemImage)
-            .font(.caption.weight(.semibold))
+        return HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 12, height: 12, alignment: .center)
+            Text(text)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+        }
+            .frame(minHeight: 20, alignment: .center)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .foregroundStyle(foreground)
             .background(background, in: Capsule())
+            .fixedSize(horizontal: true, vertical: false)
     }
 
     private func colors(for style: RaycastStatusMessage.Style) -> (Color, Color) {

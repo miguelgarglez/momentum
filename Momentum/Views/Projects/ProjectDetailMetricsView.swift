@@ -7,7 +7,7 @@ struct MetricCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
+            Text(NSLocalizedString(title, comment: ""))
                 .font(.caption.weight(.semibold))
                 .textCase(.uppercase)
                 .tracking(0.6)
@@ -15,7 +15,7 @@ struct MetricCard: View {
             Text(value)
                 .font(.system(size: 22, weight: .semibold))
                 .monospacedDigit()
-            Text(subtitle)
+            Text(NSLocalizedString(subtitle, comment: ""))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
@@ -51,14 +51,14 @@ struct HighlightMetricRow: View {
                         .foregroundStyle(tint),
                 )
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
+                Text(NSLocalizedString(title, comment: ""))
                     .font(.caption.weight(.semibold))
                     .textCase(.uppercase)
                     .tracking(0.6)
                     .foregroundStyle(.secondary)
                 Text(value)
                     .font(.system(size: 20, weight: .semibold))
-                Text(subtitle)
+                Text(NSLocalizedString(subtitle, comment: ""))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

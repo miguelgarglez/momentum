@@ -20,13 +20,13 @@ struct PendingConflictCompactIndicator: View {
     }
 
     private var accessibilitySummary: String {
-        let label = count == 1 ? "conflicto pendiente" : "conflictos pendientes"
-        return "Resolver \(count) \(label)"
+        let label = count == 1 ? String(localized: "conflicto pendiente") : String(localized: "conflictos pendientes")
+        return String.localizedStringWithFormat(String(localized: "Resolver %@ %@"), String(count), label)
     }
 
     private var tooltipText: String {
-        let label = count == 1 ? "conflicto pendiente" : "conflictos pendientes"
-        return "\(count) \(label) por resolver"
+        let label = count == 1 ? String(localized: "conflicto pendiente") : String(localized: "conflictos pendientes")
+        return String.localizedStringWithFormat(String(localized: "%@ %@ por resolver"), String(count), label)
     }
 
     var body: some View {

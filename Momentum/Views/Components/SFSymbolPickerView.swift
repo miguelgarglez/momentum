@@ -84,8 +84,8 @@ struct SFSymbolPickerView: View {
     private var categorySelector: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                categoryButton(id: "recommended", title: "Recomendados")
-                categoryButton(id: "all", title: "Todos")
+                categoryButton(id: "recommended", title: String(localized: "Recomendados"))
+                categoryButton(id: "all", title: String(localized: "Todos"))
                 ForEach(SymbolCatalog.categories) { category in
                     categoryButton(id: category.id, title: category.title)
                 }

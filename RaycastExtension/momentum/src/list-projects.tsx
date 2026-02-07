@@ -14,6 +14,7 @@ import {
 } from "@raycast/api";
 import { useEffect, useMemo, useState } from "react";
 import { Envelope, isCommandSupported, openMomentumApp, openMomentumSettings, postMomentumCommand } from "./momentum";
+import { copy } from "./copy";
 
 const TOKEN_KEY = "momentum.token";
 
@@ -60,14 +61,14 @@ export default function Command() {
           await LocalStorage.removeItem(TOKEN_KEY);
           setToken(null);
           setNeedsPairing(true);
-          setError("Token inválido. Empareja de nuevo.");
+          setError("Invalid token. Pair again.");
           return;
         }
-        throw new Error(payload.message ?? "No pudimos leer los proyectos.");
+        throw new Error(payload.message ?? "Couldn't read projects.");
       }
       setProjects(payload.data ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No pudimos contactar con Momentum.");
+      setError(err instanceof Error ? err.message : copy.cannotReachMomentum);
     } finally {
       setIsLoading(false);
     }
@@ -96,8 +97,8 @@ export default function Command() {
       if (support === "unsupported") {
         await showToast({
           style: Toast.Style.Failure,
-          title: "Comando no soportado",
-          message: "Actualiza Momentum para abrir proyectos desde Raycast.",
+          title: copy.unsupportedCommandTitle,
+          message: copy.unsupportedOpenProjectMessage,
         });
         return;
       }
@@ -117,15 +118,15 @@ export default function Command() {
           setNeedsPairing(true);
           await showToast({
             style: Toast.Style.Failure,
-            title: "Token inválido",
-            message: "Empareja de nuevo para abrir proyectos.",
+            title: copy.invalidTokenTitle,
+            message: "Pair again to open projects.",
           });
           return;
         }
         if (payload.error === "UnsupportedAction") {
-          throw new Error("La app abierta no soporta este comando. Abre la versión más reciente de Momentum.");
+          throw new Error("The open app does not support this command. Open the latest Momentum build.");
         }
-        throw new Error(payload.message ?? "No pudimos abrir el proyecto.");
+        throw new Error(payload.message ?? "Couldn't open the project.");
       }
 
       await popToRoot({ clearSearchBar: true });
@@ -133,8 +134,8 @@ export default function Command() {
     } catch (err) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "No pudimos abrir el proyecto",
-        message: err instanceof Error ? err.message : "Error desconocido",
+        title: "Couldn't open project",
+        message: err instanceof Error ? err.message : copy.unknownError,
       });
     }
   }
@@ -147,16 +148,16 @@ export default function Command() {
     return (
       <Detail
         markdown={[
-          "## No pudimos conectar con Momentum",
+          "## Couldn't connect to Momentum",
           error,
           "",
-          "Asegúrate de que Momentum está abierto y que la integración Raycast está activada.",
+          "Make sure Momentum is running and Raycast integration is enabled.",
         ].join("\n")}
         actions={
           <ActionPanel>
-            <Action title="Reintentar" onAction={() => token && fetchProjects(token)} />
+            <Action title="Retry" onAction={() => token && fetchProjects(token)} />
             <Action.OpenInBrowser
-              title="Abrir documentación"
+              title="Open Documentation"
               url="https://developers.raycast.com/basics/create-your-first-extension"
             />
           </ActionPanel>
@@ -166,7 +167,7 @@ export default function Command() {
   }
 
   return (
-    <List isLoading={isLoading} searchBarPlaceholder="Buscar proyectos…">
+    <List isLoading={isLoading} searchBarPlaceholder="Search projects...">
       {projects.map((project) => (
         <List.Item
           key={project.id}
@@ -176,11 +177,11 @@ export default function Command() {
           actions={
             <ActionPanel>
               <Action
-                title="Abrir proyecto en Momentum"
+                title="Open Project in Momentum"
                 onAction={() => openProjectFromAction(project)}
                 icon={Icon.AppWindow}
               />
-              <Action title="Abrir Momentum" onAction={openMomentumFromAction} icon={Icon.AppWindow} />
+              <Action title="Open Momentum" onAction={openMomentumFromAction} icon={Icon.AppWindow} />
             </ActionPanel>
           }
         />
@@ -192,14 +193,14 @@ export default function Command() {
 function PairingView({ onPaired, error }: { onPaired: (token: string) => Promise<void>; error: string | null }) {
   const [code, setCode] = useState("");
   const trimmed = useMemo(() => code.trim(), [code]);
-  const validationError = trimmed.length > 0 && trimmed.length !== 4 ? "Introduce 4 dígitos." : undefined;
+  const validationError = trimmed.length > 0 && trimmed.length !== 4 ? "Enter 4 digits." : undefined;
 
   async function handleSubmit() {
     if (trimmed.length !== 4) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "Código inválido",
-        message: "Introduce un código de 4 dígitos.",
+        title: "Invalid code",
+        message: "Enter a 4-digit code.",
       });
       return;
     }
@@ -211,15 +212,15 @@ function PairingView({ onPaired, error }: { onPaired: (token: string) => Promise
       });
       const payload = (await response.json()) as Envelope<{ token: string }>;
       if (!response.ok || !payload.ok || !payload.data?.token) {
-        throw new Error(payload.message ?? "Código inválido o expirado.");
+        throw new Error(payload.message ?? "Invalid or expired code.");
       }
       await onPaired(payload.data.token);
-      await showToast({ style: Toast.Style.Success, title: "Raycast emparejado" });
+      await showToast({ style: Toast.Style.Success, title: "Raycast paired" });
     } catch (err) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "No pudimos emparejar",
-        message: err instanceof Error ? err.message : "Error desconocido",
+        title: "Couldn't pair",
+        message: err instanceof Error ? err.message : copy.unknownError,
       });
     }
   }
@@ -234,8 +235,8 @@ function PairingView({ onPaired, error }: { onPaired: (token: string) => Promise
     if (!text) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "Portapapeles vacío",
-        message: "Copia el código desde Momentum y vuelve a intentar.",
+        title: "Clipboard is empty",
+        message: "Copy the code from Momentum and try again.",
       });
       return;
     }
@@ -243,8 +244,8 @@ function PairingView({ onPaired, error }: { onPaired: (token: string) => Promise
     if (digits.length < 4) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "Código incompleto",
-        message: "No encontramos 4 dígitos en el portapapeles.",
+        title: "Incomplete code",
+        message: "Couldn't find 4 digits in the clipboard.",
       });
       return;
     }
@@ -260,22 +261,22 @@ function PairingView({ onPaired, error }: { onPaired: (token: string) => Promise
     <Form
       actions={
         <ActionPanel>
-          <Action title="Obtener código" onAction={openSettingsFromAction} icon={Icon.Gear} />
-          <Action title="Pegar código" onAction={pasteFromClipboard} icon={Icon.Clipboard} />
-          <Action.SubmitForm title="Emparejar" onSubmit={handleSubmit} icon={Icon.Link} />
+          <Action title="Get Code" onAction={openSettingsFromAction} icon={Icon.Gear} />
+          <Action title="Paste Code" onAction={pasteFromClipboard} icon={Icon.Clipboard} />
+          <Action.SubmitForm title="Pair" onSubmit={handleSubmit} icon={Icon.Link} />
         </ActionPanel>
       }
     >
       <Form.Description
         text={[
-          "Abre Momentum > Ajustes > Raycast Extension y genera un código.",
-          "Introduce aquí el código de 4 dígitos para emparejar.",
-          "Acciones (Cmd+K): Pegar código · Obtener código",
+          "Open Momentum > Settings > Raycast Extension and generate a code.",
+          "Enter the 4-digit code here to pair.",
+          "Actions (Cmd+K): Paste code · Get code",
         ].join("\n")}
       />
       <Form.TextField
         id="pairingCode"
-        title="Código"
+        title="Code"
         value={trimmed}
         onChange={(value) => applyDigits(value)}
         placeholder="XXXX"

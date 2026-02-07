@@ -44,7 +44,7 @@ export async function loadManualStartProjects(
     return { kind: "unauthorized" };
   }
   if (!response.ok || !payload.ok) {
-    return { kind: "error", message: payload.message ?? "No pudimos leer los proyectos." };
+    return { kind: "error", message: payload.message ?? "Couldn't read projects." };
   }
 
   return { kind: "ok", projects: payload.data ?? [] };
@@ -78,7 +78,7 @@ export async function startManualTrackingExisting(
     if (payload.error === "UnsupportedAction") {
       return { kind: "unsupported" };
     }
-    return { kind: "error", message: payload.message ?? "No pudimos iniciar el tracking manual." };
+    return { kind: "error", message: payload.message ?? "Couldn't start manual tracking." };
   }
 
   return { kind: "ok", project: payload.data.project };
@@ -109,7 +109,7 @@ export async function openManualStartForm(
     if (payload.error === "UnsupportedAction") {
       return { kind: "unsupported" };
     }
-    return { kind: "error", message: payload.message ?? "No pudimos abrir el formulario en Momentum." };
+    return { kind: "error", message: payload.message ?? "Couldn't open the form in Momentum." };
   }
 
   return { kind: "ok" };

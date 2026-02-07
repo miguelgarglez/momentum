@@ -318,7 +318,7 @@ private struct AssignmentRuleRow: View {
     private func lastUsedText(for rule: AssignmentRule) -> String {
         let formatter = RelativeDateTimeFormatter()
         let relative = formatter.localizedString(for: rule.effectiveLastUsedAt, relativeTo: .now)
-        return "Ultimo uso: \(relative)"
+        return String.localizedStringWithFormat(String(localized: "Ultimo uso: %@"), relative)
     }
 
     private var contextTitle: String {

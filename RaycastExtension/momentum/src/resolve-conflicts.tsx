@@ -1,6 +1,7 @@
 import { Detail, LocalStorage, PopToRootType, popToRoot, showHUD, showToast, Toast } from "@raycast/api";
 import { useEffect } from "react";
 import { resolveConflicts } from "./commands/resolveConflictsService";
+import { copy } from "./copy";
 
 const TOKEN_KEY = "momentum.token";
 
@@ -15,8 +16,8 @@ export default function Command() {
       if (!token) {
         await showToast({
           style: Toast.Style.Failure,
-          title: "Emparejamiento requerido",
-          message: "Empareja primero la extensión desde List projects.",
+          title: copy.pairingRequiredTitle,
+          message: copy.pairFirstFromListProjects,
         });
         await popToRoot({ clearSearchBar: true });
         return;
@@ -27,8 +28,8 @@ export default function Command() {
         await LocalStorage.removeItem(TOKEN_KEY);
         await showToast({
           style: Toast.Style.Failure,
-          title: "Token inválido",
-          message: "Empareja de nuevo desde List projects.",
+          title: copy.invalidTokenTitle,
+          message: copy.pairAgainFromListProjects,
         });
         await popToRoot({ clearSearchBar: true });
         return;
@@ -37,7 +38,7 @@ export default function Command() {
         throw new Error(result.message);
       }
       if (result.kind === "opened") {
-        await showHUD(`✓ Abriendo resolución (${result.conflictsCount})`, {
+        await showHUD(`✓ Opening resolution (${result.conflictsCount})`, {
           clearRootSearch: true,
           popToRootType: PopToRootType.Immediate,
         });
@@ -47,19 +48,19 @@ export default function Command() {
 
       await showToast({
         style: Toast.Style.Success,
-        title: "No hay conflictos pendientes",
-        message: "Todo en orden.",
+        title: "No pending conflicts",
+        message: "Everything is up to date.",
       });
       await popToRoot({ clearSearchBar: true });
     } catch (error) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "No pudimos resolver conflictos",
-        message: error instanceof Error ? error.message : "Error desconocido",
+        title: "Couldn't resolve conflicts",
+        message: error instanceof Error ? error.message : copy.unknownError,
       });
       await popToRoot({ clearSearchBar: true });
     }
   }
 
-  return <Detail isLoading markdown="Comprobando conflictos pendientes…" />;
+  return <Detail isLoading markdown="Checking pending conflicts..." />;
 }

@@ -1,4 +1,4 @@
-.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint run-dev run-dev-onboarding run-release run reset-dev-data run-dev-reset-permissions run-release-reset-permissions archive-release install-release dmg clean clean-release diag-cpu-release diag-cpu-release-focus
+.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint check-localization run-dev run-dev-lang run-dev-system-lang run-dev-onboarding run-release run-release-lang run reset-dev-data run-dev-reset-permissions run-release-reset-permissions archive-release install-release dmg clean clean-release diag-cpu-release diag-cpu-release-focus
 
 PROJECT := Momentum.xcodeproj
 SCHEME := Momentum
@@ -9,6 +9,8 @@ DEV_BUNDLE_ID ?= miguelgarglez.Momentum.dev
 RELEASE_BUNDLE_ID ?= miguelgarglez.Momentum
 RUN_BUNDLE_ID ?= $(DEV_BUNDLE_ID)
 CONFIGURATION ?= Debug
+APP_LANGUAGE ?=
+APP_LOCALE ?=
 DEV_STORE_DIR ?= $(HOME)/Library/Containers/$(DEV_BUNDLE_ID)/Data/Library/Application Support/MomentumStore
 LEGACY_DEV_STORE_DIR ?= $(HOME)/Library/Application Support/MomentumStore
 ARCHIVE_DIR ?= build/archives
@@ -41,9 +43,13 @@ help:
 	@echo "  lint              Run SwiftLint (errors only)"
 	@echo "  format            Format Swift files with SwiftFormat"
 	@echo "  format-lint       Verify SwiftFormat formatting without changes"
+	@echo "  check-localization Validate app string catalog + Raycast English copy"
 	@echo "  run-dev           Build and launch the dev app (quits running dev app first)"
+	@echo "  run-dev-lang      Build and launch dev app in specific language (APP_LANGUAGE=en|es, APP_LOCALE optional)"
+	@echo "  run-dev-system-lang Clear dev language overrides and launch with system language"
 	@echo "  run-dev-onboarding Run dev app with fresh store, no debug seed, and clean onboarding"
 	@echo "  run-release       Build and launch the release app (quits running release app first)"
+	@echo "  run-release-lang  Build and launch release app in specific language (APP_LANGUAGE=en|es, APP_LOCALE optional)"
 	@echo "  diag-cpu-release  Run automated CPU diagnostics for Release"
 	@echo "  diag-cpu-release-focus Run focused CPU diagnostics (baseline + top suspects)"
 	@echo "  reset-dev-data    Remove dev store + seed flag, then run dev app"
@@ -148,11 +154,61 @@ format-lint:
 	fi; \
 	swiftformat --lint .
 
+check-localization:
+	@set -euo pipefail; \
+	python3 scripts/check_localization_catalog.py; \
+	python3 scripts/check_raycast_english.py
+
 run-dev:
 	@$(MAKE) run CONFIGURATION=Debug RUN_BUNDLE_ID="$(DEV_BUNDLE_ID)"
 
+run-dev-lang:
+	@set -euo pipefail; \
+	if [ -z "$(APP_LANGUAGE)" ]; then \
+		echo "Usage: make run-dev-lang APP_LANGUAGE=en|es [APP_LOCALE=en_US|es_ES]"; \
+		exit 1; \
+	fi; \
+	LOCALE="$(APP_LOCALE)"; \
+	if [ -z "$$LOCALE" ]; then \
+		case "$(APP_LANGUAGE)" in \
+			en) LOCALE="en_US" ;; \
+			es) LOCALE="es_ES" ;; \
+			*) LOCALE="$(APP_LANGUAGE)_US" ;; \
+		esac; \
+	fi; \
+	defaults write "$(DEV_BUNDLE_ID)" AppleLanguages -array "$(APP_LANGUAGE)"; \
+	defaults write "$(DEV_BUNDLE_ID)" AppleLocale "$$LOCALE"; \
+	echo "Launching $(DEV_BUNDLE_ID) with AppleLanguages=$(APP_LANGUAGE), AppleLocale=$$LOCALE"; \
+	$(MAKE) run-dev RUN_ARGS="$(RUN_ARGS)"
+
+run-dev-system-lang:
+	@set -euo pipefail; \
+	defaults delete "$(DEV_BUNDLE_ID)" AppleLanguages >/dev/null 2>&1 || true; \
+	defaults delete "$(DEV_BUNDLE_ID)" AppleLocale >/dev/null 2>&1 || true; \
+	echo "Launching $(DEV_BUNDLE_ID) with system language settings"; \
+	$(MAKE) run-dev RUN_ARGS="$(RUN_ARGS)"
+
 run-release:
 	@$(MAKE) run CONFIGURATION=Release RUN_BUNDLE_ID="$(RELEASE_BUNDLE_ID)"
+
+run-release-lang:
+	@set -euo pipefail; \
+	if [ -z "$(APP_LANGUAGE)" ]; then \
+		echo "Usage: make run-release-lang APP_LANGUAGE=en|es [APP_LOCALE=en_US|es_ES]"; \
+		exit 1; \
+	fi; \
+	LOCALE="$(APP_LOCALE)"; \
+	if [ -z "$$LOCALE" ]; then \
+		case "$(APP_LANGUAGE)" in \
+			en) LOCALE="en_US" ;; \
+			es) LOCALE="es_ES" ;; \
+			*) LOCALE="$(APP_LANGUAGE)_US" ;; \
+		esac; \
+	fi; \
+	defaults write "$(RELEASE_BUNDLE_ID)" AppleLanguages -array "$(APP_LANGUAGE)"; \
+	defaults write "$(RELEASE_BUNDLE_ID)" AppleLocale "$$LOCALE"; \
+	echo "Launching $(RELEASE_BUNDLE_ID) with AppleLanguages=$(APP_LANGUAGE), AppleLocale=$$LOCALE"; \
+	$(MAKE) run-release RUN_ARGS="$(RUN_ARGS)"
 
 diag-cpu-release:
 	@./scripts/diag_run_release.sh

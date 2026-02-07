@@ -181,7 +181,7 @@ struct DashboardMetricsView: View {
             VStack(alignment: .leading, spacing: compact ? 3 : 4) {
                 Spacer(minLength: 0)
                 VStack(alignment: .leading, spacing: compact ? 3 : 4) {
-                    Text(title)
+                    Text(NSLocalizedString(title, comment: ""))
                         .font(titleFont)
                         .textCase(.uppercase)
                         .tracking(compact ? 0.35 : 0.5)

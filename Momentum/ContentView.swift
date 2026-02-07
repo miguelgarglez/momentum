@@ -500,7 +500,7 @@ struct ContentView: View {
             selectedProjectID = projects.first?.persistentModelID
             showToast("Proyecto eliminado", style: .success)
         } catch {
-            showToast("No pudimos eliminar el proyecto", style: .error)
+            showToast(String(localized: "No pudimos eliminar el proyecto"), style: .error)
         }
     }
 
@@ -550,12 +550,12 @@ struct ContentView: View {
             startManualTracking(with: project)
             onboardingState.markProjectCreated()
         } catch {
-            showToast("No pudimos crear el proyecto", style: .error)
+            showToast(String(localized: "No pudimos crear el proyecto"), style: .error)
         }
     }
 
     private func manualProjectName(from baseName: String) -> String {
-        let seed = baseName.isEmpty ? "New cool project" : baseName
+        let seed = baseName.isEmpty ? String(localized: "New cool project") : baseName
         let existingNames = Set(projects.map { $0.name.lowercased() })
         let needsSuffix = baseName.isEmpty || existingNames.contains(seed.lowercased())
         guard needsSuffix else { return seed }
@@ -581,9 +581,9 @@ struct ContentView: View {
         project.markStatsDirty()
         do {
             try modelContext.save()
-            showToast("Actividad limpiada", style: .success)
+            showToast(String(localized: "Actividad limpiada"), style: .success)
         } catch {
-            showToast("No pudimos limpiar la actividad", style: .error)
+            showToast(String(localized: "No pudimos limpiar la actividad"), style: .error)
         }
     }
 
@@ -594,9 +594,12 @@ struct ContentView: View {
         case .manual:
             "manual"
         case .screenLocked:
-            "bloqueo"
+            String(localized: "bloqueo")
         }
-        showToast("Tracking manual detenido (\(suffix))", style: .success)
+        showToast(
+            String.localizedStringWithFormat(String(localized: "Tracking manual detenido (%@)"), suffix),
+            style: .success
+        )
     }
 
     private func showToast(_ message: String, style: ToastMessage.Style = .success) {

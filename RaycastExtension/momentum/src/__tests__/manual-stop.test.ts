@@ -36,7 +36,7 @@ describe("manual-stop command", () => {
     expect(postMomentumCommandMock).not.toHaveBeenCalled();
     expect(showToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Emparejamiento requerido",
+        title: "Pairing Required",
       }),
     );
   });
@@ -52,7 +52,7 @@ describe("manual-stop command", () => {
     await command();
 
     expect(showHUD).toHaveBeenCalledWith(
-      "✓ Tracking manual detenido",
+      "✓ Manual tracking stopped",
       expect.objectContaining({
         clearRootSearch: true,
       }),
@@ -72,7 +72,7 @@ describe("manual-stop command", () => {
 
     expect(showToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Tracking manual ya estaba detenido",
+        title: "Manual tracking was already stopped",
       }),
     );
     expect(popToRoot).toHaveBeenCalledWith({ clearSearchBar: true });
@@ -91,7 +91,7 @@ describe("manual-stop command", () => {
     expect(LocalStorage.removeItem).toHaveBeenCalledWith("momentum.token");
     expect(showToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Token inválido",
+        title: "Invalid Token",
       }),
     );
   });
@@ -106,7 +106,7 @@ describe("manual-stop command", () => {
     expect(postMomentumCommandMock).not.toHaveBeenCalled();
     expect(showToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Comando no soportado",
+        title: "Command Not Supported",
       }),
     );
   });
@@ -123,7 +123,7 @@ describe("manual-stop command", () => {
 
     expect(showToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "No pudimos detener tracking manual",
+        title: "Couldn't stop manual tracking",
       }),
     );
   });

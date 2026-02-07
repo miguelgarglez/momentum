@@ -18,8 +18,8 @@ struct ProjectIconPickerPopoverView: View {
 
     var body: some View {
         SFSymbolPickerView(
-            title: "Iconos del sistema",
-            placeholder: "Buscar iconos",
+            title: String(localized: "Iconos del sistema"),
+            placeholder: String(localized: "Buscar iconos"),
             accessibilityIdentifier: "project-icon-symbol-picker",
             selection: $selection,
             onDismiss: onDismiss

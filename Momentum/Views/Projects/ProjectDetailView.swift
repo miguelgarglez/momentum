@@ -185,8 +185,11 @@ struct ProjectDetailView: View {
 
                 HighlightMetricRow(
                     title: "Racha",
-                    value: "\(stats.streakCount) días",
-                    subtitle: "Mejor racha: \(stats.longestStreakCount) días.",
+                    value: String.localizedStringWithFormat(String(localized: "%lld días"), stats.streakCount),
+                    subtitle: String.localizedStringWithFormat(
+                        String(localized: "Mejor racha: %lld días."),
+                        stats.longestStreakCount
+                    ),
                     icon: "flame.fill",
                     tint: .orange,
                 )
@@ -209,9 +212,9 @@ struct ProjectDetailView: View {
         let streak = stats.streakCount
         let longest = stats.longestStreakCount
         if streak < 2 {
-            return "Mejor racha: \(longest) días"
+            return String.localizedStringWithFormat(String(localized: "Mejor racha: %lld días"), longest)
         }
-        return "Racha de \(streak) días · Mejor: \(longest) días"
+        return String.localizedStringWithFormat(String(localized: "Racha de %lld días · Mejor: %lld días"), streak, longest)
     }
 
     private var isProjectEmpty: Bool {

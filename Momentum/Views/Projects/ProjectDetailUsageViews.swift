@@ -156,7 +156,7 @@ struct LastUsedCard: View {
                     .font(.headline)
             }
 
-            Text("Último registro: \(relativeTime)")
+            Text(String(localized: "Último registro: \(relativeTime)"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

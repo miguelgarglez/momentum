@@ -174,7 +174,7 @@ extension Project {
 
     @MainActor
     var lastActivityText: String {
-        guard let last = lastActivityDate else { return "Sin datos recientes" }
+        guard let last = lastActivityDate else { return String(localized: "Sin datos recientes") }
         return Self.relativeDateFormatter.localizedString(for: last, relativeTo: .now)
     }
 
@@ -556,11 +556,11 @@ enum ProjectIcon: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .spark: "Momentum"
-        case .book: "Estudio"
-        case .hammer: "Construir"
-        case .paint: "Creativo"
-        case .bolt: "Energía"
+        case .spark: String(localized: "Momentum")
+        case .book: String(localized: "Estudio")
+        case .hammer: String(localized: "Construir")
+        case .paint: String(localized: "Creativo")
+        case .bolt: String(localized: "Energía")
         }
     }
 }

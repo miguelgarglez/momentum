@@ -15,7 +15,7 @@ enum ActivityRange: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var title: String {
+    var title: LocalizedStringResource {
         switch self {
         case .week: "Semana"
         case .month: "Mes"
@@ -116,7 +116,7 @@ struct WeeklySummaryChartView: View {
     }
 
     private var rangePicker: some View {
-        Picker("Rango", selection: $range) {
+        Picker(String(localized: "Rango"), selection: $range) {
             ForEach(ActivityRange.allCases) { option in
                 Text(option.title).tag(option)
             }
@@ -124,7 +124,7 @@ struct WeeklySummaryChartView: View {
         .pickerStyle(.segmented)
         .frame(width: 260)
         .labelsHidden()
-        .accessibilityLabel("Rango")
+        .accessibilityLabel(Text("Rango"))
     }
 
     private var chartView: some View {
@@ -143,7 +143,7 @@ struct WeeklySummaryChartView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(summariesTotalText)
                     .font(.subheadline.weight(.semibold))
-                Text("\(activeDays) días activos")
+                Text(String(localized: "\(activeDays) días activos"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -160,7 +160,7 @@ struct WeeklySummaryChartView: View {
         points.count(where: { $0.seconds > 0 })
     }
 
-    private var titleText: String {
+    private var titleText: LocalizedStringResource {
         switch range {
         case .week:
             "Últimos 7 días"
@@ -173,7 +173,7 @@ struct WeeklySummaryChartView: View {
         }
     }
 
-    private var subtitleText: String {
+    private var subtitleText: LocalizedStringResource {
         switch range {
         case .week:
             "Actividad reciente y consistencia."
@@ -351,7 +351,7 @@ private struct ActivityBarsRow: View {
 
     private func label(for summary: ActivityBucket) -> String {
         if range == .week, isToday(summary.date) {
-            return "HOY"
+            return String(localized: "HOY")
         }
         return summary.label.uppercased()
     }

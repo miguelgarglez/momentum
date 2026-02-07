@@ -14,19 +14,19 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .tracking:
-            "Tracking"
+            String(localized: "Tracking")
         case .raycast:
-            "Raycast Extension"
+            String(localized: "Raycast Extension")
         case .privacy:
-            "Privacidad"
+            String(localized: "Privacidad")
         case .appearance:
-            "Apariencia"
+            String(localized: "Apariencia")
         case .idle:
-            "Inactividad"
+            String(localized: "Inactividad")
         case .exclusions:
-            "Exclusiones"
+            String(localized: "Exclusiones")
         case .assignmentRules:
-            "Reglas"
+            String(localized: "Reglas")
         }
     }
 

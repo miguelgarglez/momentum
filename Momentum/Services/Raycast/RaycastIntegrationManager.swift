@@ -44,7 +44,7 @@ final class RaycastIntegrationManager: ObservableObject {
             RaycastHTTPError.response(
                 code: 500,
                 error: "ServerUnavailable",
-                message: "No pudimos procesar la solicitud.",
+                message: "Couldn't process request.",
             )
         }
     }
@@ -84,13 +84,13 @@ final class RaycastIntegrationManager: ObservableObject {
             hasActiveToken = false
             showStatusMessage(
                 RaycastStatusMessage(
-                    text: "Tokens revocados",
+                    text: String(localized: "Tokens revocados"),
                     systemImage: "xmark.seal.fill",
                     style: .warning
                 )
             )
         } catch {
-            lastError = "No pudimos revocar los tokens."
+            lastError = String(localized: "No pudimos revocar los tokens.")
             logger.error("Failed to revoke Raycast tokens: \(error.localizedDescription, privacy: .public)")
         }
     }
@@ -125,7 +125,7 @@ final class RaycastIntegrationManager: ObservableObject {
                 }
             } catch {
                 isRunning = false
-                lastError = "No pudimos iniciar el servidor local. Revisa que el puerto \(port) esté libre."
+                lastError = String(localized: "No pudimos iniciar el servidor local. Comprueba que el puerto \(port) está disponible.")
                 logger.error("Raycast server failed to start: \(error.localizedDescription, privacy: .public)")
             }
             isStarting = false
@@ -185,26 +185,26 @@ final class RaycastIntegrationManager: ObservableObject {
         case ("POST", "/v1/commands"):
             return await handleCommands(request)
         default:
-            return RaycastHTTPError.response(code: 404, error: "NotFound", message: "Ruta no encontrada.")
+            return RaycastHTTPError.response(code: 404, error: "NotFound", message: "Route not found.")
         }
     }
 
     private func handlePairingConfirm(_ request: RaycastHTTPRequest) -> RaycastHTTPResponse {
         guard let pairing = try? JSONDecoder().decode(RaycastPairingRequest.self, from: request.body) else {
-            return RaycastHTTPError.response(code: 422, error: "InvalidPayload", message: "Payload inválido.")
+            return RaycastHTTPError.response(code: 422, error: "InvalidPayload", message: "Invalid payload.")
         }
         if let apiVersion = pairing.apiVersion, apiVersion != 1 {
-            return RaycastHTTPError.response(code: 426, error: "UpgradeRequired", message: "Versión no soportada.")
+            return RaycastHTTPError.response(code: 426, error: "UpgradeRequired", message: "Unsupported version.")
         }
         guard validatePairingCode(pairing.code) else {
-            return RaycastHTTPError.response(code: 401, error: "InvalidPairingCode", message: "Código inválido o expirado.")
+            return RaycastHTTPError.response(code: 401, error: "InvalidPairingCode", message: "Invalid or expired code.")
         }
         do {
             let token = try tokenStore.issueToken()
             hasActiveToken = true
             showStatusMessage(
                 RaycastStatusMessage(
-                    text: "Emparejamiento completado",
+                    text: String(localized: "Emparejado"),
                     systemImage: "checkmark.seal.fill",
                     style: .success
                 )
@@ -218,7 +218,7 @@ final class RaycastIntegrationManager: ObservableObject {
             return RaycastHTTPResponse.json(statusCode: 200, payload: payload)
         } catch {
             logger.error("Failed to issue Raycast token: \(error.localizedDescription, privacy: .public)")
-            return RaycastHTTPError.response(code: 500, error: "TokenStoreFailure", message: "No pudimos generar el token.")
+            return RaycastHTTPError.response(code: 500, error: "TokenStoreFailure", message: "Couldn't generate token.")
         }
     }
 
@@ -268,16 +268,16 @@ final class RaycastIntegrationManager: ObservableObject {
 
     private func handleCommands(_ request: RaycastHTTPRequest) async -> RaycastHTTPResponse {
         guard let token = parseBearerToken(request) else {
-            return RaycastHTTPError.response(code: 401, error: "Unauthorized", message: "Token requerido.")
+            return RaycastHTTPError.response(code: 401, error: "Unauthorized", message: "Token is required.")
         }
         guard tokenStore.isValid(token) else {
-            return RaycastHTTPError.response(code: 401, error: "Unauthorized", message: "Token inválido.")
+            return RaycastHTTPError.response(code: 401, error: "Unauthorized", message: "Invalid token.")
         }
         guard let command = try? JSONDecoder().decode(RaycastCommandRequest.self, from: request.body) else {
-            return RaycastHTTPError.response(code: 422, error: "InvalidPayload", message: "Payload inválido.")
+            return RaycastHTTPError.response(code: 422, error: "InvalidPayload", message: "Invalid payload.")
         }
         if let apiVersion = command.apiVersion, apiVersion != 1 {
-            return RaycastHTTPError.response(code: 426, error: "UpgradeRequired", message: "Versión no soportada.")
+            return RaycastHTTPError.response(code: 426, error: "UpgradeRequired", message: "Unsupported version.")
         }
 
         switch command.action {
@@ -294,13 +294,13 @@ final class RaycastIntegrationManager: ObservableObject {
         case "manual.open":
             return handleManualOpen(command)
         default:
-            return RaycastHTTPError.response(code: 422, error: "UnsupportedAction", message: "Acción no soportada.")
+            return RaycastHTTPError.response(code: 422, error: "UnsupportedAction", message: "Unsupported action.")
         }
     }
 
     private func handleProjectsList() -> RaycastHTTPResponse {
         guard let modelContainer else {
-            return RaycastHTTPError.response(code: 503, error: "StoreNotReady", message: "La base de datos no está lista.")
+            return RaycastHTTPError.response(code: 503, error: "StoreNotReady", message: "Database is not ready.")
         }
         let descriptor = FetchDescriptor<Project>(sortBy: [SortDescriptor(\.name, order: .forward)])
         do {
@@ -322,21 +322,21 @@ final class RaycastIntegrationManager: ObservableObject {
             return RaycastHTTPResponse.json(statusCode: 200, payload: payload)
         } catch {
             logger.error("Failed to fetch projects for Raycast: \(error.localizedDescription, privacy: .public)")
-            return RaycastHTTPError.response(code: 500, error: "FetchFailed", message: "No pudimos leer los proyectos.")
+            return RaycastHTTPError.response(code: 500, error: "FetchFailed", message: "Couldn't read projects.")
         }
     }
 
     private func handleProjectOpen(_ command: RaycastCommandRequest) -> RaycastHTTPResponse {
         guard let modelContainer else {
-            return RaycastHTTPError.response(code: 503, error: "StoreNotReady", message: "La base de datos no está lista.")
+            return RaycastHTTPError.response(code: 503, error: "StoreNotReady", message: "Database is not ready.")
         }
         guard let payload = command.payload else {
-            return RaycastHTTPError.response(code: 422, error: "InvalidPayload", message: "Proyecto requerido.")
+            return RaycastHTTPError.response(code: 422, error: "InvalidPayload", message: "Project is required.")
         }
 
         let project = findProject(by: payload.projectID, name: payload.projectName, in: modelContainer.mainContext)
         guard let project else {
-            return RaycastHTTPError.response(code: 404, error: "ProjectNotFound", message: "No encontramos el proyecto indicado.")
+            return RaycastHTTPError.response(code: 404, error: "ProjectNotFound", message: "Couldn't find the requested project.")
         }
 
         NotificationCenter.default.post(name: .statusItemShowApp, object: nil)
@@ -363,7 +363,7 @@ final class RaycastIntegrationManager: ObservableObject {
 
     private func handleConflictsOpen(_ command: RaycastCommandRequest) -> RaycastHTTPResponse {
         guard let modelContainer else {
-            return RaycastHTTPError.response(code: 503, error: "StoreNotReady", message: "La base de datos no está lista.")
+            return RaycastHTTPError.response(code: 503, error: "StoreNotReady", message: "Database is not ready.")
         }
 
         do {
@@ -386,16 +386,16 @@ final class RaycastIntegrationManager: ObservableObject {
             return RaycastHTTPResponse.json(statusCode: 200, payload: payload)
         } catch {
             logger.error("Failed to fetch pending conflicts for Raycast: \(error.localizedDescription, privacy: .public)")
-            return RaycastHTTPError.response(code: 500, error: "FetchFailed", message: "No pudimos leer los conflictos pendientes.")
+            return RaycastHTTPError.response(code: 500, error: "FetchFailed", message: "Couldn't read pending conflicts.")
         }
     }
 
     private func handleManualStart(_ command: RaycastCommandRequest) -> RaycastHTTPResponse {
         guard let modelContainer else {
-            return RaycastHTTPError.response(code: 503, error: "StoreNotReady", message: "La base de datos no está lista.")
+            return RaycastHTTPError.response(code: 503, error: "StoreNotReady", message: "Database is not ready.")
         }
         guard let tracker else {
-            return RaycastHTTPError.response(code: 503, error: "TrackerNotReady", message: "El rastreador no está listo.")
+            return RaycastHTTPError.response(code: 503, error: "TrackerNotReady", message: "Tracker is not ready.")
         }
 
         let payload = command.payload
@@ -403,7 +403,7 @@ final class RaycastIntegrationManager: ObservableObject {
 
         if let projectID = payload?.projectID {
             guard let existingProject = findProject(by: projectID, name: payload?.projectName, in: modelContainer.mainContext) else {
-                return RaycastHTTPError.response(code: 422, error: "ProjectNotFound", message: "No encontramos el proyecto indicado.")
+                return RaycastHTTPError.response(code: 422, error: "ProjectNotFound", message: "Couldn't find the requested project.")
             }
             selectedProject = existingProject
         } else {
@@ -420,7 +420,7 @@ final class RaycastIntegrationManager: ObservableObject {
                 try modelContainer.mainContext.save()
             } catch {
                 logger.error("Failed to create manual project from Raycast: \(error.localizedDescription, privacy: .public)")
-                return RaycastHTTPError.response(code: 500, error: "ProjectCreateFailed", message: "No pudimos crear el proyecto.")
+                return RaycastHTTPError.response(code: 500, error: "ProjectCreateFailed", message: "Couldn't create project.")
             }
             selectedProject = createdProject
         }
@@ -462,7 +462,7 @@ final class RaycastIntegrationManager: ObservableObject {
 
     private func handleManualStop() -> RaycastHTTPResponse {
         guard let tracker else {
-            return RaycastHTTPError.response(code: 503, error: "TrackerNotReady", message: "El rastreador no está listo.")
+            return RaycastHTTPError.response(code: 503, error: "TrackerNotReady", message: "Tracker is not ready.")
         }
 
         let wasActive = tracker.isManualTrackingActive

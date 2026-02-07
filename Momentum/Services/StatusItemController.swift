@@ -138,7 +138,7 @@
 
         private func rebuildMenu() {
             let menu = NSMenu()
-            let header = disabledItem("Momentum — \(currentTimeString)")
+            let header = disabledItem(localizedFormat("Momentum — %@", currentTimeString))
             menu.addItem(header)
 
             let stateItem = disabledItem(stateDescription(for: latestSummary))
@@ -146,27 +146,39 @@
             appendContextDetails(to: menu, summary: latestSummary)
             menu.addItem(NSMenuItem.separator())
 
-            let showAppItem = NSMenuItem(title: "Abrir Momentum", action: #selector(handleShowApp), keyEquivalent: "")
+            let showAppItem = NSMenuItem(
+                title: localized("Abrir Momentum"),
+                action: #selector(handleShowApp),
+                keyEquivalent: ""
+            )
             showAppItem.target = self
             menu.addItem(showAppItem)
 
-            let toggleTitle = tracker.isTrackingEnabled ? "Pausar tracking" : "Reanudar tracking"
+            let toggleTitle = tracker.isTrackingEnabled ? localized("Pausar tracking") : localized("Reanudar tracking")
             let toggleItem = NSMenuItem(title: toggleTitle, action: #selector(handleToggleTracking), keyEquivalent: "")
             toggleItem.target = self
             menu.addItem(toggleItem)
 
             if tracker.isManualTrackingActive {
-                let stopManualItem = NSMenuItem(title: "Detener tracking manual", action: #selector(handleStopManualTracking), keyEquivalent: "")
+                let stopManualItem = NSMenuItem(
+                    title: localized("Detener tracking manual"),
+                    action: #selector(handleStopManualTracking),
+                    keyEquivalent: ""
+                )
                 stopManualItem.target = self
                 menu.addItem(stopManualItem)
             } else {
-                let startManualItem = NSMenuItem(title: "Iniciar tracking manual", action: #selector(handleStartManualTracking), keyEquivalent: "")
+                let startManualItem = NSMenuItem(
+                    title: localized("Iniciar tracking manual"),
+                    action: #selector(handleStartManualTracking),
+                    keyEquivalent: ""
+                )
                 startManualItem.target = self
                 menu.addItem(startManualItem)
             }
 
             if pendingConflictCount > 0, !tracker.isManualTrackingActive {
-                let conflictTitle = "Resolver conflictos (\(pendingConflictCount))"
+                let conflictTitle = localizedFormat("Resolver conflictos (%lld)", pendingConflictCount)
                 let conflictItem = NSMenuItem(title: conflictTitle, action: #selector(handleShowApp), keyEquivalent: "")
                 conflictItem.target = self
                 menu.addItem(conflictItem)
@@ -175,18 +187,22 @@
             if let projectName = latestSummary.projectName,
                latestSummary.projectID != nil
             {
-                let projectItem = NSMenuItem(title: "Ir a \(projectName)", action: #selector(handleOpenActiveProject), keyEquivalent: "")
+                let projectItem = NSMenuItem(
+                    title: localizedFormat("Ir a %@", projectName),
+                    action: #selector(handleOpenActiveProject),
+                    keyEquivalent: ""
+                )
                 projectItem.target = self
                 menu.addItem(projectItem)
             }
 
-            let settingsItem = NSMenuItem(title: "Ajustes…", action: #selector(handleShowSettings), keyEquivalent: ",")
+            let settingsItem = NSMenuItem(title: localized("Ajustes…"), action: #selector(handleShowSettings), keyEquivalent: ",")
             settingsItem.target = self
             menu.addItem(settingsItem)
 
             menu.addItem(NSMenuItem.separator())
 
-            let quitItem = NSMenuItem(title: "Salir", action: #selector(handleQuit), keyEquivalent: "q")
+            let quitItem = NSMenuItem(title: localized("Salir"), action: #selector(handleQuit), keyEquivalent: "q")
             quitItem.target = self
             quitItem.keyEquivalentModifierMask = [.command]
             menu.addItem(quitItem)
@@ -200,39 +216,39 @@
                 if let contextLine = contextLine(for: summary) {
                     menu.addItem(disabledItem(contextLine))
                 } else {
-                    menu.addItem(disabledItem("Registrando actividad"))
+                    menu.addItem(disabledItem(localized("Registrando actividad")))
                 }
-                let projectLabel = summary.projectName ?? "Sin proyecto asignado"
-                menu.addItem(disabledItem("Proyecto: \(projectLabel)"))
+                let projectLabel = summary.projectName ?? localized("Sin proyecto asignado")
+                menu.addItem(disabledItem(localizedFormat("Proyecto: %@", projectLabel)))
             case .trackingManual:
                 if let contextLine = contextLine(for: summary) {
                     menu.addItem(disabledItem(contextLine))
                 } else {
-                    menu.addItem(disabledItem("Tracking manual activo"))
+                    menu.addItem(disabledItem(localized("Tracking manual activo")))
                 }
-                let projectLabel = summary.projectName ?? "Sin proyecto asignado"
-                menu.addItem(disabledItem("Proyecto manual: \(projectLabel)"))
+                let projectLabel = summary.projectName ?? localized("Sin proyecto asignado")
+                menu.addItem(disabledItem(localizedFormat("Proyecto manual: %@", projectLabel)))
             case .pendingResolution:
                 if let contextLine = contextLine(for: summary) {
                     menu.addItem(disabledItem(contextLine))
                 } else {
-                    menu.addItem(disabledItem("Pendiente de asignación"))
+                    menu.addItem(disabledItem(localized("Pendiente de asignación")))
                 }
-                menu.addItem(disabledItem("Proyecto: pendiente de asignación"))
+                menu.addItem(disabledItem(localized("Proyecto: pendiente de asignación")))
             case .pausedManual:
-                menu.addItem(disabledItem("Tracking pausado manualmente"))
+                menu.addItem(disabledItem(localized("Tracking pausado manualmente")))
             case .pausedIdle:
-                menu.addItem(disabledItem("Tracking pausado por inactividad"))
+                menu.addItem(disabledItem(localized("Tracking pausado por inactividad")))
             case .pausedScreenLocked:
-                menu.addItem(disabledItem("Tracking pausado por bloqueo de pantalla"))
+                menu.addItem(disabledItem(localized("Tracking pausado por bloqueo de pantalla")))
             case .pausedExcluded:
                 if let contextLine = contextLine(for: summary) {
-                    menu.addItem(disabledItem("\(contextLine) (excluido)"))
+                    menu.addItem(disabledItem(localizedFormat("%@ (excluido)", contextLine)))
                 } else {
-                    menu.addItem(disabledItem("Tracking desactivado por exclusión"))
+                    menu.addItem(disabledItem(localized("Tracking desactivado por exclusión")))
                 }
             case .inactive:
-                menu.addItem(disabledItem("Esperando actividad..."))
+                menu.addItem(disabledItem(localized("Esperando actividad...")))
             }
         }
 
@@ -250,22 +266,30 @@
         private func stateDescription(for summary: ActivityTracker.StatusSummary) -> String {
             switch summary.state {
             case .tracking:
-                "Tracking activo"
+                localized("Tracking activo")
             case .trackingManual:
-                "Tracking manual activo"
+                localized("Tracking manual activo")
             case .pendingResolution:
-                "Pendiente de asignación"
+                localized("Pendiente de asignación")
             case .pausedManual:
-                "Tracking pausado"
+                localized("Tracking pausado")
             case .pausedIdle:
-                "Tracking pausado (idle)"
+                localized("Tracking pausado (idle)")
             case .pausedScreenLocked:
-                "Tracking pausado (bloqueo)"
+                localized("Tracking pausado (bloqueo)")
             case .pausedExcluded:
-                "Actividad excluida"
+                localized("Actividad excluida")
             case .inactive:
-                "Sin tracking"
+                localized("Sin tracking")
             }
+        }
+
+        private func localized(_ key: String) -> String {
+            NSLocalizedString(key, comment: "")
+        }
+
+        private func localizedFormat(_ format: String, _ args: CVarArg...) -> String {
+            String(format: NSLocalizedString(format, comment: ""), locale: Locale.current, arguments: args)
         }
 
         private func disabledItem(_ title: String) -> NSMenuItem {

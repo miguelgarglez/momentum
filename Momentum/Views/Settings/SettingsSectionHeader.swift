@@ -5,8 +5,8 @@ struct SettingsSectionHeader: View {
     let subtitle: String?
 
     init(_ title: String, subtitle: String? = nil) {
-        self.title = title
-        self.subtitle = subtitle
+        self.title = NSLocalizedString(title, comment: "")
+        self.subtitle = subtitle.map { NSLocalizedString($0, comment: "") }
     }
 
     var body: some View {

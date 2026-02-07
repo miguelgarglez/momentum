@@ -85,7 +85,7 @@ struct TrackerSettingsView: View {
 
     private var projectDeletionTitle: String {
         guard let project = projectPendingDeletion else { return "" }
-        return "¿Borrar actividad de \(project.name)?"
+        return String.localizedStringWithFormat(String(localized: "¿Borrar actividad de %@?"), project.name)
     }
 
     private var projectDeletionBinding: Binding<Bool> {

@@ -55,9 +55,9 @@ struct ActionPanelView: View {
 
     private var primaryActionLabel: String {
         if isManualTrackingActive {
-            return "Detener manual"
+            return String(localized: "Detener manual")
         }
-        return isTrackingEnabled ? "Pausar tracking" : "Reanudar tracking"
+        return isTrackingEnabled ? String(localized: "Pausar tracking") : String(localized: "Reanudar tracking")
     }
 
     private var primaryActionIcon: String {
@@ -68,7 +68,7 @@ struct ActionPanelView: View {
     }
 
     private var manualLabel: String {
-        isManualTrackingActive ? "Tracking manual activo" : "Iniciar tracking manual"
+        isManualTrackingActive ? String(localized: "Tracking manual activo") : String(localized: "Iniciar tracking manual")
     }
 
     private var manualTint: Color {
@@ -138,14 +138,14 @@ struct ActionPanelView: View {
                     ActionPanelIconButton(
                         systemName: "plus",
                         tint: .primary,
-                        accessibilityLabel: "Nuevo proyecto",
+                        accessibilityLabel: String(localized: "Nuevo proyecto"),
                         accessibilityIdentifier: "action-panel-create-project",
-                        tooltipText: "Nuevo proyecto",
+                        tooltipText: String(localized: "Nuevo proyecto"),
                         action: onCreateProject,
                     )
 
                     settingsControl
-                        .actionPanelTooltip("Ajustes")
+                        .actionPanelTooltip(String(localized: "Ajustes"))
                 }
             }
         }

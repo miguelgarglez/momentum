@@ -25,13 +25,13 @@ enum AssignmentRuleExpirationOption: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .never:
-            "Nunca"
+            String(localized: "Nunca")
         case .days30:
-            "30 días"
+            String(localized: "30 días")
         case .days60:
-            "60 días"
+            String(localized: "60 días")
         case .days90:
-            "90 días"
+            String(localized: "90 días")
         }
     }
 
@@ -51,11 +51,11 @@ enum AppThemePreference: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .system:
-            "Sistema"
+            String(localized: "Sistema")
         case .light:
-            "Claro"
+            String(localized: "Claro")
         case .dark:
-            "Oscuro"
+            String(localized: "Oscuro")
         }
     }
 

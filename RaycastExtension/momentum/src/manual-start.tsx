@@ -14,6 +14,7 @@ import {
   Toast,
 } from "@raycast/api";
 import { useEffect, useMemo, useState } from "react";
+import { copy } from "./copy";
 import {
   loadManualStartProjects,
   ManualStartProject,
@@ -69,8 +70,8 @@ export default function Command() {
     } catch (error) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "No pudimos cargar proyectos",
-        message: error instanceof Error ? error.message : "Error desconocido",
+        title: "Couldn't load projects",
+        message: error instanceof Error ? error.message : copy.unknownError,
       });
     } finally {
       setIsLoading(false);
@@ -93,7 +94,7 @@ export default function Command() {
     if (!projectId) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "Selecciona un proyecto",
+        title: "Select a project",
       });
       return;
     }
@@ -108,22 +109,20 @@ export default function Command() {
           setToken(null);
           await showToast({
             style: Toast.Style.Failure,
-            title: "Token inválido",
-            message: "Empareja de nuevo desde List projects.",
+            title: copy.invalidTokenTitle,
+            message: copy.pairAgainFromListProjects,
           });
           return;
         }
         if (result.kind === "unsupported") {
-          throw new Error(
-            "La app abierta no soporta este comando. Cierra Momentum release, abre la versión dev y vuelve a emparejar.",
-          );
+          throw new Error(copy.unsupportedAppCommandMessage);
         }
         throw new Error(result.message);
       }
 
       await showToast({
         style: Toast.Style.Success,
-        title: "Tracking manual iniciado",
+        title: "Manual tracking started",
         message: result.project.name,
       });
       await popToRoot({ clearSearchBar: true });
@@ -131,8 +130,8 @@ export default function Command() {
     } catch (error) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "No pudimos iniciar tracking manual",
-        message: error instanceof Error ? error.message : "Error desconocido",
+        title: "Couldn't start manual tracking",
+        message: error instanceof Error ? error.message : copy.unknownError,
       });
     }
   }
@@ -147,27 +146,25 @@ export default function Command() {
           setToken(null);
           await showToast({
             style: Toast.Style.Failure,
-            title: "Token inválido",
-            message: "Empareja de nuevo desde List projects.",
+            title: copy.invalidTokenTitle,
+            message: copy.pairAgainFromListProjects,
           });
           return;
         }
         if (result.kind === "unsupported") {
-          throw new Error(
-            "La app abierta no soporta este comando. Cierra Momentum release, abre la versión dev y vuelve a emparejar.",
-          );
+          throw new Error(copy.unsupportedAppCommandMessage);
         }
         throw new Error(result.message);
       }
 
-      await showHUD("✓ Abriendo formulario en Momentum");
+      await showHUD("✓ Opening form in Momentum");
       await popToRoot({ clearSearchBar: true });
       await closeMainWindow({ clearRootSearch: true });
     } catch (error) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "No pudimos abrir el formulario",
-        message: error instanceof Error ? error.message : "Error desconocido",
+        title: "Couldn't open form",
+        message: error instanceof Error ? error.message : copy.unknownError,
       });
     }
   }
@@ -175,11 +172,11 @@ export default function Command() {
   if (pairingRequired) {
     return (
       <Detail
-        markdown="## Emparejamiento requerido\n\nEmpareja primero la extensión desde `List projects`."
+        markdown="## Pairing Required\n\nPair the extension first from `List projects`."
         actions={
           <ActionPanel>
             <Action
-              title="Abrir List projects"
+              title="Open List Projects"
               onAction={() => launchCommand({ name: "list-projects", type: LaunchType.UserInitiated })}
             />
           </ActionPanel>
@@ -193,35 +190,31 @@ export default function Command() {
       isLoading={isLoading}
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Iniciar tracking manual" onSubmit={submit} icon={Icon.Play} />
-          <Action
-            title="Recargar proyectos"
-            onAction={() => token && fetchProjects(token)}
-            icon={Icon.ArrowClockwise}
-          />
+          <Action.SubmitForm title="Start Manual Tracking" onSubmit={submit} icon={Icon.Play} />
+          <Action title="Reload Projects" onAction={() => token && fetchProjects(token)} icon={Icon.ArrowClockwise} />
         </ActionPanel>
       }
     >
-      <Form.Description text="Usa un proyecto existente o abre en Momentum el formulario de proyecto nuevo." />
-      <Form.Dropdown id="mode" title="Modo" value={mode} onChange={(value) => setMode(value as StartMode)}>
-        <Form.Dropdown.Item value="existing" title="Proyecto existente" />
-        <Form.Dropdown.Item value="new" title="Crear proyecto nuevo (en app)" />
+      <Form.Description text="Use an existing project or open the new-project form in Momentum." />
+      <Form.Dropdown id="mode" title="Mode" value={mode} onChange={(value) => setMode(value as StartMode)}>
+        <Form.Dropdown.Item value="existing" title="Existing project" />
+        <Form.Dropdown.Item value="new" title="Create new project (in app)" />
       </Form.Dropdown>
 
       {mode == "existing" ? (
         <Form.Dropdown
           id="project"
-          title="Proyecto"
+          title="Project"
           value={projectId}
           onChange={setProjectId}
-          error={existingModeDisabled ? "No hay proyectos. Usa el modo de crear nuevo." : undefined}
+          error={existingModeDisabled ? "No projects found. Use create-new mode." : undefined}
         >
           {projects.map((project) => (
             <Form.Dropdown.Item key={project.id} value={project.id} title={project.name} icon={Icon.Folder} />
           ))}
         </Form.Dropdown>
       ) : (
-        <Form.Description text="Al confirmar, se abrirá en Momentum el diálogo nativo de tracking manual, directamente en modo proyecto nuevo." />
+        <Form.Description text="On submit, Momentum will open the native manual tracking flow in new-project mode." />
       )}
     </Form>
   );

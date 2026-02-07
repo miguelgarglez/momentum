@@ -60,7 +60,7 @@ struct ProjectFormView: View {
                                 }
 
                                 SystemEmojiPickerButton(
-                                    title: "Elegir emoji",
+                                    title: String(localized: "Elegir emoji"),
                                     accessibilityIdentifier: "project-icon-emoji-system",
                                     selection: $draft.iconName
                                 )
@@ -124,7 +124,7 @@ struct ProjectFormView: View {
                                 HStack {
                                     LTRTextField(
                                         text: $draft.domainEntry,
-                                        placeholder: "Dominios o URLs (separados por coma)",
+                                        placeholder: String(localized: "Dominios o URLs (separados por coma)"),
                                         accessibilityIdentifier: "project-domains-field",
                                         onSubmit: {
                                             saveDomainEntry()
@@ -195,7 +195,7 @@ struct ProjectFormView: View {
                                 HStack {
                                     LTRTextField(
                                         text: $draft.manualFilesEntry,
-                                        placeholder: "Rutas de archivo (separadas por coma)",
+                                        placeholder: String(localized: "Rutas de archivo (separadas por coma)"),
                                         accessibilityIdentifier: "project-files-field",
                                     )
                                     .macRoundedTextFieldStyle()
@@ -219,7 +219,7 @@ struct ProjectFormView: View {
                 .padding(20)
             }
             .background(Color(nsColor: .windowBackgroundColor))
-            .navigationTitle(mode == .create ? "Nuevo proyecto" : "Editar proyecto")
+            .navigationTitle(mode == .create ? String(localized: "Nuevo proyecto") : String(localized: "Editar proyecto"))
             .frame(minWidth: 540, maxWidth: 640)
             .onChange(of: isAppSelectorPresented) { _, isPresented in
                 if isPresented {
@@ -244,7 +244,7 @@ struct ProjectFormView: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(mode == .create ? "Crear" : "Guardar") {
+                    Button(mode == .create ? String(localized: "Crear") : String(localized: "Guardar")) {
                         onSave(draft)
                         #if os(macOS)
                             NSColorPanel.shared.close()
@@ -301,9 +301,9 @@ struct ProjectFormView: View {
         guard !draft.isDomainEntryEmpty else { return }
         let result = draft.addDomainEntry()
         if result.added.isEmpty {
-            domainEntryError = "No pudimos reconocer ningún dominio válido."
+            domainEntryError = String(localized: "No pudimos reconocer ningún dominio válido.")
         } else if !result.rejected.isEmpty {
-            domainEntryError = "Algunos dominios no son válidos y no se guardaron."
+            domainEntryError = String(localized: "Algunos dominios no son válidos y no se guardaron.")
         } else {
             domainEntryError = nil
         }
@@ -335,7 +335,7 @@ struct ProjectFormView: View {
             panel.canChooseFiles = true
             panel.canChooseDirectories = false
             panel.canCreateDirectories = false
-            panel.prompt = "Seleccionar"
+            panel.prompt = String(localized: "Seleccionar")
             panel.begin { response in
                 guard response == .OK else { return }
                 let paths = panel.urls.map(\.path)
@@ -354,7 +354,7 @@ private struct FileSelectionChips: View {
             ForEach(filePaths, id: \.self) { path in
                 RemovableChip(
                     title: path.filePathDisplayName,
-                    removeAccessibilityLabel: "Eliminar archivo",
+                    removeAccessibilityLabel: String(localized: "Eliminar archivo"),
                     leading: {
                         Image(systemName: "doc.text")
                             .font(.system(size: 12, weight: .semibold))
@@ -380,7 +380,7 @@ private struct DomainSelectionChips: View {
             ForEach(domains, id: \.self) { domain in
                 RemovableChip(
                     title: domain,
-                    removeAccessibilityLabel: "Eliminar dominio",
+                    removeAccessibilityLabel: String(localized: "Eliminar dominio"),
                     leading: {
                         Image(systemName: "globe")
                             .font(.system(size: 12, weight: .semibold))
@@ -404,7 +404,7 @@ struct ProjectTitleField: View {
         #if os(macOS)
             LTRTextField(
                 text: $text,
-                placeholder: "Ej. \"Construir Momentum\"",
+                placeholder: String(localized: "Ej. \"Construir Momentum\""),
                 font: NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .title3).pointSize, weight: .semibold),
                 allowsMultiline: true,
                 accessibilityIdentifier: "project-title-field",
@@ -522,7 +522,7 @@ struct AppAutoTrackingSection: View {
                 #if os(macOS)
                     LTRTextField(
                         text: $manualApps,
-                        placeholder: "com.ejemplo.app, com.otro.bundle",
+                        placeholder: String(localized: "com.ejemplo.app, com.otro.bundle"),
                     )
                     .macRoundedTextFieldStyle()
                 #else
@@ -543,7 +543,7 @@ struct SelectedAppChips: View {
             ForEach(apps, id: \.self) { app in
                 RemovableChip(
                     title: app.name,
-                    removeAccessibilityLabel: "Eliminar app",
+                    removeAccessibilityLabel: String(localized: "Eliminar app"),
                     leading: {
                         app.icon
                             .resizable()
@@ -581,7 +581,7 @@ private struct ProjectAppCatalogSelectionPanel: View {
             #if os(macOS)
                 LTRTextField(
                     text: $searchText,
-                    placeholder: "Buscar apps",
+                    placeholder: String(localized: "Buscar apps"),
                 )
                 .macRoundedTextFieldStyle()
             #else
@@ -639,7 +639,7 @@ private struct ProjectFormSection<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title)
+            Text(NSLocalizedString(title, comment: ""))
                 .font(.headline)
             content()
         }

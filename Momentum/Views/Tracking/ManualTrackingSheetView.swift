@@ -20,7 +20,7 @@ struct ManualTrackingSheetView: View {
         case new
 
         var id: String { rawValue }
-        var title: String {
+        var title: LocalizedStringResource {
             switch self {
             case .existing: "Existente"
             case .new: "Nuevo"
@@ -99,7 +99,7 @@ struct ManualTrackingSheetView: View {
                             #if os(macOS)
                                 LTRTextField(
                                     text: $newProjectName,
-                                    placeholder: "New cool project",
+                                    placeholder: String(localized: "New cool project"),
                                     accessibilityIdentifier: "manual-tracking-project-name",
                                 )
                                 .macRoundedTextFieldStyle()
@@ -137,7 +137,7 @@ struct ManualTrackingSheetView: View {
                         }
 
                         SystemEmojiPickerButton(
-                            title: "Elegir emoji",
+                            title: String(localized: "Elegir emoji"),
                             accessibilityIdentifier: "manual-tracking-icon-emoji-system",
                             selection: symbolPickerSelection
                         )

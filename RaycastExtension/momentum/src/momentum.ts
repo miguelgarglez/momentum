@@ -1,6 +1,7 @@
 import { Toast, showToast } from "@raycast/api";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { copy } from "./copy";
 
 const API_BASE = "http://127.0.0.1:51637";
 const COMMAND_BASE_CANDIDATES = Array.from(new Set([API_BASE, "http://127.0.0.1:51638"]));
@@ -135,8 +136,8 @@ export async function openMomentumSettings(): Promise<void> {
     if (!launched) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "No pudimos abrir Momentum",
-        message: "Abre la app manualmente y vuelve a intentarlo.",
+        title: "Couldn't open Momentum",
+        message: "Open the app manually and try again.",
       });
       return;
     }
@@ -149,8 +150,8 @@ export async function openMomentumSettings(): Promise<void> {
 
     await showToast({
       style: Toast.Style.Failure,
-      title: "No pudimos abrir Ajustes",
-      message: "Abre Momentum manualmente para continuar.",
+      title: "Couldn't open Settings",
+      message: "Open Momentum manually to continue.",
     });
   } finally {
     openSettingsInFlight = false;
@@ -171,8 +172,8 @@ export async function openMomentumApp(): Promise<void> {
     if (!launched) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "No pudimos abrir Momentum",
-        message: "Abre la app manualmente y vuelve a intentarlo.",
+        title: "Couldn't open Momentum",
+        message: "Open the app manually and try again.",
       });
       return;
     }
@@ -222,7 +223,7 @@ export async function postMomentumCommand<T>(
       }
       return attempt;
     } catch (error) {
-      lastFailure = error instanceof Error ? error : new Error("No pudimos contactar con Momentum.");
+      lastFailure = error instanceof Error ? error : new Error(copy.cannotReachMomentum);
     }
   }
 
@@ -232,7 +233,7 @@ export async function postMomentumCommand<T>(
   if (fallbackUnsupported) {
     return fallbackUnsupported;
   }
-  throw lastFailure ?? new Error("No pudimos contactar con Momentum.");
+  throw lastFailure ?? new Error(copy.cannotReachMomentum);
 }
 
 export async function getMomentumCapabilities(options?: { force?: boolean }): Promise<MomentumCapabilities | null> {
