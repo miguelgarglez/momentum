@@ -29,8 +29,12 @@ Prefer `Makefile` targets for local development:
 - `make lint` (SwiftLint, errors only)
 - `make format` (SwiftFormat, writes changes)
 - `make format-lint` (SwiftFormat lint mode, no changes)
+- `make check-localization` (validates string catalog + Raycast English copy policy)
 - `make run-dev`
+- `make run-dev-lang` (forces app language/locale for dev bundle)
+- `make run-dev-system-lang` (clears language overrides and uses system language)
 - `make run-release`
+- `make run-release-lang` (forces app language/locale for release bundle)
 - `make reset-dev-data`
 - `make install-release`
 - `make archive-release`
@@ -84,6 +88,14 @@ Raw `xcodebuild` commands are still valid and occasionally useful:
 - Name files after their primary type (e.g., `ProjectManager.swift`).
 - Prefer small, composable SwiftUI view structs.
 
+## Localization & Language Policy
+- App UI supports English and Spanish through `Momentum/Localizable.xcstrings`.
+- Keep all user-visible Swift/SwiftUI copy localizable; avoid hardcoded single-language text.
+- For dynamic/interpolated UI text, prefer `String(localized:)` or `String.localizedStringWithFormat(...)` so translations are applied reliably.
+- Keep placeholder parity between EN/ES entries in `Localizable.xcstrings`.
+- Raycast extension runtime/command copy should remain English-only for consistency.
+- Before shipping localization-related changes, run `make check-localization`.
+
 ## Architecture & Dependencies
 - Dependency direction: `Views` → `Services` → `Models` → `Utilities`.
 - Allowed cross-usage:
@@ -135,6 +147,7 @@ Raw `xcodebuild` commands are still valid and occasionally useful:
   - Install: `brew install xcbeautify` (or `gem install xcpretty`).
   - Example: `xcodebuild ... | xcbeautify`
 - `Makefile` targets: `make build`, `make build-for-testing`, `make test`, `make test-unit`, `make test-ui`, `make run-dev`, `make run-release`, `make clean`.
+- Language targets: `make run-dev-lang APP_LANGUAGE=en|es [APP_LOCALE=...]`, `make run-release-lang ...`, `make run-dev-system-lang`.
 - `make install-release` builds Release and copies `Momentum.app` into `/Applications`.
 - `make archive-release` creates a `.xcarchive`, installs the app, and writes a zip to `~/Downloads`.
 - Debug builds use bundle id `miguelgarglez.Momentum.dev`; expect to re-grant macOS permissions (Accessibility, Screen Recording, etc.).

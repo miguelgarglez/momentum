@@ -9,6 +9,12 @@
 - Lint: `cd RaycastExtension/momentum && npm run lint`
 - Test: `cd RaycastExtension/momentum && npm run test`
 
+## Language Policy
+- Keep Raycast extension UI/runtime copy in English.
+- Centralize reusable copy in `RaycastExtension/momentum/src/copy.ts` instead of scattering literals.
+- When changing user-facing copy, update related tests under `src/__tests__/`.
+- Validate with `npm run lint`, `npm test`, and repo-level `make check-localization`.
+
 ## Integration Rules
 - Use the local API (`http://127.0.0.1:51637`) as the primary integration channel.
 - Open Momentum settings via `openMomentumSettings()` (`POST /v1/settings/open`) so behavior is consistent with app-side routing.

@@ -25,6 +25,17 @@ It writes phase timing to `/tmp/momentum-diag/driver.log`, which the runner copi
   SCENARIO_DRIVER_PATH=./scripts/diag_scenario_driver.sh make diag-cpu-release-focus
   ```
 
+## Localization Checks
+- `scripts/check_localization_catalog.py` validates:
+  - EN/ES values exist for each catalog key.
+  - Placeholder parity across key/EN/ES.
+  - No visible SwiftUI copy is missing from `Momentum/Localizable.xcstrings`.
+- `scripts/check_raycast_english.py` enforces English-only copy in Raycast extension runtime strings.
+- Preferred entrypoint:
+  ```bash
+  make check-localization
+  ```
+
 ## Notes
 - If `driver.log` is empty, check `/tmp/momentum-diag/driver.log` for driver output.
 - `DIAG_FORCE_ACTIVE=1` is recommended for consistent sampling.

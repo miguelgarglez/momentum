@@ -15,6 +15,8 @@
 - Raycast-triggered settings opening must go through `SettingsWindowPresenter` and not duplicate ad-hoc `NSApp` window code across services/views.
 - Keep a single deep-link entry path per app lifecycle callback to avoid duplicate handling of the same URL event.
 - If a settings-open path can unintentionally surface the main window, suppress/clean it via `MainWindowSuppression`/`SettingsWindowPresenter` rather than introducing view-level workarounds.
+- Keep machine/API-facing Raycast HTTP messages in English for extension compatibility.
+- Localize app-facing status/error strings emitted by services when they are shown in native UI.
 
 ## Observability
 - Use `@Published`/`Observable` where state drives UI.

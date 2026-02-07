@@ -10,6 +10,8 @@
 - Avoid feature-specific styling or model assumptions.
 - Use `AnyView` only when necessary to erase type differences.
 - Provide accessibility labels where user interaction is present.
+- Keep component-owned user-facing labels/placeholders localizable.
+- If a component receives a `String` title/placeholder from callers, assume callers pass localized text.
 - For window-level behavior, emit notifications and let coordinators decide global app state.
 - AppKit window mutations (e.g., `NSWindow.delegate`) require `@MainActor`; use `@MainActor`/`Task { @MainActor in ... }` for delegate updates.
  - For hidden text fields that interact with system panels, keep them co-located with the triggering control so the OS anchor feels aligned.

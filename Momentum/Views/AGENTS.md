@@ -13,6 +13,8 @@
 - Reuse shared styles via `DetailCardStyles` instead of duplicating modifiers.
 - Tracker settings exclusions should cover apps, domains, and file patterns (exact paths or suffixes) with concise helper text.
 - Automation permission guidance should reuse `AutomationPermissionPromptView` (e.g., from Settings) for consistent user education.
+- All visible copy should be localizable through `Localizable.xcstrings`.
+- For dynamic strings rendered in `Text`, prefer `String(localized:)` or formatted localized strings when interpolation is involved.
 
 ## Layout
 - `Views/Dashboard/`: dashboard header/metrics and related UI.
