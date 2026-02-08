@@ -23,6 +23,8 @@ enum MomentumDeepLink {
     }
 
     static func openSettings(section: String?) {
-        SettingsWindowPresenter.open(section: section)
+        Task { @MainActor in
+            SettingsWindowPresenter.open(section: section)
+        }
     }
 }

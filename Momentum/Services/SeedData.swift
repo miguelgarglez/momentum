@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 
+@MainActor
 enum SeedData {
     static func seedPendingConflicts(in container: ModelContainer) {
         let context = container.mainContext

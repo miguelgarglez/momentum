@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 
+@MainActor
 enum DiagnosticsSeedData {
     static func seedDiagnosticsDataIfNeeded(in container: ModelContainer) {
         let context = container.mainContext
