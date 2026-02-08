@@ -17,8 +17,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select Xcode
+        id: setup-xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '^26.0'
+
       - name: Xcode version
-        run: xcodebuild -version
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          XCODE_MAJOR=$(xcodebuild -version | awk '/Xcode/{split($2,v,"."); print v[1]}')
+          if [ "$XCODE_MAJOR" -lt 26 ]; then
+            echo "Momentum CI requires Xcode 26+ to build symbol effects used by the app." >&2
+            exit 1
+          fi
 
       - name: Verify Release Please version marker
         run: |
