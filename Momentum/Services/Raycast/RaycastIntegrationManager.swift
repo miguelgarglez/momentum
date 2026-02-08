@@ -69,7 +69,7 @@ final class RaycastIntegrationManager: ObservableObject {
         self.modelContainer = modelContainer
         self.tracker = tracker
         isAvailable = !(isUITest || isSeedRun)
-        refreshTokenStatus()
+        hasActiveToken = false
         evaluateState()
     }
 
@@ -525,7 +525,7 @@ final class RaycastIntegrationManager: ObservableObject {
         return ProjectIcon.allCases.randomElement()?.systemName ?? ProjectIcon.spark.systemName
     }
 
-    private func refreshTokenStatus() {
+    func refreshTokenStatus() {
         do {
             hasActiveToken = try tokenStore.hasTokens()
         } catch {

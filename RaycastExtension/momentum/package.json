@@ -61,7 +61,7 @@
       "subtitle": "Stop current manual tracking session",
       "description": "Stop manual tracking in Momentum",
       "icon": "extension-icon.png",
-      "mode": "no-view"
+      "mode": "view"
     }
   ],
   "dependencies": {
@@ -83,6 +83,7 @@
     "dev": "ray develop",
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

@@ -51,7 +51,11 @@ enum SettingsWindowPresenter {
     private extension SettingsWindowPresenter {
         static func isSettingsWindow(_ window: NSWindow) -> Bool {
             let title = window.title.lowercased()
-            if title.contains("configuración") || title.contains("settings") || title.contains("preferencias") {
+            if title.contains("configuración")
+                || title.contains("settings")
+                || title.contains("preferencias")
+                || title.contains("ajustes")
+            {
                 return true
             }
             return false
@@ -95,6 +99,10 @@ enum SettingsWindowPresenter {
         }
 
         static func cleanupUnexpectedMainWindows(visibleBeforeOpen: Set<Int>) {
+            guard findSettingsWindow() != nil else {
+                return
+            }
+
             let visibleMainWindows = NSApp.windows.filter { window in
                 guard window.isVisible, !window.isMiniaturized else { return false }
                 guard window.canBecomeKey || window.canBecomeMain else { return false }

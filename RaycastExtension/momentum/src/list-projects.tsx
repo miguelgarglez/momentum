@@ -1,20 +1,19 @@
 import {
   Action,
   ActionPanel,
-  Clipboard,
-  popToRoot,
-  closeMainWindow,
   Detail,
-  Form,
   Icon,
   List,
   LocalStorage,
   Toast,
+  closeMainWindow,
+  popToRoot,
   showToast,
 } from "@raycast/api";
-import { useEffect, useMemo, useState } from "react";
-import { Envelope, isCommandSupported, openMomentumApp, openMomentumSettings, postMomentumCommand } from "./momentum";
+import { useEffect, useState } from "react";
 import { copy } from "./copy";
+import { PairingForm } from "./components/PairingForm";
+import { isCommandSupported, openMomentumApp, postMomentumCommand } from "./momentum";
 
 const TOKEN_KEY = "momentum.token";
 
@@ -44,6 +43,7 @@ export default function Command() {
       setIsLoading(false);
       return;
     }
+
     setToken(stored);
     await fetchProjects(stored);
   }
@@ -56,6 +56,7 @@ export default function Command() {
         action: "projects.list",
         apiVersion: 1,
       });
+
       if (!response.ok || !payload.ok) {
         if (response.status === 401) {
           await LocalStorage.removeItem(TOKEN_KEY);
@@ -66,9 +67,10 @@ export default function Command() {
         }
         throw new Error(payload.message ?? "Couldn't read projects.");
       }
+
       setProjects(payload.data ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : copy.cannotReachMomentum);
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : copy.cannotReachMomentum);
     } finally {
       setIsLoading(false);
     }
@@ -78,6 +80,7 @@ export default function Command() {
     await LocalStorage.setItem(TOKEN_KEY, newToken);
     setToken(newToken);
     setNeedsPairing(false);
+    setError(null);
     await fetchProjects(newToken);
   }
 
@@ -111,6 +114,7 @@ export default function Command() {
           projectName: project.name,
         },
       });
+
       if (!response.ok || !payload.ok) {
         if (response.status === 401) {
           await LocalStorage.removeItem(TOKEN_KEY);
@@ -123,25 +127,27 @@ export default function Command() {
           });
           return;
         }
+
         if (payload.error === "UnsupportedAction") {
           throw new Error("The open app does not support this command. Open the latest Momentum build.");
         }
+
         throw new Error(payload.message ?? "Couldn't open the project.");
       }
 
       await popToRoot({ clearSearchBar: true });
       await closeMainWindow({ clearRootSearch: true });
-    } catch (err) {
+    } catch (openError) {
       await showToast({
         style: Toast.Style.Failure,
         title: "Couldn't open project",
-        message: err instanceof Error ? err.message : copy.unknownError,
+        message: openError instanceof Error ? openError.message : copy.unknownError,
       });
     }
   }
 
   if (needsPairing) {
-    return <PairingView onPaired={handlePaired} error={error} />;
+    return <PairingForm onPaired={handlePaired} error={error} />;
   }
 
   if (error && !isLoading && projects.length === 0) {
@@ -187,102 +193,5 @@ export default function Command() {
         />
       ))}
     </List>
-  );
-}
-
-function PairingView({ onPaired, error }: { onPaired: (token: string) => Promise<void>; error: string | null }) {
-  const [code, setCode] = useState("");
-  const trimmed = useMemo(() => code.trim(), [code]);
-  const validationError = trimmed.length > 0 && trimmed.length !== 4 ? "Enter 4 digits." : undefined;
-
-  async function handleSubmit() {
-    if (trimmed.length !== 4) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Invalid code",
-        message: "Enter a 4-digit code.",
-      });
-      return;
-    }
-    try {
-      const response = await fetch(`${API_BASE}/v1/pairing/confirm`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: trimmed, clientName: "Raycast", apiVersion: 1 }),
-      });
-      const payload = (await response.json()) as Envelope<{ token: string }>;
-      if (!response.ok || !payload.ok || !payload.data?.token) {
-        throw new Error(payload.message ?? "Invalid or expired code.");
-      }
-      await onPaired(payload.data.token);
-      await showToast({ style: Toast.Style.Success, title: "Raycast paired" });
-    } catch (err) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Couldn't pair",
-        message: err instanceof Error ? err.message : copy.unknownError,
-      });
-    }
-  }
-
-  function applyDigits(value: string) {
-    const parsed = value.replace(/\D/g, "").slice(0, 4);
-    setCode(parsed);
-  }
-
-  async function pasteFromClipboard() {
-    const text = await Clipboard.readText();
-    if (!text) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Clipboard is empty",
-        message: "Copy the code from Momentum and try again.",
-      });
-      return;
-    }
-    const digits = text.replace(/\D/g, "");
-    if (digits.length < 4) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Incomplete code",
-        message: "Couldn't find 4 digits in the clipboard.",
-      });
-      return;
-    }
-    applyDigits(digits);
-  }
-
-  async function openSettingsFromAction() {
-    await closeMainWindow();
-    await openMomentumSettings();
-  }
-
-  return (
-    <Form
-      actions={
-        <ActionPanel>
-          <Action title="Get Code" onAction={openSettingsFromAction} icon={Icon.Gear} />
-          <Action title="Paste Code" onAction={pasteFromClipboard} icon={Icon.Clipboard} />
-          <Action.SubmitForm title="Pair" onSubmit={handleSubmit} icon={Icon.Link} />
-        </ActionPanel>
-      }
-    >
-      <Form.Description
-        text={[
-          "Open Momentum > Settings > Raycast Extension and generate a code.",
-          "Enter the 4-digit code here to pair.",
-          "Actions (Cmd+K): Paste code · Get code",
-        ].join("\n")}
-      />
-      <Form.TextField
-        id="pairingCode"
-        title="Code"
-        value={trimmed}
-        onChange={(value) => applyDigits(value)}
-        placeholder="XXXX"
-        error={validationError}
-      />
-      {error ? <Form.Description text={error} /> : null}
-    </Form>
   );
 }

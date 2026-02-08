@@ -172,4 +172,30 @@ describe("momentum transport", () => {
     const support = await isCommandSupported("manual.stop", { force: true });
     expect(support).toBe("unknown");
   });
+
+  it("confirmPairing falls back to secondary port", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce(jsonResponse(200, { ok: true, data: { token: "token-fallback" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { confirmPairing } = await import("../momentum");
+    const token = await confirmPairing("1234");
+
+    expect(token).toBe("token-fallback");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect((fetchMock.mock.calls[1] as [string])[0]).toContain("http://127.0.0.1:51638/v1/pairing/confirm");
+  });
+
+  it("confirmPairing exposes backend message on invalid code", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(401, { ok: false, message: "Invalid or expired code." }))
+      .mockResolvedValueOnce(jsonResponse(401, { ok: false, message: "Invalid or expired code." }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { confirmPairing } = await import("../momentum");
+    await expect(confirmPairing("0000")).rejects.toThrow("Invalid or expired code.");
+  });
 });

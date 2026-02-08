@@ -1,42 +1,59 @@
 import { Detail, LocalStorage, PopToRootType, popToRoot, showHUD, showToast, Toast } from "@raycast/api";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { resolveConflicts } from "./commands/resolveConflictsService";
+import { PairingForm } from "./components/PairingForm";
 import { copy } from "./copy";
 
 const TOKEN_KEY = "momentum.token";
 
 export default function Command() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [pairingRequired, setPairingRequired] = useState(false);
+  const [pairingError, setPairingError] = useState<string | null>(null);
+
   useEffect(() => {
-    void run();
+    void bootstrap();
   }, []);
 
-  async function run() {
-    try {
-      const token = (await LocalStorage.getItem<string>(TOKEN_KEY)) ?? null;
-      if (!token) {
-        await showToast({
-          style: Toast.Style.Failure,
-          title: copy.pairingRequiredTitle,
-          message: copy.pairFirstFromListProjects,
-        });
-        await popToRoot({ clearSearchBar: true });
-        return;
-      }
+  async function bootstrap() {
+    setIsLoading(true);
+    const token = (await LocalStorage.getItem<string>(TOKEN_KEY)) ?? null;
+    if (!token) {
+      setPairingRequired(true);
+      setIsLoading(false);
+      return;
+    }
 
+    await runWithToken(token);
+  }
+
+  async function handlePaired(token: string) {
+    await LocalStorage.setItem(TOKEN_KEY, token);
+    setPairingRequired(false);
+    setPairingError(null);
+    await runWithToken(token);
+  }
+
+  async function runWithToken(token: string) {
+    setIsLoading(true);
+    try {
       const result = await resolveConflicts(token);
       if (result.kind === "unauthorized") {
         await LocalStorage.removeItem(TOKEN_KEY);
+        setPairingRequired(true);
+        setPairingError(copy.pairAgainFromListProjects);
         await showToast({
           style: Toast.Style.Failure,
           title: copy.invalidTokenTitle,
           message: copy.pairAgainFromListProjects,
         });
-        await popToRoot({ clearSearchBar: true });
         return;
       }
+
       if (result.kind === "error") {
         throw new Error(result.message);
       }
+
       if (result.kind === "opened") {
         await showHUD(`✓ Opening resolution (${result.conflictsCount})`, {
           clearRootSearch: true,
@@ -52,15 +69,21 @@ export default function Command() {
         message: "Everything is up to date.",
       });
       await popToRoot({ clearSearchBar: true });
-    } catch (error) {
+    } catch (runError) {
       await showToast({
         style: Toast.Style.Failure,
         title: "Couldn't resolve conflicts",
-        message: error instanceof Error ? error.message : copy.unknownError,
+        message: runError instanceof Error ? runError.message : copy.unknownError,
       });
       await popToRoot({ clearSearchBar: true });
+    } finally {
+      setIsLoading(false);
     }
   }
 
-  return <Detail isLoading markdown="Checking pending conflicts..." />;
+  if (pairingRequired) {
+    return <PairingForm onPaired={handlePaired} error={pairingError} />;
+  }
+
+  return <Detail isLoading={isLoading} markdown="Checking pending conflicts..." />;
 }

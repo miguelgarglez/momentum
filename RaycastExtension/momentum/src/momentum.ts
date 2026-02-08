@@ -6,7 +6,9 @@ import { copy } from "./copy";
 const API_BASE = "http://127.0.0.1:51637";
 const COMMAND_BASE_CANDIDATES = Array.from(new Set([API_BASE, "http://127.0.0.1:51638"]));
 const API_BASE_CANDIDATES = COMMAND_BASE_CANDIDATES;
-const MOMENTUM_BUNDLE_IDS = ["miguelgarglez.Momentum.dev", "miguelgarglez.Momentum"];
+const RELEASE_BUNDLE_ID = "miguelgarglez.Momentum";
+const DEV_BUNDLE_ID = "miguelgarglez.Momentum.dev";
+const MOMENTUM_BUNDLE_IDS_BY_PRIORITY = [RELEASE_BUNDLE_ID, DEV_BUNDLE_ID];
 const execFileAsync = promisify(execFile);
 let openSettingsInFlight = false;
 let openAppInFlight = false;
@@ -95,8 +97,44 @@ async function pingServer(): Promise<boolean> {
   return false;
 }
 
+async function isBundleRunning(bundleId: string): Promise<boolean> {
+  if (process.platform !== "darwin") {
+    return false;
+  }
+
+  try {
+    const { stdout } = await execFileAsync("/usr/bin/osascript", [
+      "-e",
+      `if application id "${bundleId}" is running then return "running"`,
+    ]);
+    return stdout.trim() === "running";
+  } catch {
+    return false;
+  }
+}
+
+async function resolveLaunchBundleOrder(): Promise<string[]> {
+  const runningBundleIds: string[] = [];
+  for (const bundleId of MOMENTUM_BUNDLE_IDS_BY_PRIORITY) {
+    if (await isBundleRunning(bundleId)) {
+      runningBundleIds.push(bundleId);
+    }
+  }
+
+  if (runningBundleIds.length === 0) {
+    return [...MOMENTUM_BUNDLE_IDS_BY_PRIORITY];
+  }
+
+  return [
+    ...runningBundleIds,
+    ...MOMENTUM_BUNDLE_IDS_BY_PRIORITY.filter((bundleId) => !runningBundleIds.includes(bundleId)),
+  ];
+}
+
 async function launchMomentum(): Promise<boolean> {
-  for (const bundleId of MOMENTUM_BUNDLE_IDS) {
+  const bundleIds = await resolveLaunchBundleOrder();
+
+  for (const bundleId of bundleIds) {
     try {
       await execFileAsync("/usr/bin/open", ["-b", bundleId]);
       return true;
@@ -104,6 +142,7 @@ async function launchMomentum(): Promise<boolean> {
       // Try next bundle id.
     }
   }
+
   try {
     await execFileAsync("/usr/bin/open", ["-a", "Momentum"]);
     return true;
@@ -120,6 +159,32 @@ async function waitForServerReady(): Promise<boolean> {
     }
   }
   return false;
+}
+
+export async function confirmPairing(code: string): Promise<string> {
+  const trimmed = code.trim();
+  let lastMessage: string | null = null;
+
+  for (const baseURL of API_BASE_CANDIDATES) {
+    try {
+      const response = await fetch(`${baseURL}/v1/pairing/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: trimmed, clientName: "Raycast", apiVersion: 1 }),
+      });
+
+      const payload = (await response.json()) as Envelope<{ token: string }>;
+      if (response.ok && payload.ok && payload.data?.token) {
+        return payload.data.token;
+      }
+
+      lastMessage = payload.message ?? "Invalid or expired code.";
+    } catch {
+      // Try next port.
+    }
+  }
+
+  throw new Error(lastMessage ?? copy.cannotReachMomentum);
 }
 
 export async function openMomentumSettings(): Promise<void> {
@@ -183,6 +248,7 @@ export async function openMomentumApp(): Promise<void> {
         return;
       }
     }
+
     // At this point Momentum was launched successfully, but the local API
     // might be disabled/unavailable (e.g. integration off or older build).
     // Treat it as success to avoid a false failure toast.
@@ -292,5 +358,4 @@ export async function isCommandSupported(
   return capabilities.supportedCommandActions.includes(action) ? "supported" : "unsupported";
 }
 
-export { API_BASE };
 export type { Envelope, MomentumCapabilities };

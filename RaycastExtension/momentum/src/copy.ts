@@ -1,8 +1,8 @@
 export const copy = {
   pairingRequiredTitle: "Pairing Required",
-  pairFirstFromListProjects: "Pair the extension first from List Projects.",
+  pairFirstFromListProjects: "Pair the extension first.",
   invalidTokenTitle: "Invalid Token",
-  pairAgainFromListProjects: "Pair again from List Projects.",
+  pairAgainFromListProjects: "Pair again to continue.",
   unsupportedCommandTitle: "Command Not Supported",
   unsupportedOpenProjectMessage: "Update Momentum to open projects from Raycast.",
   unsupportedManualStopMessage: "Update Momentum to stop manual tracking from Raycast.",

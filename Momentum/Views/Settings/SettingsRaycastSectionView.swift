@@ -79,6 +79,9 @@ struct SettingsRaycastSectionView: View {
                 subtitle: "Activa la integración local para controlar Momentum desde Raycast.",
             )
         }
+        .onAppear {
+            raycastIntegration.refreshTokenStatus()
+        }
     }
 
     private var statusText: String {

@@ -3,10 +3,14 @@ import OSLog
 
 @MainActor
 final class RaycastTokenStore {
-    private let keychain = KeychainStore(service: "Momentum.Raycast")
+    private let keychain: KeychainStore
     private let account = "RaycastTokens"
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Momentum", category: "Raycast")
     private var cachedTokens: Set<String>?
+
+    init(bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "Momentum") {
+        keychain = KeychainStore(service: "Momentum.Raycast.\(bundleIdentifier)")
+    }
 
     func isValid(_ token: String) -> Bool {
         do {

@@ -1,13 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LocalStorage, popToRoot, showHUD, showToast } from "./raycast-api.stub";
-
-const postMomentumCommandMock = vi.fn();
-const isCommandSupportedMock = vi.fn();
-
-vi.mock("../momentum", () => ({
-  postMomentumCommand: postMomentumCommandMock,
-  isCommandSupported: isCommandSupportedMock,
-}));
+import { describe, expect, it, vi } from "vitest";
+import { stopManualTracking } from "../commands/manualStopService";
 
 function jsonResponse(status: number, payload: unknown) {
   return new Response(JSON.stringify(payload), {
@@ -16,115 +8,74 @@ function jsonResponse(status: number, payload: unknown) {
   });
 }
 
-describe("manual-stop command", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    LocalStorage.getItem.mockReset();
-    LocalStorage.removeItem.mockReset();
-    showToast.mockReset();
-    showHUD.mockReset();
-    popToRoot.mockReset();
-    isCommandSupportedMock.mockResolvedValue("supported");
+describe("manualStopService", () => {
+  it("returns unsupported when capabilities report unsupported command", async () => {
+    const postCommand = vi.fn();
+    const supportsCommand = vi.fn().mockResolvedValue("unsupported");
+
+    const result = await stopManualTracking("token", postCommand as never, supportsCommand as never);
+
+    expect(result).toEqual({ kind: "unsupported" });
+    expect(postCommand).not.toHaveBeenCalled();
   });
 
-  it("shows pairing-required toast when no token exists", async () => {
-    LocalStorage.getItem.mockResolvedValue(null);
-
-    const command = (await import("../manual-stop")).default;
-    await command();
-
-    expect(postMomentumCommandMock).not.toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Pairing Required",
-      }),
-    );
-  });
-
-  it("shows HUD when manual tracking was active", async () => {
-    LocalStorage.getItem.mockResolvedValue("token-1");
-    postMomentumCommandMock.mockResolvedValue({
-      response: jsonResponse(200, { ok: true, data: { wasActive: true } }),
-      payload: { ok: true, data: { wasActive: true } },
-    });
-
-    const command = (await import("../manual-stop")).default;
-    await command();
-
-    expect(showHUD).toHaveBeenCalledWith(
-      "✓ Manual tracking stopped",
-      expect.objectContaining({
-        clearRootSearch: true,
-      }),
-    );
-    expect(popToRoot).not.toHaveBeenCalled();
-  });
-
-  it("shows toast and returns to root when tracking was already stopped", async () => {
-    LocalStorage.getItem.mockResolvedValue("token-2");
-    postMomentumCommandMock.mockResolvedValue({
-      response: jsonResponse(200, { ok: true, data: { wasActive: false } }),
-      payload: { ok: true, data: { wasActive: false } },
-    });
-
-    const command = (await import("../manual-stop")).default;
-    await command();
-
-    expect(showToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Manual tracking was already stopped",
-      }),
-    );
-    expect(popToRoot).toHaveBeenCalledWith({ clearSearchBar: true });
-  });
-
-  it("cleans token and shows invalid-token toast on 401", async () => {
-    LocalStorage.getItem.mockResolvedValue("token-3");
-    postMomentumCommandMock.mockResolvedValue({
+  it("maps unauthorized", async () => {
+    const postCommand = vi.fn().mockResolvedValue({
       response: jsonResponse(401, { ok: false, error: "Unauthorized" }),
       payload: { ok: false, error: "Unauthorized" },
     });
+    const supportsCommand = vi.fn().mockResolvedValue("supported");
 
-    const command = (await import("../manual-stop")).default;
-    await command();
+    const result = await stopManualTracking("token", postCommand as never, supportsCommand as never);
 
-    expect(LocalStorage.removeItem).toHaveBeenCalledWith("momentum.token");
-    expect(showToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Invalid Token",
-      }),
-    );
+    expect(result).toEqual({ kind: "unauthorized" });
   });
 
-  it("shows failure toast when command is unsupported", async () => {
-    isCommandSupportedMock.mockResolvedValue("unsupported");
-    LocalStorage.getItem.mockResolvedValue("token-x");
-
-    const command = (await import("../manual-stop")).default;
-    await command();
-
-    expect(postMomentumCommandMock).not.toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Command Not Supported",
-      }),
-    );
-  });
-
-  it("shows failure toast when backend reports unsupported action", async () => {
-    LocalStorage.getItem.mockResolvedValue("token-4");
-    postMomentumCommandMock.mockResolvedValue({
+  it("maps unsupported action response", async () => {
+    const postCommand = vi.fn().mockResolvedValue({
       response: jsonResponse(422, { ok: false, error: "UnsupportedAction" }),
       payload: { ok: false, error: "UnsupportedAction" },
     });
+    const supportsCommand = vi.fn().mockResolvedValue("supported");
 
-    const command = (await import("../manual-stop")).default;
-    await command();
+    const result = await stopManualTracking("token", postCommand as never, supportsCommand as never);
 
-    expect(showToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Couldn't stop manual tracking",
-      }),
-    );
+    expect(result).toEqual({ kind: "unsupported" });
+  });
+
+  it("returns ok when tracking was active", async () => {
+    const postCommand = vi.fn().mockResolvedValue({
+      response: jsonResponse(200, { ok: true, data: { wasActive: true } }),
+      payload: { ok: true, data: { wasActive: true } },
+    });
+    const supportsCommand = vi.fn().mockResolvedValue("supported");
+
+    const result = await stopManualTracking("token", postCommand as never, supportsCommand as never);
+
+    expect(result).toEqual({ kind: "ok", wasActive: true });
+  });
+
+  it("returns ok when tracking was already stopped", async () => {
+    const postCommand = vi.fn().mockResolvedValue({
+      response: jsonResponse(200, { ok: true, data: { wasActive: false } }),
+      payload: { ok: true, data: { wasActive: false } },
+    });
+    const supportsCommand = vi.fn().mockResolvedValue("supported");
+
+    const result = await stopManualTracking("token", postCommand as never, supportsCommand as never);
+
+    expect(result).toEqual({ kind: "ok", wasActive: false });
+  });
+
+  it("maps generic error with fallback message", async () => {
+    const postCommand = vi.fn().mockResolvedValue({
+      response: jsonResponse(500, { ok: false }),
+      payload: { ok: false },
+    });
+    const supportsCommand = vi.fn().mockResolvedValue("supported");
+
+    const result = await stopManualTracking("token", postCommand as never, supportsCommand as never);
+
+    expect(result).toEqual({ kind: "error", message: "Couldn't stop manual tracking." });
   });
 });

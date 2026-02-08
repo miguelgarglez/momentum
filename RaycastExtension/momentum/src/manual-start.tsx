@@ -1,35 +1,35 @@
 import {
   Action,
   ActionPanel,
-  Detail,
   Form,
   Icon,
-  LaunchType,
   LocalStorage,
+  Toast,
   closeMainWindow,
-  launchCommand,
   popToRoot,
   showHUD,
   showToast,
-  Toast,
 } from "@raycast/api";
 import { useEffect, useMemo, useState } from "react";
-import { copy } from "./copy";
 import {
   loadManualStartProjects,
   ManualStartProject,
   openManualStartForm,
   startManualTrackingExisting,
 } from "./commands/manualStartService";
+import { PairingForm } from "./components/PairingForm";
+import { copy } from "./copy";
 
 const TOKEN_KEY = "momentum.token";
 
 type StartMode = "existing" | "new";
+
 export default function Command() {
   const [token, setToken] = useState<string | null>(null);
   const [projects, setProjects] = useState<ManualStartProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pairingRequired, setPairingRequired] = useState(false);
+  const [pairingError, setPairingError] = useState<string | null>(null);
   const [mode, setMode] = useState<StartMode>("existing");
   const [projectId, setProjectId] = useState("");
 
@@ -45,6 +45,7 @@ export default function Command() {
       setIsLoading(false);
       return;
     }
+
     setToken(stored);
     await fetchProjects(stored);
   }
@@ -56,26 +57,37 @@ export default function Command() {
       if (result.kind == "unauthorized") {
         await LocalStorage.removeItem(TOKEN_KEY);
         setPairingRequired(true);
+        setPairingError(copy.pairAgainFromListProjects);
         setToken(null);
         return;
       }
+
       if (result.kind == "error") {
         throw new Error(result.message);
       }
+
       const listedProjects = result.projects;
       setProjects(listedProjects);
       if (listedProjects.length > 0) {
         setProjectId((current) => current || listedProjects[0].id);
       }
-    } catch (error) {
+    } catch (fetchError) {
       await showToast({
         style: Toast.Style.Failure,
         title: "Couldn't load projects",
-        message: error instanceof Error ? error.message : copy.unknownError,
+        message: fetchError instanceof Error ? fetchError.message : copy.unknownError,
       });
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function handlePaired(newToken: string) {
+    await LocalStorage.setItem(TOKEN_KEY, newToken);
+    setToken(newToken);
+    setPairingRequired(false);
+    setPairingError(null);
+    await fetchProjects(newToken);
   }
 
   const existingModeDisabled = useMemo(() => projects.length === 0, [projects.length]);
@@ -106,6 +118,7 @@ export default function Command() {
         if (result.kind === "unauthorized") {
           await LocalStorage.removeItem(TOKEN_KEY);
           setPairingRequired(true);
+          setPairingError(copy.pairAgainFromListProjects);
           setToken(null);
           await showToast({
             style: Toast.Style.Failure,
@@ -114,9 +127,11 @@ export default function Command() {
           });
           return;
         }
+
         if (result.kind === "unsupported") {
           throw new Error(copy.unsupportedAppCommandMessage);
         }
+
         throw new Error(result.message);
       }
 
@@ -127,11 +142,11 @@ export default function Command() {
       });
       await popToRoot({ clearSearchBar: true });
       await closeMainWindow({ clearRootSearch: true });
-    } catch (error) {
+    } catch (startError) {
       await showToast({
         style: Toast.Style.Failure,
         title: "Couldn't start manual tracking",
-        message: error instanceof Error ? error.message : copy.unknownError,
+        message: startError instanceof Error ? startError.message : copy.unknownError,
       });
     }
   }
@@ -143,6 +158,7 @@ export default function Command() {
         if (result.kind === "unauthorized") {
           await LocalStorage.removeItem(TOKEN_KEY);
           setPairingRequired(true);
+          setPairingError(copy.pairAgainFromListProjects);
           setToken(null);
           await showToast({
             style: Toast.Style.Failure,
@@ -151,38 +167,28 @@ export default function Command() {
           });
           return;
         }
+
         if (result.kind === "unsupported") {
           throw new Error(copy.unsupportedAppCommandMessage);
         }
+
         throw new Error(result.message);
       }
 
       await showHUD("✓ Opening form in Momentum");
       await popToRoot({ clearSearchBar: true });
       await closeMainWindow({ clearRootSearch: true });
-    } catch (error) {
+    } catch (openError) {
       await showToast({
         style: Toast.Style.Failure,
         title: "Couldn't open form",
-        message: error instanceof Error ? error.message : copy.unknownError,
+        message: openError instanceof Error ? openError.message : copy.unknownError,
       });
     }
   }
 
   if (pairingRequired) {
-    return (
-      <Detail
-        markdown="## Pairing Required\n\nPair the extension first from `List projects`."
-        actions={
-          <ActionPanel>
-            <Action
-              title="Open List Projects"
-              onAction={() => launchCommand({ name: "list-projects", type: LaunchType.UserInitiated })}
-            />
-          </ActionPanel>
-        }
-      />
-    );
+    return <PairingForm onPaired={handlePaired} error={pairingError} />;
   }
 
   return (
