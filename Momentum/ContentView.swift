@@ -55,7 +55,7 @@ struct ContentView: View {
         static let sidebarMinWidth: CGFloat = 350
         static let sidebarIdealWidth: CGFloat = 400
         static let sidebarMaxWidth: CGFloat = 450
-        static let windowMinHeight: CGFloat = ActionPanelView.minimumHeight + sidebarInset * 2 + 125
+        static let windowMinHeight: CGFloat = ActionPanelMetrics.minimumHeight + sidebarInset * 2 + 125
     }
 
     private static let diagnosticsUIEnabled = ProcessInfo.processInfo.environment["MOM_DIAG_UI"] == "1"

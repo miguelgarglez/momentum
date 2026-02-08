@@ -7,6 +7,18 @@
 
 import SwiftUI
 
+enum ActionPanelMetrics {
+    static let minimumHeight: CGFloat = {
+        let iconSize: CGFloat = 36
+        let iconPadding: CGFloat = 6
+        let buttonSize = iconSize + iconPadding * 2
+        let buttonCount: CGFloat = 4
+        let buttonSpacing: CGFloat = 10
+        let verticalPadding: CGFloat = 40
+        return buttonCount * buttonSize + (buttonCount - 1) * buttonSpacing + verticalPadding
+    }()
+}
+
 struct ActionPanelView: View {
     let summary: ActivityTracker.StatusSummary
     let isTrackingEnabled: Bool
@@ -22,16 +34,6 @@ struct ActionPanelView: View {
         static let leadingInset: CGFloat = 22
         static let trailingInset: CGFloat = 12
     }
-
-    static let minimumHeight: CGFloat = {
-        let iconSize: CGFloat = 36
-        let iconPadding: CGFloat = 6
-        let buttonSize = iconSize + iconPadding * 2
-        let buttonCount: CGFloat = 4
-        let buttonSpacing: CGFloat = 10
-        let verticalPadding: CGFloat = 40
-        return buttonCount * buttonSize + (buttonCount - 1) * buttonSpacing + verticalPadding
-    }()
 
     init(
         summary: ActivityTracker.StatusSummary,
