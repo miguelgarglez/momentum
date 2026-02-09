@@ -27,7 +27,7 @@
         @MainActor
         init(tracker: ActivityTracker) {
             self.tracker = tracker
-            statusItem = NSStatusBar.system.statusItem(withLength: 12)
+            statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
             latestSummary = tracker.statusSummary
             pendingConflictCount = tracker.pendingConflictCount
             isManualTrackingActive = tracker.isManualTrackingActive
