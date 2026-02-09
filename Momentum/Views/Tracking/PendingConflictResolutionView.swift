@@ -7,6 +7,9 @@
 
 import SwiftData
 import SwiftUI
+#if os(macOS)
+    import AppKit
+#endif
 
 struct PendingConflictBanner: View {
     let count: Int
@@ -152,10 +155,7 @@ private struct PendingConflictRow: View {
 
                 Picker("Proyecto", selection: $selection) {
                     ForEach(conflict.candidates) { project in
-                        HStack(spacing: 8) {
-                            ProjectIconGlyph(name: project.iconName, size: 14)
-                            Text(project.name)
-                        }
+                        projectPickerOption(for: project)
                         .tag(project.persistentModelID)
                     }
                 }
@@ -242,6 +242,95 @@ private struct PendingConflictRow: View {
     private var selectedProject: Project? {
         conflict.candidates.first { $0.persistentModelID == selection }
     }
+
+    @ViewBuilder
+    private func projectPickerOption(for project: Project) -> some View {
+        #if os(macOS)
+            Label {
+                Text(project.name)
+            } icon: {
+                Image(nsImage: projectPickerMenuIcon(for: project))
+                    .frame(width: pickerIconFrameWidth, height: 16, alignment: .leading)
+            }
+        #else
+            Label {
+                Text(project.name)
+            } icon: {
+                projectPickerIcon(for: project)
+                    .frame(width: 16, height: 16, alignment: .center)
+            }
+        #endif
+    }
+
+    @ViewBuilder
+    private func projectPickerIcon(for project: Project) -> some View {
+        if EmojiDetector.isEmoji(project.iconName) {
+            Text(project.iconName)
+                .font(.system(size: 13))
+        } else {
+            Image(systemName: project.iconName)
+                .font(.system(size: 13, weight: .semibold))
+        }
+    }
+
+    #if os(macOS)
+        private func projectPickerMenuIcon(for project: Project) -> NSImage {
+            if EmojiDetector.isEmoji(project.iconName) {
+                return emojiMenuIcon(for: project.iconName)
+            }
+            return symbolMenuIcon(for: project.iconName)
+        }
+
+        private func symbolMenuIcon(for systemName: String) -> NSImage {
+            let resolvedName = NSImage(systemSymbolName: systemName, accessibilityDescription: nil) != nil ? systemName : "folder"
+            let configuration = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+            let baseImage = NSImage(systemSymbolName: resolvedName, accessibilityDescription: nil)?
+                .withSymbolConfiguration(configuration)
+                ?? NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
+                ?? NSImage(size: NSSize(width: 16, height: 16))
+            baseImage.size = NSSize(width: 16, height: 16)
+            return menuIconCanvasImage(from: baseImage, isTemplate: true)
+        }
+
+        private func emojiMenuIcon(for emoji: String) -> NSImage {
+            let canvasSize = NSSize(width: 20, height: 16)
+            let iconRect = NSRect(x: 0, y: 0, width: 16, height: 16)
+            let image = NSImage(size: canvasSize)
+            image.lockFocus()
+            defer { image.unlockFocus() }
+
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 13),
+            ]
+            let string = NSString(string: emoji)
+            let textSize = string.size(withAttributes: attributes)
+            let rect = NSRect(
+                x: iconRect.origin.x + (iconRect.width - textSize.width) / 2,
+                y: iconRect.origin.y + (iconRect.height - textSize.height) / 2,
+                width: textSize.width,
+                height: textSize.height
+            )
+            string.draw(in: rect, withAttributes: attributes)
+
+            image.isTemplate = false
+            return image
+        }
+
+        private func menuIconCanvasImage(from baseImage: NSImage, isTemplate: Bool) -> NSImage {
+            let canvasSize = NSSize(width: 20, height: 16)
+            let iconRect = NSRect(x: 0, y: 0, width: 16, height: 16)
+            let image = NSImage(size: canvasSize)
+            image.lockFocus()
+            defer { image.unlockFocus() }
+            baseImage.draw(in: iconRect)
+            image.isTemplate = isTemplate
+            return image
+        }
+
+        private var pickerIconFrameWidth: CGFloat {
+            20
+        }
+    #endif
 
     private var selectedProjectBadge: some View {
         let project = selectedProject
