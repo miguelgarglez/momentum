@@ -96,7 +96,7 @@ final class MomentumUITests: XCTestCase {
         XCTAssertTrue(manualButton.waitForExistence(timeout: 6))
         manualButton.click()
 
-        XCTAssertTrue(app.staticTexts["Tracking manual"].waitForExistence(timeout: 6))
+        XCTAssertTrue(app.staticTexts["Manual en vivo"].waitForExistence(timeout: 6))
         let picker = app.popUpButtons["manual-tracking-project-picker"]
         if picker.waitForExistence(timeout: 6) {
             picker.click()
@@ -105,15 +105,47 @@ final class MomentumUITests: XCTestCase {
             menuItem.click()
         }
 
-        let startButton = app.buttons["Empezar"]
+        let startButton = app.buttons["Iniciar"]
         XCTAssertTrue(startButton.waitForExistence(timeout: 6))
         startButton.click()
 
-        let stopButton = app.buttons["Detener manual"]
+        let stopButton = app.buttons["Detener manual en vivo"]
         XCTAssertTrue(stopButton.waitForExistence(timeout: 6))
         stopButton.click()
 
         XCTAssertTrue(app.buttons["action-panel-manual"].waitForExistence(timeout: 6))
+    }
+
+    func testManualTimeEntryCreateAndDeleteFlow() throws {
+        let app = launch(reset: true)
+        createProject(named: "Manual Entry UI", domain: nil, in: app)
+        openProject(named: "Manual Entry UI", in: app)
+
+        let actionsMenu = app.buttons["project-actions-menu"]
+        XCTAssertTrue(actionsMenu.waitForExistence(timeout: 6))
+        actionsMenu.click()
+        let addManualTimeItem = app.menuItems["Añadir tiempo manual"]
+        XCTAssertTrue(addManualTimeItem.waitForExistence(timeout: 6))
+        addManualTimeItem.click()
+
+        XCTAssertTrue(app.staticTexts["Añadir tiempo manual"].waitForExistence(timeout: 6))
+        let saveButton = app.buttons["manual-time-save"]
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 6))
+        XCTAssertTrue(saveButton.isEnabled)
+        saveButton.click()
+
+        let manualEntryLabel = app.staticTexts["Entrada manual"].firstMatch
+        XCTAssertTrue(manualEntryLabel.waitForExistence(timeout: 6))
+
+        let deleteButton = app.buttons["manual-entry-delete-button"].firstMatch
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 6))
+        deleteButton.click()
+
+        let confirmDelete = app.buttons["Eliminar entrada"]
+        XCTAssertTrue(confirmDelete.waitForExistence(timeout: 6))
+        confirmDelete.click()
+
+        XCTAssertTrue(app.staticTexts["Aún no hay entradas manuales en este proyecto."].waitForExistence(timeout: 6))
     }
 
     func testAssignmentRulesAppearInSettings() throws {

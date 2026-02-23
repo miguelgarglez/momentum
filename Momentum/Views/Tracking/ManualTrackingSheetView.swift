@@ -149,7 +149,7 @@ struct ManualTrackingSheetView: View {
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
             .background(Color(nsColor: .windowBackgroundColor))
-            .navigationTitle("Tracking manual")
+            .navigationTitle("Manual en vivo")
             .frame(minWidth: 420, maxWidth: 520)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -159,7 +159,7 @@ struct ManualTrackingSheetView: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Empezar") {
+                    Button("Iniciar") {
                         handleStart()
                     }
                     .disabled(mode == .existing && selectedProjectID == nil)

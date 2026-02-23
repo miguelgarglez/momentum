@@ -73,7 +73,9 @@ struct OnboardingQuickProjectView: View {
 
                 Section("Qué ocurre ahora") {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Al crear el proyecto, Momentum empezará a trackear tu actividad desde este momento y registrará las apps y dominios que uses para asociarlos automáticamente.")
+                        Text("Al crear el proyecto, Momentum iniciará Manual en vivo para tu primera sesión en este proyecto.")
+                            .font(.subheadline)
+                        Text("Después podrás registrar tiempo de 3 formas: Auto-tracking, Manual en vivo y Añadir tiempo manual.")
                             .font(.subheadline)
                         Text("Nunca almacenamos contenido, teclas ni capturas de pantalla.")
                             .font(.caption)

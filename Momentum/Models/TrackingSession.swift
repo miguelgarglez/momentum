@@ -8,6 +8,12 @@
 import Foundation
 import SwiftData
 
+enum TrackingSessionSource: String, CaseIterable {
+    case automatic
+    case manualLive
+    case manualEntry
+}
+
 @Model
 final class TrackingSession {
     var startDate: Date
@@ -16,6 +22,7 @@ final class TrackingSession {
     var bundleIdentifier: String?
     var domain: String?
     var filePath: String?
+    var sourceRaw: String?
     var project: Project?
 
     init(
@@ -25,6 +32,7 @@ final class TrackingSession {
         bundleIdentifier: String?,
         domain: String?,
         filePath: String?,
+        source: TrackingSessionSource = .automatic,
         project: Project?,
     ) {
         self.startDate = startDate
@@ -33,11 +41,17 @@ final class TrackingSession {
         self.bundleIdentifier = bundleIdentifier
         self.domain = domain
         self.filePath = filePath
+        sourceRaw = source.rawValue
         self.project = project
     }
 }
 
 extension TrackingSession {
+    var source: TrackingSessionSource {
+        get { TrackingSessionSource(rawValue: sourceRaw ?? "") ?? .automatic }
+        set { sourceRaw = newValue.rawValue }
+    }
+
     var duration: TimeInterval {
         max(0, endDate.timeIntervalSince(startDate))
     }

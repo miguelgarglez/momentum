@@ -8,9 +8,12 @@ struct ProjectDetailView: View {
     let onEdit: (Project) -> Void
     let onDelete: (Project) -> Void
     let onClearActivity: (Project) -> Void
-    let onStartTracking: (Project) -> Void
+    let onStartManualLive: (Project) -> Void
+    let onAddManualTime: (Project) -> Void
+    let onDeleteManualEntry: (TrackingSession) -> Void
     @State private var showClearActivityDialog = false
     @State private var showDeleteDialog = false
+    @State private var pendingManualEntryDeletion: TrackingSession?
     @State private var stats = ProjectDetailStats.empty
     @State private var lastUsedSnapshot: LastUsedSessionSnapshot?
     @State private var isProjectEmptyState = false
@@ -53,14 +56,18 @@ struct ProjectDetailView: View {
         onEdit: @escaping (Project) -> Void = { _ in },
         onDelete: @escaping (Project) -> Void = { _ in },
         onClearActivity: @escaping (Project) -> Void = { _ in },
-        onStartTracking: @escaping (Project) -> Void = { _ in },
+        onStartManualLive: @escaping (Project) -> Void = { _ in },
+        onAddManualTime: @escaping (Project) -> Void = { _ in },
+        onDeleteManualEntry: @escaping (TrackingSession) -> Void = { _ in },
     ) {
         _project = Bindable(project)
         self.isTrackingActiveForProject = isTrackingActiveForProject
         self.onEdit = onEdit
         self.onDelete = onDelete
         self.onClearActivity = onClearActivity
-        self.onStartTracking = onStartTracking
+        self.onStartManualLive = onStartManualLive
+        self.onAddManualTime = onAddManualTime
+        self.onDeleteManualEntry = onDeleteManualEntry
     }
 
     var body: some View {
@@ -69,13 +76,14 @@ struct ProjectDetailView: View {
                 header
                 if shouldShowEmptyState {
                     ProjectEmptyStateView {
-                        onStartTracking(project)
+                        onStartManualLive(project)
                     }
                 }
                 summarySection
                 WeeklySummaryChartView(project: project, refreshToken: refreshCounter)
                 ActivityHistorySectionView(project: project, refreshToken: refreshCounter)
                 assignmentsSection
+                manualEntriesSection
                 usageSummarySection
                 lastUsedSection
             }
@@ -84,16 +92,36 @@ struct ProjectDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
-                        Button("Editar") { onEdit(project) }
+                        Button {
+                            onStartManualLive(project)
+                        } label: {
+                            Label("Iniciar manual en vivo", systemImage: "record.circle")
+                        }
+
+                        Button {
+                            onAddManualTime(project)
+                        } label: {
+                            Label("Añadir tiempo manual", systemImage: "plus.circle")
+                        }
+
+                        Divider()
+
+                        Button {
+                            onEdit(project)
+                        } label: {
+                            Label("Editar", systemImage: "pencil")
+                        }
+
                         Button(role: .destructive) {
                             showClearActivityDialog = true
                         } label: {
-                            Text("Limpiar actividad")
+                            Label("Limpiar actividad", systemImage: "eraser")
                         }
+
                         Button(role: .destructive) {
                             showDeleteDialog = true
                         } label: {
-                            Text("Eliminar")
+                            Label("Eliminar", systemImage: "trash")
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -116,6 +144,19 @@ struct ProjectDetailView: View {
                 Button("Cancelar", role: .cancel) {}
             } message: {
                 Text("Se eliminará el proyecto y su historial asociado.")
+            }
+            .alert("¿Eliminar esta entrada manual?", isPresented: manualEntryDeletionBinding) {
+                Button("Eliminar entrada", role: .destructive) {
+                    if let session = pendingManualEntryDeletion {
+                        onDeleteManualEntry(session)
+                    }
+                    pendingManualEntryDeletion = nil
+                }
+                Button("Cancelar", role: .cancel) {
+                    pendingManualEntryDeletion = nil
+                }
+            } message: {
+                Text("Solo se eliminará esta entrada manual.")
             }
         }
         .task(id: project.persistentModelID) {
@@ -294,6 +335,46 @@ struct ProjectDetailView: View {
         )
     }
 
+    private var manualEntriesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Entradas manuales")
+                .font(.headline)
+
+            if manualEntrySessions.isEmpty {
+                Text("Aún no hay entradas manuales en este proyecto.")
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(manualEntrySessions, id: \.persistentModelID) { session in
+                        ManualEntryRow(session: session) {
+                            pendingManualEntryDeletion = session
+                        }
+                    }
+                }
+            }
+        }
+        .detailCardStyle(
+            padding: Layout.cardPadding,
+            cornerRadius: Layout.cardCornerRadius,
+            strokeOpacity: Layout.cardStrokeOpacity,
+        )
+    }
+
+    private var manualEntrySessions: [TrackingSession] {
+        project.sessions
+            .filter { $0.source == .manualEntry }
+            .sorted { $0.endDate > $1.endDate }
+            .prefix(8)
+            .map { $0 }
+    }
+
+    private var manualEntryDeletionBinding: Binding<Bool> {
+        Binding(
+            get: { pendingManualEntryDeletion != nil },
+            set: { if !$0 { pendingManualEntryDeletion = nil } }
+        )
+    }
+
     private var usageWindowPicker: some View {
         Picker("", selection: $usageWindow) {
             ForEach(UsageWindow.allCases) { window in
@@ -456,6 +537,58 @@ struct ProjectDetailView: View {
             showsRefreshIndicator = false
         }
     }
+}
+
+private struct ManualEntryRow: View {
+    let session: TrackingSession
+    let onDelete: () -> Void
+
+    private var startLabel: String {
+        Self.dateTimeFormatter.string(from: session.startDate)
+    }
+
+    private var endLabel: String {
+        Self.dateTimeFormatter.string(from: session.endDate)
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Entrada manual")
+                    .font(.subheadline.weight(.semibold))
+                HStack(spacing: 4) {
+                    Text(startLabel)
+                    Text("-")
+                    Text(endLabel)
+                }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(session.duration.hoursAndMinutesString)
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+            Button("Eliminar", role: .destructive) {
+                onDelete()
+            }
+            .buttonStyle(.borderless)
+            .accessibilityIdentifier("manual-entry-delete-button")
+        }
+        .padding(10)
+        .detailInsetStyle(
+            cornerRadius: 12,
+            strokeOpacity: 0.12,
+        )
+    }
+}
+
+private extension ManualEntryRow {
+    static let dateTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter
+    }()
 }
 
 private struct ProjectDetailStats {

@@ -32,7 +32,7 @@ struct OnboardingWelcomeWindowView: View {
                 )
                 Text("Bienvenido a Momentum")
                     .font(.title2.weight(.semibold))
-                Text("Crea tu primer proyecto y empieza a convertir tu tiempo en progreso visible.")
+                Text("Crea tu primer proyecto y registra tiempo con Auto-tracking, Manual en vivo o Añadir tiempo manual.")
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -41,7 +41,7 @@ struct OnboardingWelcomeWindowView: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                onboardingBullet(icon: "infinity.circle", text: "Mantén el ritmo con seguimiento continuo y sin fricción.")
+                onboardingBullet(icon: "infinity.circle", text: "Empieza rápido con Manual en vivo y combina luego Auto-tracking o Añadir tiempo manual.")
                 onboardingBullet(icon: "chart.bar.xaxis", text: "Visualiza cómo distribuyes tu tiempo entre proyectos.")
                 onboardingBullet(icon: "clock.arrow.trianglehead.2.counterclockwise.rotate.90", text: "Recupera sesiones y evita pérdidas de tiempo.")
                 onboardingBullet(icon: "chart.line.uptrend.xyaxis", text: "Convierte el trabajo en progreso visible y tendencias claras.")

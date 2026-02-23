@@ -11,6 +11,46 @@ import SwiftData
 struct SessionOverlapResolver {
     let context: ModelContext
 
+    func overlappingIntervals(with interval: DateInterval) -> [DateInterval] {
+        let predicate = #Predicate<TrackingSession> {
+            $0.endDate > interval.start && $0.startDate < interval.end
+        }
+        let descriptor = FetchDescriptor<TrackingSession>(predicate: predicate)
+        guard let sessions = try? Diagnostics.record(.swiftDataFetch, work: {
+            try context.fetch(descriptor)
+        }) else {
+            return []
+        }
+        return sessions
+            .compactMap { $0.interval.intersection(with: interval) }
+            .sorted { $0.start < $1.start }
+    }
+
+    func availableSegments(within interval: DateInterval) -> [DateInterval] {
+        guard interval.duration > 0 else { return [] }
+        let overlaps = overlappingIntervals(with: interval)
+        guard !overlaps.isEmpty else { return [interval] }
+
+        var segments: [DateInterval] = []
+        var cursor = interval.start
+        for overlap in overlaps {
+            if overlap.start > cursor {
+                segments.append(DateInterval(start: cursor, end: overlap.start))
+            }
+            if overlap.end > cursor {
+                cursor = overlap.end
+            }
+            if cursor >= interval.end {
+                break
+            }
+        }
+
+        if cursor < interval.end {
+            segments.append(DateInterval(start: cursor, end: interval.end))
+        }
+        return segments.filter { $0.duration > 0 }
+    }
+
     func resolveOverlaps(with interval: DateInterval) -> [(Project?, DateInterval)] {
         let predicate = #Predicate<TrackingSession> {
             $0.endDate > interval.start && $0.startDate < interval.end
@@ -54,6 +94,7 @@ struct SessionOverlapResolver {
             bundleIdentifier: session.bundleIdentifier,
             domain: session.domain,
             filePath: session.filePath,
+            source: session.source,
             project: session.project,
         )
         context.insert(trailingSession)

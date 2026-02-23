@@ -30,11 +30,14 @@ struct ContentView: View {
     @State private var activeProjectSheet: ProjectSheet?
     @State private var showConflictSheet = false
     @State private var showManualTrackingSheet = false
+    @State private var showManualTimeEntrySheet = false
     @State private var manualTrackingSheetInitialMode: ManualTrackingSheetInitialMode = .automatic
+    @State private var manualTimeEntryProjectID: PersistentIdentifier?
     @State private var showAutomationPrompt = false
     @State private var toast: ToastMessage?
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var pendingProjectAction: PendingProjectAction?
+    @State private var quickTimeActionProjectID: PersistentIdentifier?
     @State private var projectStatsCache: [PersistentIdentifier: ProjectRowView.ProjectRowStats] = [:]
     @State private var dashboardMetrics = DashboardMetricsDisplay.loading
     @State private var lastStatsRefreshDate: Date?
@@ -44,6 +47,7 @@ struct ContentView: View {
     #endif
     @State private var hasPresentedWelcome = false
     @State private var onboardingTrackingStarter = OnboardingTrackingStarter()
+    @State private var manualEntrySuspensionInfo: ActivityTracker.TrackingSuspensionInfo?
 
     fileprivate enum Layout {
         static let actionPanelWidth: CGFloat = 84
@@ -159,6 +163,13 @@ struct ContentView: View {
                     initialMode: manualTrackingSheetInitialMode,
                 )
             }
+            .sheet(isPresented: $showManualTimeEntrySheet, onDismiss: handleManualTimeEntrySheetDismissed) {
+                if let project = manualTimeEntryProject {
+                    ManualTimeEntrySheetView(project: project) { result in
+                        handleManualEntrySaved(result)
+                    }
+                }
+            }
             .overlay(alignment: .leading) {
                 actionPanelOverlay
             }
@@ -267,6 +278,26 @@ struct ContentView: View {
                     secondaryButton: .cancel(),
                 )
             }
+            .confirmationDialog("Registrar tiempo", isPresented: quickTimeActionsBinding, titleVisibility: .visible) {
+                if let project = quickTimeActionProject {
+                    Button {
+                        startTracking(for: project)
+                        quickTimeActionProjectID = nil
+                    } label: {
+                        Label("Iniciar manual en vivo", systemImage: "record.circle")
+                    }
+
+                    Button {
+                        presentManualTimeEntry(for: project)
+                        quickTimeActionProjectID = nil
+                    } label: {
+                        Label("Añadir tiempo manual", systemImage: "plus.circle")
+                    }
+                }
+                Button("Cancelar", role: .cancel) {
+                    quickTimeActionProjectID = nil
+                }
+            }
     }
 
     @ViewBuilder
@@ -278,7 +309,9 @@ struct ContentView: View {
                 onEdit: { activeProjectSheet = .edit($0) },
                 onDelete: { deleteProject($0) },
                 onClearActivity: { clearActivity(for: $0) },
-                onStartTracking: { startTracking(for: $0) },
+                onStartManualLive: { startTracking(for: $0) },
+                onAddManualTime: { presentManualTimeEntry(for: $0) },
+                onDeleteManualEntry: { deleteManualEntry($0) },
             )
         } else {
             WelcomeView()
@@ -349,15 +382,41 @@ struct ContentView: View {
                         ProjectRowView(project: project, stats: projectStatsCache[project.persistentModelID])
                             .tag(project.persistentModelID)
                             .contextMenu {
-                                Button("Editar") {
+                                Button {
                                     activeProjectSheet = .edit(project)
+                                } label: {
+                                    Label("Editar", systemImage: "pencil")
                                 }
-                                Button("Limpiar actividad", role: .destructive) {
+
+                                Button {
+                                    startTracking(for: project)
+                                } label: {
+                                    Label("Iniciar manual en vivo", systemImage: "record.circle")
+                                }
+
+                                Button {
+                                    presentManualTimeEntry(for: project)
+                                } label: {
+                                    Label("Añadir tiempo manual", systemImage: "plus.circle")
+                                }
+
+                                Divider()
+
+                                Button(role: .destructive) {
                                     pendingProjectAction = .clear(project)
+                                } label: {
+                                    Label("Limpiar actividad", systemImage: "eraser")
                                 }
-                                Button("Eliminar", role: .destructive) {
+
+                                Button(role: .destructive) {
                                     pendingProjectAction = .delete(project)
+                                } label: {
+                                    Label("Eliminar", systemImage: "trash")
                                 }
+                            }
+                            .onTapGesture(count: 2) {
+                                selectedProjectID = project.persistentModelID
+                                quickTimeActionProjectID = project.persistentModelID
                             }
                     }
                     .onDelete(perform: deleteProjects)
@@ -535,6 +594,64 @@ struct ContentView: View {
         selectedProjectID = project.persistentModelID
     }
 
+    private func presentManualTimeEntry(for project: Project) {
+        manualEntrySuspensionInfo = tracker.suspendTrackingForManualEntry()
+        manualTimeEntryProjectID = project.persistentModelID
+        showManualTimeEntrySheet = true
+
+        if manualEntrySuspensionInfo?.pausedManualLive == true {
+            showToast(String(localized: "Manual en vivo pausado temporalmente"), style: .success)
+        } else if manualEntrySuspensionInfo?.pausedTracking == true {
+            showToast(String(localized: "Auto-tracking pausado temporalmente"), style: .success)
+        }
+    }
+
+    private func handleManualTimeEntrySheetDismissed() {
+        let resumed = tracker.resumeTrackingAfterManualEntry()
+        if resumed.pausedManualLive {
+            showToast(String(localized: "Manual en vivo reanudado"), style: .success)
+        } else if resumed.pausedTracking {
+            showToast(String(localized: "Auto-tracking reanudado"), style: .success)
+        }
+        manualEntrySuspensionInfo = nil
+        manualTimeEntryProjectID = nil
+    }
+
+    private func handleManualEntrySaved(_ result: ManualTimeEntrySaveResult) {
+        if result.effectiveSeconds < result.requestedSeconds {
+            showToast(
+                String.localizedStringWithFormat(
+                    String(localized: "Tiempo ajustado: %@ añadidos para evitar solapes"),
+                    result.effectiveSeconds.hoursAndMinutesString,
+                ),
+                style: .success
+            )
+        } else {
+            showToast(
+                String.localizedStringWithFormat(
+                    String(localized: "Tiempo manual añadido: %@"),
+                    result.effectiveSeconds.hoursAndMinutesString,
+                ),
+                style: .success
+            )
+        }
+    }
+
+    private func deleteManualEntry(_ session: TrackingSession) {
+        let service = ManualTimeEntryService(modelContext: modelContext)
+        do {
+            try service.delete(session: session)
+            showToast(String(localized: "Entrada manual eliminada"), style: .success)
+        } catch {
+            showToast(
+                error.localizedDescription.isEmpty
+                    ? String(localized: "No pudimos eliminar la entrada manual")
+                    : error.localizedDescription,
+                style: .error
+            )
+        }
+    }
+
     private func createManualProjectAndStart(from draft: ManualTrackingNewProjectDraft) {
         let trimmedName = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
         let projectName = manualProjectName(from: trimmedName)
@@ -597,7 +714,7 @@ struct ContentView: View {
             String(localized: "bloqueo")
         }
         showToast(
-            String.localizedStringWithFormat(String(localized: "Tracking manual detenido (%@)"), suffix),
+            String.localizedStringWithFormat(String(localized: "Manual en vivo detenido (%@)"), suffix),
             style: .success
         )
     }
@@ -653,6 +770,23 @@ struct ContentView: View {
     private var selectedProject: Project? {
         guard let selectedProjectID else { return projects.first }
         return projects.first(where: { $0.persistentModelID == selectedProjectID })
+    }
+
+    private var manualTimeEntryProject: Project? {
+        guard let manualTimeEntryProjectID else { return nil }
+        return projects.first(where: { $0.persistentModelID == manualTimeEntryProjectID })
+    }
+
+    private var quickTimeActionProject: Project? {
+        guard let quickTimeActionProjectID else { return nil }
+        return projects.first(where: { $0.persistentModelID == quickTimeActionProjectID })
+    }
+
+    private var quickTimeActionsBinding: Binding<Bool> {
+        Binding(
+            get: { quickTimeActionProjectID != nil },
+            set: { if !$0 { quickTimeActionProjectID = nil } }
+        )
     }
 
     private var isTrackingActiveForSelectedProject: Bool {

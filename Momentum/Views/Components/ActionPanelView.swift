@@ -57,7 +57,7 @@ struct ActionPanelView: View {
 
     private var primaryActionLabel: String {
         if isManualTrackingActive {
-            return String(localized: "Detener manual")
+            return String(localized: "Detener manual en vivo")
         }
         return isTrackingEnabled ? String(localized: "Pausar tracking") : String(localized: "Reanudar tracking")
     }
@@ -70,7 +70,7 @@ struct ActionPanelView: View {
     }
 
     private var manualLabel: String {
-        isManualTrackingActive ? String(localized: "Tracking manual activo") : String(localized: "Iniciar tracking manual")
+        isManualTrackingActive ? String(localized: "Manual en vivo activo") : String(localized: "Iniciar manual en vivo")
     }
 
     private var manualTint: Color {

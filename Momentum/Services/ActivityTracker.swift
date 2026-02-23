@@ -59,6 +59,17 @@ import SwiftData
             let reason: ManualStopReason
         }
 
+        struct TrackingSuspensionInfo: Equatable {
+            let pausedTracking: Bool
+            let pausedManualLive: Bool
+        }
+
+        private struct TrackingSuspensionSnapshot {
+            let wasTrackingEnabled: Bool
+            let wasManualTrackingActive: Bool
+            let manualProjectID: PersistentIdentifier?
+        }
+
         @Published private(set) var isTrackingEnabled = true
         @Published private(set) var statusSummary = StatusSummary(state: .inactive)
         @Published private(set) var pendingConflictCount: Int = 0
@@ -108,6 +119,7 @@ import SwiftData
         private var idleBeganAt: Date?
         private var manualProjectID: PersistentIdentifier?
         private var manualStartDate: Date?
+        private var trackingSuspensionSnapshot: TrackingSuspensionSnapshot?
         private var pendingSwiftDataSave = false
         private var pendingSwiftDataSaveSince: Date?
         private var lastSwiftDataSaveRequestAt: Date?
@@ -236,12 +248,88 @@ import SwiftData
         }
 
         func stopManualTracking(reason: ManualStopReason, resumeAutomatically: Bool = true) {
+            stopManualTracking(reason: reason, resumeAutomatically: resumeAutomatically, emitEvent: true)
+        }
+
+        @discardableResult
+        func suspendTrackingForManualEntry() -> TrackingSuspensionInfo {
+            if let snapshot = trackingSuspensionSnapshot {
+                return TrackingSuspensionInfo(
+                    pausedTracking: snapshot.wasTrackingEnabled,
+                    pausedManualLive: snapshot.wasManualTrackingActive,
+                )
+            }
+
+            let info = TrackingSuspensionInfo(
+                pausedTracking: isTrackingEnabled,
+                pausedManualLive: isManualTrackingActive,
+            )
+            trackingSuspensionSnapshot = TrackingSuspensionSnapshot(
+                wasTrackingEnabled: isTrackingEnabled,
+                wasManualTrackingActive: isManualTrackingActive,
+                manualProjectID: manualProjectID,
+            )
+
+            if isManualTrackingActive {
+                stopManualTracking(reason: .manual, resumeAutomatically: false, emitEvent: false)
+            } else {
+                _ = flushCurrentSession()
+                setCurrentContext(nil)
+            }
+
+            isTrackingEnabled = false
+            pauseTimers()
+            refreshStatusSummary()
+            return info
+        }
+
+        @discardableResult
+        func resumeTrackingAfterManualEntry() -> TrackingSuspensionInfo {
+            guard let snapshot = trackingSuspensionSnapshot else {
+                return TrackingSuspensionInfo(pausedTracking: false, pausedManualLive: false)
+            }
+            trackingSuspensionSnapshot = nil
+
+            isTrackingEnabled = snapshot.wasTrackingEnabled
+            isManualTrackingActive = false
+            manualProjectID = nil
+            manualStartDate = nil
+
+            if snapshot.wasTrackingEnabled {
+                if snapshot.wasManualTrackingActive,
+                   let project = fetchManualProject(for: snapshot.manualProjectID)
+                {
+                    isManualTrackingActive = true
+                    manualProjectID = project.persistentModelID
+                    manualStartDate = Date()
+                }
+                restartTimersIfNeeded()
+                handleAppChange(NSWorkspace.shared.frontmostApplication)
+            } else {
+                pauseTimers()
+                setCurrentContext(nil)
+            }
+            refreshStatusSummary()
+
+            return TrackingSuspensionInfo(
+                pausedTracking: snapshot.wasTrackingEnabled,
+                pausedManualLive: snapshot.wasManualTrackingActive,
+            )
+        }
+
+        private func stopManualTracking(
+            reason: ManualStopReason,
+            resumeAutomatically: Bool,
+            emitEvent: Bool,
+        ) {
             guard isManualTrackingActive else { return }
             _ = flushCurrentSession()
             isManualTrackingActive = false
             manualProjectID = nil
             manualStartDate = nil
-            manualStopEvent = ManualStopEvent(reason: reason)
+            if emitEvent {
+                manualStopEvent = ManualStopEvent(reason: reason)
+            }
             if resumeAutomatically {
                 if isTrackingEnabled, !isUserIdle, !isScreenLocked {
                     restartTimersIfNeeded()
@@ -339,14 +427,14 @@ import SwiftData
 
         private func persistSession(context: AppSessionContext, endDate: Date, project: Project) {
             guard !RuntimeFlags.isDisabled(.disableSwiftDataWrites) else { return }
-            insertResolvedSession(context: context, endDate: endDate, project: project)
+            insertResolvedSession(context: context, endDate: endDate, project: project, source: .automatic)
             scheduleSwiftDataSave()
             logger.info("Logged \(endDate.timeIntervalSince(context.startDate), privacy: .public)s for \(context.appName, privacy: .public) project=\(project.name, privacy: .public)")
         }
 
         private func persistManualSession(context: AppSessionContext, endDate: Date, project: Project) {
             guard !RuntimeFlags.isDisabled(.disableSwiftDataWrites) else { return }
-            insertResolvedSession(context: context, endDate: endDate, project: project)
+            insertResolvedSession(context: context, endDate: endDate, project: project, source: .manualLive)
             updateManualProjectAssignments(for: project, context: context)
             scheduleSwiftDataSave()
             logger.info("Logged manual \(endDate.timeIntervalSince(context.startDate), privacy: .public)s for \(context.appName, privacy: .public) project=\(project.name, privacy: .public)")
@@ -390,6 +478,7 @@ import SwiftData
             context: AppSessionContext,
             endDate: Date,
             project: Project,
+            source: TrackingSessionSource,
         ) {
             let interval = DateInterval(start: context.startDate, end: endDate)
             let overlapResolver = SessionOverlapResolver(context: modelContainer.mainContext)
@@ -401,6 +490,7 @@ import SwiftData
                 bundleIdentifier: context.bundleIdentifier,
                 domain: context.domain,
                 filePath: context.filePath,
+                source: source,
                 project: project,
             )
             modelContainer.mainContext.insert(session)
@@ -1561,7 +1651,7 @@ import SwiftData
                     isExcluded: false,
                     isPendingAssignment: false,
                 )
-                insertResolvedSession(context: sessionContext, endDate: pending.endDate, project: project)
+                insertResolvedSession(context: sessionContext, endDate: pending.endDate, project: project, source: .automatic)
                 modelContainer.mainContext.delete(pending)
                 resolvedCount += 1
             }

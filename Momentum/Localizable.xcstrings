@@ -5968,6 +5968,886 @@
           }
         }
       }
+    },
+    "%lld min": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min"
+          }
+        }
+      }
+    },
+    "Al crear el proyecto, Momentum iniciará Manual en vivo para tu primera sesión en este proyecto.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you create the project, Momentum will start Manual Live for your first session in this project."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al crear el proyecto, Momentum iniciará Manual en vivo para tu primera sesión en este proyecto."
+          }
+        }
+      }
+    },
+    "Auto-tracking": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-tracking"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-tracking"
+          }
+        }
+      }
+    },
+    "Auto-tracking pausado temporalmente": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-tracking paused temporarily"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-tracking pausado temporalmente"
+          }
+        }
+      }
+    },
+    "Auto-tracking reanudado": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-tracking resumed"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-tracking reanudado"
+          }
+        }
+      }
+    },
+    "Añadir tiempo manual": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add manual time"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir tiempo manual"
+          }
+        }
+      }
+    },
+    "Aún no hay entradas manuales en este proyecto.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There are no manual entries in this project yet."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aún no hay entradas manuales en este proyecto."
+          }
+        }
+      }
+    },
+    "Completa un rango válido para calcular la vista previa.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Complete a valid range to calculate the preview."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completa un rango válido para calcular la vista previa."
+          }
+        }
+      }
+    },
+    "Crea tu primer proyecto y registra tiempo con Auto-tracking, Manual en vivo o Añadir tiempo manual.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create your first project and log time with Auto-tracking, Manual Live, or Add manual time."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crea tu primer proyecto y registra tiempo con Auto-tracking, Manual en vivo o Añadir tiempo manual."
+          }
+        }
+      }
+    },
+    "Después podrás registrar tiempo de 3 formas: Auto-tracking, Manual en vivo y Añadir tiempo manual.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After that, you can log time in 3 ways: Auto-tracking, Manual Live, and Add manual time."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Después podrás registrar tiempo de 3 formas: Auto-tracking, Manual en vivo y Añadir tiempo manual."
+          }
+        }
+      }
+    },
+    "Detener manual en vivo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop manual live"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detener manual en vivo"
+          }
+        }
+      }
+    },
+    "Duración": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duration"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duración"
+          }
+        }
+      }
+    },
+    "El intervalo no es válido.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The interval is not valid."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El intervalo no es válido."
+          }
+        }
+      }
+    },
+    "Elige entre manual en vivo o añadir tiempo manual de sesiones pasadas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose manual live or add manual time from past sessions."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige entre manual en vivo o añadir tiempo manual de sesiones pasadas."
+          }
+        }
+      }
+    },
+    "Eliminar entrada": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete entry"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar entrada"
+          }
+        }
+      }
+    },
+    "Empieza rápido con Manual en vivo y combina luego Auto-tracking o Añadir tiempo manual.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start quickly with Manual Live, then combine Auto-tracking or Add manual time."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empieza rápido con Manual en vivo y combina luego Auto-tracking o Añadir tiempo manual."
+          }
+        }
+      }
+    },
+    "Empieza y detén el tracking intencionalmente cuando vayas a dedicarte a este proyecto.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start and stop tracking intentionally when you are about to focus on this project."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empieza y detén el tracking intencionalmente cuando vayas a dedicarte a este proyecto."
+          }
+        }
+      }
+    },
+    "Entrada manual": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual entry"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrada manual"
+          }
+        }
+      }
+    },
+    "Entrada manual eliminada": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual entry deleted"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrada manual eliminada"
+          }
+        }
+      }
+    },
+    "Entradas manuales": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual entries"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entradas manuales"
+          }
+        }
+      }
+    },
+    "Fecha": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fecha"
+          }
+        }
+      }
+    },
+    "Guardar tiempo ajustado": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save adjusted time"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guardar tiempo ajustado"
+          }
+        }
+      }
+    },
+    "Has solicitado %@ y se añadirán %@ para evitar solapes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You requested %@ and %@ will be added to avoid overlaps."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Has solicitado %@ y se añadirán %@ para evitar solapes."
+          }
+        }
+      }
+    },
+    "Hora de fin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End time"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hora de fin"
+          }
+        }
+      }
+    },
+    "Hora de inicio": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start time"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hora de inicio"
+          }
+        }
+      }
+    },
+    "Iniciar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar"
+          }
+        }
+      }
+    },
+    "Iniciar manual en vivo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start manual live"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar manual en vivo"
+          }
+        }
+      }
+    },
+    "La duración debe ser mayor que cero.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duration must be greater than zero."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La duración debe ser mayor que cero."
+          }
+        }
+      }
+    },
+    "La hora de fin debe ser posterior al inicio.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End time must be later than start time."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La hora de fin debe ser posterior al inicio."
+          }
+        }
+      }
+    },
+    "Manual en vivo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual live"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual en vivo"
+          }
+        }
+      }
+    },
+    "Manual en vivo activo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual live active"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual en vivo activo"
+          }
+        }
+      }
+    },
+    "Manual en vivo detenido (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual live stopped (%@)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual en vivo detenido (%@)"
+          }
+        }
+      }
+    },
+    "Manual en vivo pausado temporalmente": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual live paused temporarily"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual en vivo pausado temporalmente"
+          }
+        }
+      }
+    },
+    "Manual en vivo reanudado": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual live resumed"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual en vivo reanudado"
+          }
+        }
+      }
+    },
+    "Modo de entrada": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input mode"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modo de entrada"
+          }
+        }
+      }
+    },
+    "Momentum detecta apps, dominios y archivos asignados y registra tiempo automáticamente.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Momentum detects assigned apps, domains, and files and logs time automatically."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Momentum detecta apps, dominios y archivos asignados y registra tiempo automáticamente."
+          }
+        }
+      }
+    },
+    "No hay tiempo disponible para añadir en ese intervalo.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No available time to add in that interval."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay tiempo disponible para añadir en ese intervalo."
+          }
+        }
+      }
+    },
+    "No pudimos eliminar la entrada manual": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't delete the manual entry"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No pudimos eliminar la entrada manual"
+          }
+        }
+      }
+    },
+    "No pudimos encontrar el proyecto para esta entrada.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't find the project for this entry."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No pudimos encontrar el proyecto para esta entrada."
+          }
+        }
+      }
+    },
+    "No pudimos interpretar la fecha seleccionada.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't interpret the selected date."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No pudimos interpretar la fecha seleccionada."
+          }
+        }
+      }
+    },
+    "No pudimos interpretar la hora de fin.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't interpret the end time."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No pudimos interpretar la hora de fin."
+          }
+        }
+      }
+    },
+    "No puedes añadir tiempo en el futuro.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can't add time in the future."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No puedes añadir tiempo en el futuro."
+          }
+        }
+      }
+    },
+    "Registrar tiempo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log time"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registrar tiempo"
+          }
+        }
+      }
+    },
+    "Se ajustará el tiempo por solape": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time will be adjusted for overlap"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se ajustará el tiempo por solape"
+          }
+        }
+      }
+    },
+    "Solape detectado": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overlap detected"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solape detectado"
+          }
+        }
+      }
+    },
+    "Solo se eliminará esta entrada manual.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only this manual entry will be deleted."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo se eliminará esta entrada manual."
+          }
+        }
+      }
+    },
+    "Solo se pueden eliminar entradas manuales.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only manual entries can be deleted."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo se pueden eliminar entradas manuales."
+          }
+        }
+      }
+    },
+    "Suma tiempo pasado (por ejemplo, trabajo en otro dispositivo) sin iniciar tracking.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add past time (for example, work done on another device) without starting tracking."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suma tiempo pasado (por ejemplo, trabajo en otro dispositivo) sin iniciar tracking."
+          }
+        }
+      }
+    },
+    "Tiempo ajustado: %@ añadidos para evitar solapes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adjusted time: %@ added to avoid overlaps"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiempo ajustado: %@ añadidos para evitar solapes"
+          }
+        }
+      }
+    },
+    "Tiempo efectivo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effective time"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiempo efectivo"
+          }
+        }
+      }
+    },
+    "Tiempo manual añadido: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual time added: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiempo manual añadido: %@"
+          }
+        }
+      }
+    },
+    "Tiempo solicitado": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requested time"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiempo solicitado"
+          }
+        }
+      }
+    },
+    "Usa cualquiera de estas 3 vías para registrar tiempo en este proyecto:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use any of these 3 paths to log time in this project:"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa cualquiera de estas 3 vías para registrar tiempo en este proyecto:"
+          }
+        }
+      }
+    },
+    "Vista previa": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista previa"
+          }
+        }
+      }
+    },
+    "¿Eliminar esta entrada manual?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete this manual entry?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Eliminar esta entrada manual?"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

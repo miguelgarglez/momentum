@@ -962,6 +962,7 @@ struct MomentumTests {
         let pending = try container.mainContext.fetch(FetchDescriptor<PendingTrackingSession>())
         #expect(sessions.count == 1)
         #expect(sessions.first?.project === manualProject)
+        #expect(sessions.first?.source == .manualLive)
         #expect(pending.isEmpty)
         #expect(manualProject.assignedApps.contains { $0 == "com.test.xcode" })
         #expect(manualProject.assignedDomains.contains { $0 == "docs.test" })
@@ -997,6 +998,7 @@ struct MomentumTests {
         let pending = try container.mainContext.fetch(FetchDescriptor<PendingTrackingSession>())
         #expect(sessions.count == 1)
         #expect(sessions.first?.project === manualProject)
+        #expect(sessions.first?.source == .manualLive)
         #expect(pending.isEmpty)
     }
 
@@ -1024,6 +1026,152 @@ struct MomentumTests {
         #expect(tracker.testing_forceFlush())
 
         #expect(manualProject.assignedDomains.isEmpty)
+    }
+
+    @Test("Añadir tiempo manual recorta solo la nueva entrada")
+    func manualTimeEntryClipsOnlyNewEntry() throws {
+        let container = try factory.makeContainer()
+        let targetProject = Project(name: "Manual Entry")
+        let existingProject = Project(name: "Existing")
+        container.mainContext.insert(targetProject)
+        container.mainContext.insert(existingProject)
+
+        let now = Date()
+        let existing = TrackingSession(
+            startDate: now.addingTimeInterval(-5400),
+            endDate: now.addingTimeInterval(-3600),
+            appName: "Existing",
+            bundleIdentifier: "com.test.existing",
+            domain: nil,
+            filePath: nil,
+            source: .automatic,
+            project: existingProject,
+        )
+        container.mainContext.insert(existing)
+
+        let interval = DateInterval(start: now.addingTimeInterval(-7200), end: now.addingTimeInterval(-1800))
+        let service = ManualTimeEntryService(modelContext: container.mainContext)
+        let preview = try service.preview(for: interval)
+        #expect(preview.hasOverlap)
+        #expect(preview.effectiveSeconds == 3600)
+
+        let result = try service.save(project: targetProject, interval: interval)
+        #expect(result.insertedSegments == 2)
+        #expect(result.effectiveSeconds == 3600)
+
+        let sessions = try container.mainContext.fetch(FetchDescriptor<TrackingSession>())
+        #expect(sessions.count == 3)
+        #expect(existing.startDate == now.addingTimeInterval(-5400))
+        #expect(existing.endDate == now.addingTimeInterval(-3600))
+
+        let manualSessions = sessions.filter { $0.source == .manualEntry }
+        #expect(manualSessions.count == 2)
+        #expect(manualSessions.allSatisfy { $0.project === targetProject })
+        #expect(targetProject.assignedApps.isEmpty)
+        #expect(targetProject.assignedDomains.isEmpty)
+        #expect(targetProject.assignedFiles.isEmpty)
+    }
+
+    @Test("Añadir tiempo manual falla si todo el rango está solapado")
+    func manualTimeEntryRejectsFullyOverlappedRange() throws {
+        let container = try factory.makeContainer()
+        let project = Project(name: "Manual Entry")
+        let existingProject = Project(name: "Existing")
+        container.mainContext.insert(project)
+        container.mainContext.insert(existingProject)
+
+        let now = Date()
+        let existing = TrackingSession(
+            startDate: now.addingTimeInterval(-3600),
+            endDate: now,
+            appName: "Existing",
+            bundleIdentifier: "com.test.existing",
+            domain: nil,
+            filePath: nil,
+            source: .automatic,
+            project: existingProject,
+        )
+        container.mainContext.insert(existing)
+
+        let service = ManualTimeEntryService(modelContext: container.mainContext)
+        let interval = DateInterval(start: now.addingTimeInterval(-3500), end: now.addingTimeInterval(-600))
+
+        #expect(throws: ManualTimeEntryServiceError.self) {
+            _ = try service.save(project: project, interval: interval)
+        }
+    }
+
+    @Test("Eliminar entrada manual no altera sesiones automáticas")
+    func manualTimeEntryDeletionKeepsAutomaticSessionsUntouched() throws {
+        let container = try factory.makeContainer()
+        let project = Project(name: "Manual Entry")
+        let existingProject = Project(name: "Existing")
+        container.mainContext.insert(project)
+        container.mainContext.insert(existingProject)
+
+        let now = Date()
+        let automaticSession = TrackingSession(
+            startDate: now.addingTimeInterval(-7200),
+            endDate: now.addingTimeInterval(-6600),
+            appName: "Automatic",
+            bundleIdentifier: "com.test.auto",
+            domain: nil,
+            filePath: nil,
+            source: .automatic,
+            project: existingProject,
+        )
+        container.mainContext.insert(automaticSession)
+
+        let service = ManualTimeEntryService(modelContext: container.mainContext)
+        let result = try service.save(
+            project: project,
+            interval: DateInterval(start: now.addingTimeInterval(-3000), end: now.addingTimeInterval(-2400)),
+        )
+        #expect(result.effectiveSeconds == 600)
+
+        let manualSession = try #require(
+            container.mainContext.fetch(FetchDescriptor<TrackingSession>()).first(where: { $0.source == .manualEntry })
+        )
+        let beforeDeleteAutoStart = automaticSession.startDate
+        let beforeDeleteAutoEnd = automaticSession.endDate
+
+        try service.delete(session: manualSession)
+
+        let sessionsAfterDelete = try container.mainContext.fetch(FetchDescriptor<TrackingSession>())
+        #expect(sessionsAfterDelete.contains(where: { $0 === automaticSession }))
+        #expect(automaticSession.startDate == beforeDeleteAutoStart)
+        #expect(automaticSession.endDate == beforeDeleteAutoEnd)
+        #expect(!sessionsAfterDelete.contains(where: { $0.source == .manualEntry }))
+    }
+
+    @Test("Pausa temporal para entrada manual reanuda manual en vivo")
+    func trackerSuspensionForManualEntryRestoresManualLiveState() throws {
+        let container = try factory.makeContainer()
+        let settings = makeSettings()
+        let project = Project(name: "Manual")
+        container.mainContext.insert(project)
+        let tracker = ActivityTracker(
+            modelContainer: container,
+            settings: settings,
+            crashRecovery: MockCrashRecoveryHandler(),
+            performanceMonitor: MockPerformanceMonitor(),
+        )
+
+        tracker.testing_startManualTracking(project: project)
+        #expect(tracker.isTrackingEnabled)
+        #expect(tracker.isManualTrackingActive)
+
+        let suspended = tracker.suspendTrackingForManualEntry()
+        #expect(suspended.pausedTracking)
+        #expect(suspended.pausedManualLive)
+        #expect(!tracker.isTrackingEnabled)
+        #expect(!tracker.isManualTrackingActive)
+
+        let resumed = tracker.resumeTrackingAfterManualEntry()
+        #expect(resumed.pausedTracking)
+        #expect(resumed.pausedManualLive)
+        #expect(tracker.isTrackingEnabled)
+        #expect(tracker.isManualTrackingActive)
     }
 
     @Test("El contador de pendientes refleja inserciones")
