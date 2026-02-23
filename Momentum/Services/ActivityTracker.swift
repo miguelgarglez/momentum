@@ -79,7 +79,7 @@ import SwiftData
         private let minimumSessionDuration: TimeInterval = 10
         /// Frequency for checking the system idle timer (seconds).
         private let idleCheckInterval: TimeInterval = 5
-        /// Frequency for purging expired assignment rules.
+        /// Maximum interval for purging expired assignment rules.
         private let rulesCleanupInterval: TimeInterval = 60 * 60 * 24
         /// Max interval for domain/file polling backoff.
         private let maxResolutionInterval: TimeInterval = 60
@@ -1465,8 +1465,13 @@ import SwiftData
         private func startRuleExpirationMonitoring() {
             rulesCleanupTimer?.invalidate()
             rulesCleanupTimer = nil
-            guard settings.assignmentRuleExpiration.days != nil else { return }
-            let interval = max(rulesCleanupInterval, minimumTimerInterval)
+            guard let expirationInterval = settings.assignmentRuleExpiration.expirationInterval else { return }
+            let interval: TimeInterval
+            if expirationInterval >= rulesCleanupInterval {
+                interval = rulesCleanupInterval
+            } else {
+                interval = max(expirationInterval / 2, minimumTimerInterval)
+            }
             let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.purgeExpiredRules()

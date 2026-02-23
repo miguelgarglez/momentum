@@ -2,42 +2,77 @@ import Foundation
 import SwiftUI
 
 enum AssignmentRuleExpirationOption: String, CaseIterable, Identifiable {
-    case never
-    case days30
-    case days60
-    case days90
+    case never = "never"
+    case minutes15 = "minutes15"
+    case minutes30 = "minutes30"
+    case hour1 = "hour1"
+    case hours4 = "hours4"
+    case hours8 = "hours8"
+    case day1 = "day1"
+    case days7 = "days7"
+    case days30 = "days30"
+    case days60 = "days60"
+    case days90 = "days90"
 
     var id: String { rawValue }
 
-    var days: Int? {
+    var expirationInterval: TimeInterval? {
         switch self {
+        case .minutes15:
+            15 * 60
+        case .minutes30:
+            30 * 60
+        case .hour1:
+            60 * 60
+        case .hours4:
+            4 * 60 * 60
+        case .hours8:
+            8 * 60 * 60
+        case .day1:
+            24 * 60 * 60
+        case .days7:
+            7 * 24 * 60 * 60
+        case .days30:
+            30 * 24 * 60 * 60
+        case .days60:
+            60 * 24 * 60 * 60
+        case .days90:
+            90 * 24 * 60 * 60
         case .never:
             nil
-        case .days30:
-            30
-        case .days60:
-            60
-        case .days90:
-            90
         }
     }
 
     var label: String {
         switch self {
-        case .never:
-            String(localized: "Nunca")
+        case .minutes15:
+            String(localized: "15 min")
+        case .minutes30:
+            String(localized: "30 min")
+        case .hour1:
+            String(localized: "1 hora")
+        case .hours4:
+            String(localized: "4 horas")
+        case .hours8:
+            String(localized: "8 horas")
+        case .day1:
+            String(localized: "1 día")
+        case .days7:
+            String(localized: "7 días")
         case .days30:
             String(localized: "30 días")
         case .days60:
             String(localized: "60 días")
         case .days90:
             String(localized: "90 días")
+        case .never:
+            String(localized: "Nunca")
         }
     }
 
     func cutoffDate(from date: Date = .now) -> Date? {
-        guard let days else { return nil }
-        return Calendar.current.date(byAdding: .day, value: -days, to: date)
+        guard let expirationInterval else { return nil }
+        return date.addingTimeInterval(-expirationInterval)
     }
 }
 

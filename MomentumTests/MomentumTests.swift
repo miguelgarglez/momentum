@@ -368,6 +368,115 @@ struct MomentumTests {
         #expect(remainingRules.isEmpty)
     }
 
+    @Test("Expiración de reglas corta usa minutos y horas")
+    func assignmentRuleExpirationUsesShortIntervals() {
+        let referenceDate = Date(timeIntervalSinceReferenceDate: 1_000_000)
+
+        let cutoff15m = AssignmentRuleExpirationOption.minutes15.cutoffDate(from: referenceDate)
+        let cutoff1h = AssignmentRuleExpirationOption.hour1.cutoffDate(from: referenceDate)
+        let cutoff30d = AssignmentRuleExpirationOption.days30.cutoffDate(from: referenceDate)
+
+        #expect(cutoff15m != nil)
+        #expect(cutoff1h != nil)
+        #expect(cutoff30d != nil)
+        #expect(abs((cutoff15m ?? referenceDate).timeIntervalSince(referenceDate.addingTimeInterval(-15 * 60))) < 0.001)
+        #expect(abs((cutoff1h ?? referenceDate).timeIntervalSince(referenceDate.addingTimeInterval(-60 * 60))) < 0.001)
+        #expect(abs((cutoff30d ?? referenceDate).timeIntervalSince(referenceDate.addingTimeInterval(-30 * 24 * 60 * 60))) < 0.001)
+        #expect(AssignmentRuleExpirationOption.never.cutoffDate(from: referenceDate) == nil)
+    }
+
+    @Test("Opciones de expiración mantienen el orden del picker")
+    func assignmentRuleExpirationOptionOrder() {
+        #expect(
+            AssignmentRuleExpirationOption.allCases == [
+                .never,
+                .minutes15,
+                .minutes30,
+                .hour1,
+                .hours4,
+                .hours8,
+                .day1,
+                .days7,
+                .days30,
+                .days60,
+                .days90,
+            ],
+        )
+    }
+
+    @Test("Resolver ignora reglas expiradas con preset corto")
+    func projectAssignmentSkipsExpiredRulesWithMinutes() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [bundleID])
+        let projectB = Project(name: "Curso", assignedApps: [bundleID])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+
+        let settings = makeSettings()
+        settings.assignmentRuleExpiration = .minutes30
+
+        let expiredDate = Date().addingTimeInterval(-40 * 60)
+        let rule = AssignmentRule(
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: bundleID,
+            project: projectB,
+            createdAt: expiredDate,
+            lastUsedAt: expiredDate,
+        )
+        container.mainContext.insert(rule)
+
+        let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
+        let result = resolver.resolveAssignment(for: bundleID, domain: nil, filePath: nil)
+        switch result {
+        case let .conflict(context, candidates):
+            #expect(context.type == .app)
+            #expect(context.value == bundleID)
+            #expect(candidates.count == 2)
+        default:
+            #expect(Bool(false), "Expected conflict when minute-based rule is expired")
+        }
+
+        let remainingRules = try container.mainContext.fetch(FetchDescriptor<AssignmentRule>())
+        #expect(remainingRules.isEmpty)
+    }
+
+    @Test("Resolver usa reglas no expiradas con preset corto")
+    func projectAssignmentUsesFreshRuleWithMinutes() throws {
+        let container = try factory.makeContainer()
+        let bundleID = "com.test.vscode"
+        let projectA = Project(name: "Dev", assignedApps: [bundleID])
+        let projectB = Project(name: "Curso", assignedApps: [bundleID])
+        container.mainContext.insert(projectA)
+        container.mainContext.insert(projectB)
+
+        let settings = makeSettings()
+        settings.assignmentRuleExpiration = .minutes30
+
+        let recentDate = Date().addingTimeInterval(-10 * 60)
+        let rule = AssignmentRule(
+            contextType: AssignmentContextType.app.rawValue,
+            contextValue: bundleID,
+            project: projectB,
+            createdAt: recentDate,
+            lastUsedAt: recentDate,
+        )
+        container.mainContext.insert(rule)
+
+        let resolver = ProjectAssignmentResolver(modelContainer: container, settings: settings)
+        let result = resolver.resolveAssignment(for: bundleID, domain: nil, filePath: nil)
+        switch result {
+        case let .assigned(project, usedRule):
+            #expect(usedRule)
+            #expect(project === projectB)
+        default:
+            #expect(Bool(false), "Expected assignment using non-expired minute-based rule")
+        }
+
+        let remainingRules = try container.mainContext.fetch(FetchDescriptor<AssignmentRule>())
+        #expect(remainingRules.count == 1)
+    }
+
     private func makeSettings() -> TrackerSettings {
         let suiteName = "MomentumTests.Settings.\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: suiteName) else {
