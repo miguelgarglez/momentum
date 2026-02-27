@@ -43,6 +43,12 @@ Prefer `Makefile` targets for local development:
   - `cd RaycastExtension/momentum && npm run dev`
   - `cd RaycastExtension/momentum && npm run build`
   - `cd RaycastExtension/momentum && npm run lint`
+  - `cd RaycastExtension/momentum && npm run simulate:no-app:setup` (quarantine local `Momentum.app` copies to simulate missing companion app)
+  - `cd RaycastExtension/momentum && npm run simulate:no-app:verify` (returns non-zero when a runnable `Momentum.app` is still physically present)
+  - `cd RaycastExtension/momentum && npm run simulate:no-app:restore` (restores quarantined apps to original paths)
+  - `cd RaycastExtension/momentum && npm run simulate:no-app:status` (prints state + verification report)
+  - `cd RaycastExtension/momentum && npm run simulate:no-app:purge` (destructive: permanently deletes discovered `Momentum.app` bundles)
+  - `cd RaycastExtension/momentum && npm run simulate:no-app:test` (runs setup + verify in one command)
 - For local builds in this environment, the agent needs full filesystem access (danger-full-access).
 - If builds fail with SwiftData macro errors (`swift-plugin-server` malformed response), the issue is typically the local Xcode toolchain rather than project code.
 
@@ -153,6 +159,14 @@ Raw `xcodebuild` commands are still valid and occasionally useful:
 - Debug builds use bundle id `miguelgarglez.Momentum.dev`; expect to re-grant macOS permissions (Accessibility, Screen Recording, etc.).
 - Debug builds auto-seed sample data once when the store is empty (projects, sessions, conflicts, summaries).
 - `make reset-dev-data` clears the dev store and seed flag, then re-launches the dev app.
+- Raycast missing-app simulation workflow (for testing extension fallback/error paths):
+  - Run `npm run simulate:no-app:setup`.
+  - `setup` disables app executables inside quarantine so `open -b` cannot launch from quarantine paths.
+  - Test extension commands in Raycast while the app is unavailable.
+  - Run `npm run simulate:no-app:restore` immediately after testing.
+  - Use `npm run simulate:no-app:status` before/after to confirm state.
+  - For verification, trust `physical_apps: 0` + `result: PASS` even if LaunchServices bundle lookups still show `FOUND`.
+  - Use `npm run simulate:no-app:purge` only when you intentionally want irreversible cleanup.
 
 ## Performance Diagnostics (Deterministic)
 - Use `make diag-cpu-release` / `make diag-cpu-release-focus` for CPU diagnostics.
