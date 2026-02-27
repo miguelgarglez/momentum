@@ -2,12 +2,11 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "momentum",
   "title": "Momentum",
-  "description": "Handle Momentum app from Raycast. Track your time spent on different apps, files and web domains grouped by projects. And track time spent manually.",
+  "description": "Control the Momentum macOS app from Raycast. Open the app and settings, list projects, resolve conflicts, and manage manual tracking.",
   "icon": "extension-icon.png",
   "author": "miguel_garcia_gonzalez",
   "platforms": [
-    "macOS",
-    "Windows"
+    "macOS"
   ],
   "categories": [
     "Productivity",
@@ -18,48 +17,48 @@
     {
       "name": "open-momentum",
       "title": "Open Momentum",
-      "subtitle": "Open main Momentum window",
-      "description": "Open Momentum main window like the status item action",
+      "subtitle": "Bring Momentum to front",
+      "description": "Open the Momentum companion app.",
       "icon": "extension-icon.png",
       "mode": "no-view"
     },
     {
       "name": "list-projects",
       "title": "List Projects",
-      "subtitle": "Show all projects",
-      "description": "Show all user's projects in Momentum app",
+      "subtitle": "Browse projects in Momentum",
+      "description": "List projects from the paired Momentum app and open one.",
       "icon": "extension-icon.png",
       "mode": "view"
     },
     {
       "name": "open-settings",
       "title": "Open Momentum Settings",
-      "subtitle": "Open the Raycast settings section",
-      "description": "Open Momentum settings focused on the Raycast section",
+      "subtitle": "Open Raycast integration settings",
+      "description": "Open Momentum settings focused on Raycast integration.",
       "icon": "extension-icon.png",
       "mode": "no-view"
     },
     {
       "name": "resolve-conflicts",
       "title": "Resolve Conflicts",
-      "subtitle": "Open conflict resolution if needed",
-      "description": "Open Momentum conflict resolution dialog when there are pending conflicts",
+      "subtitle": "Open pending conflict resolution",
+      "description": "Check for pending conflicts and open resolution in Momentum.",
       "icon": "extension-icon.png",
       "mode": "view"
     },
     {
       "name": "manual-start",
       "title": "Start Manual Tracking",
-      "subtitle": "Use existing or new project",
-      "description": "Start manual tracking with an existing project or creating a new one",
+      "subtitle": "Start tracking for a project",
+      "description": "Start manual tracking in Momentum with an existing or new project.",
       "icon": "extension-icon.png",
       "mode": "view"
     },
     {
       "name": "manual-stop",
       "title": "Stop Manual Tracking",
-      "subtitle": "Stop current manual tracking session",
-      "description": "Stop manual tracking in Momentum",
+      "subtitle": "Stop current manual tracking",
+      "description": "Stop the active manual tracking session in Momentum.",
       "icon": "extension-icon.png",
       "mode": "view"
     }
@@ -87,6 +86,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "simulate:no-app:setup": "bash ./scripts/simulate-missing-momentum.sh setup",
+    "simulate:no-app:verify": "bash ./scripts/simulate-missing-momentum.sh verify",
+    "simulate:no-app:restore": "bash ./scripts/simulate-missing-momentum.sh restore",
+    "simulate:no-app:status": "bash ./scripts/simulate-missing-momentum.sh status",
+    "simulate:no-app:purge": "bash ./scripts/simulate-missing-momentum.sh purge",
+    "simulate:no-app:test": "bash ./scripts/simulate-missing-momentum.sh setup && bash ./scripts/simulate-missing-momentum.sh verify",
     "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1",
     "publish": "npx @raycast/api@latest publish"
   }
