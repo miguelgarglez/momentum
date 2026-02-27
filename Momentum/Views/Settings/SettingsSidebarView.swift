@@ -12,6 +12,7 @@ struct SettingsSidebarView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.9)
                 }
+                .accessibilityIdentifier("settings-section-\(section.rawValue)")
                 .focusable(true)
                 .accessibilityLabel(Text(section.label))
                 .accessibilityHint(Text("Abre la sección \(section.label)."))

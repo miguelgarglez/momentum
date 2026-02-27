@@ -174,6 +174,24 @@ final class MomentumUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["com.momentum.seed.app"].waitForExistence(timeout: 6))
     }
 
+    func testFeedbackSectionAppearsInSettings() throws {
+        let app = launch(reset: true)
+        app.typeKey(",", modifierFlags: .command)
+
+        var settingsWindow = app.windows.matching(NSPredicate(format: "title == %@", "Configuración")).firstMatch
+        if !settingsWindow.waitForExistence(timeout: 4) {
+            settingsWindow = app.windows.firstMatch
+        }
+
+        let feedbackSectionLink = settingsWindow.buttons["settings-section-feedback"]
+        XCTAssertTrue(feedbackSectionLink.waitForExistence(timeout: 6))
+        feedbackSectionLink.click()
+
+        let feedbackButton = settingsWindow.buttons["feedback-send-email-button"]
+        XCTAssertTrue(feedbackButton.waitForExistence(timeout: 6))
+        XCTAssertTrue(feedbackButton.isEnabled)
+    }
+
     // MARK: - Helpers
 
     private func launch(

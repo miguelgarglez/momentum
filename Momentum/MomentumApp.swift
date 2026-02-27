@@ -135,8 +135,11 @@ struct MomentumApp: App {
     @ViewBuilder
     private func settingsContent(effectiveThemePreference: AppThemePreference) -> some View {
         Group {
-            if let container = environment.container {
+            if let container = environment.container,
+               let tracker = environment.tracker
+            {
                 SettingsShellView()
+                    .environmentObject(tracker)
                     .environmentObject(environment.trackerSettings)
                     .environmentObject(environment.appCatalog)
                     .environmentObject(environment.raycastIntegrationManager)

@@ -237,6 +237,9 @@ struct ContentView: View {
                 .onReceive(NotificationCenter.default.publisher(for: .statusItemShowSettings)) { _ in
                     MomentumDeepLink.openSettings(section: nil)
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .statusItemFeedbackEmailFailed)) { _ in
+                    showToast(String(localized: "No pudimos abrir el cliente de correo."), style: .error)
+                }
         }
     #endif
 

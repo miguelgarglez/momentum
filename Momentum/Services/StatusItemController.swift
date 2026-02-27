@@ -6,6 +6,7 @@
     @MainActor
     final class StatusItemController: NSObject {
         private let tracker: ActivityTracker
+        private let feedbackEmailService = FeedbackEmailService()
         private let statusItem: NSStatusItem
         private var cancellables: Set<AnyCancellable> = []
         private var clockTimer: Timer?
@@ -196,6 +197,14 @@
                 menu.addItem(projectItem)
             }
 
+            let feedbackItem = NSMenuItem(
+                title: localized("Enviar feedback…"),
+                action: #selector(handleSendFeedback),
+                keyEquivalent: ""
+            )
+            feedbackItem.target = self
+            menu.addItem(feedbackItem)
+
             let settingsItem = NSMenuItem(title: localized("Ajustes…"), action: #selector(handleShowSettings), keyEquivalent: ",")
             settingsItem.target = self
             menu.addItem(settingsItem)
@@ -333,6 +342,13 @@
         @objc private func handleShowSettings(_: Any?) {
             SettingsWindowPresenter.open(section: nil)
         }
+
+        @objc private func handleSendFeedback(_: Any?) {
+            let opened = feedbackEmailService.sendFeedbackEmail(statusSummary: tracker.statusSummary)
+            if !opened {
+                NotificationCenter.default.post(name: .statusItemFeedbackEmailFailed, object: nil)
+            }
+        }
     }
 
     extension Notification.Name {
@@ -340,6 +356,7 @@
         static let statusItemStartManualTracking = Notification.Name("StatusItemStartManualTracking")
         static let statusItemShowApp = Notification.Name("StatusItemShowApp")
         static let statusItemShowSettings = Notification.Name("StatusItemShowSettings")
+        static let statusItemFeedbackEmailFailed = Notification.Name("StatusItemFeedbackEmailFailed")
         static let raycastShowConflicts = Notification.Name("RaycastShowConflicts")
         static let raycastStartManualTracking = Notification.Name("RaycastStartManualTracking")
     }

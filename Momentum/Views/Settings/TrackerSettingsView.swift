@@ -5,6 +5,7 @@ import SwiftUI
 @MainActor
 struct TrackerSettingsView: View {
     @EnvironmentObject private var settings: TrackerSettings
+    @EnvironmentObject private var tracker: ActivityTracker
     @EnvironmentObject private var appCatalog: AppCatalog
     @EnvironmentObject private var themePreview: ThemePreviewState
     @EnvironmentObject private var automationPermissionManager: AutomationPermissionManager
@@ -119,6 +120,8 @@ struct TrackerSettingsView: View {
             )
         case .raycast:
             SettingsRaycastSectionView(draft: $draft)
+        case .feedback:
+            SettingsFeedbackSectionView(statusSummary: tracker.statusSummary)
         case .appearance:
             SettingsAppearanceSectionView(themeSelection: themeSelectionBinding)
         case .idle:

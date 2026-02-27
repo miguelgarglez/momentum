@@ -3,6 +3,7 @@ import Foundation
 enum SettingsSection: String, CaseIterable, Identifiable {
     case tracking
     case raycast
+    case feedback
     case privacy
     case appearance
     case idle
@@ -17,6 +18,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             String(localized: "Tracking")
         case .raycast:
             String(localized: "Raycast Extension")
+        case .feedback:
+            String(localized: "Feedback")
         case .privacy:
             String(localized: "Privacidad")
         case .appearance:
@@ -36,6 +39,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             "dot.scope"
         case .raycast:
             "command"
+        case .feedback:
+            "bubble.left.and.bubble.right"
         case .privacy:
             "lock.shield"
         case .appearance:
