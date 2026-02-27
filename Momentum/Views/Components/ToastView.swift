@@ -11,6 +11,7 @@ struct ToastMessage: Identifiable, Equatable {
     enum Style {
         case success
         case error
+        case info
     }
 
     let id = UUID()
@@ -26,6 +27,7 @@ struct ToastView: View {
         switch style {
         case .success: "checkmark.circle.fill"
         case .error: "exclamationmark.triangle.fill"
+        case .info: "info.circle.fill"
         }
     }
 
@@ -33,6 +35,7 @@ struct ToastView: View {
         switch style {
         case .success: .green
         case .error: .orange
+        case .info: .blue
         }
     }
 

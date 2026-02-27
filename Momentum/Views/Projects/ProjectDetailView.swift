@@ -8,6 +8,7 @@ struct ProjectDetailView: View {
     let onEdit: (Project) -> Void
     let onDelete: (Project) -> Void
     let onClearActivity: (Project) -> Void
+    let onExportTime: (Project) -> Void
     let onStartManualLive: (Project) -> Void
     let onAddManualTime: (Project) -> Void
     let onDeleteManualEntry: (TrackingSession) -> Void
@@ -56,6 +57,7 @@ struct ProjectDetailView: View {
         onEdit: @escaping (Project) -> Void = { _ in },
         onDelete: @escaping (Project) -> Void = { _ in },
         onClearActivity: @escaping (Project) -> Void = { _ in },
+        onExportTime: @escaping (Project) -> Void = { _ in },
         onStartManualLive: @escaping (Project) -> Void = { _ in },
         onAddManualTime: @escaping (Project) -> Void = { _ in },
         onDeleteManualEntry: @escaping (TrackingSession) -> Void = { _ in },
@@ -65,6 +67,7 @@ struct ProjectDetailView: View {
         self.onEdit = onEdit
         self.onDelete = onDelete
         self.onClearActivity = onClearActivity
+        self.onExportTime = onExportTime
         self.onStartManualLive = onStartManualLive
         self.onAddManualTime = onAddManualTime
         self.onDeleteManualEntry = onDeleteManualEntry
@@ -102,6 +105,14 @@ struct ProjectDetailView: View {
                             onAddManualTime(project)
                         } label: {
                             Label("Añadir tiempo manual", systemImage: "plus.circle")
+                        }
+
+                        Divider()
+
+                        Button {
+                            onExportTime(project)
+                        } label: {
+                            Label("Exportar registros", systemImage: "square.and.arrow.up")
                         }
 
                         Divider()

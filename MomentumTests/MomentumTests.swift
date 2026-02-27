@@ -1144,6 +1144,51 @@ struct MomentumTests {
         #expect(!sessionsAfterDelete.contains(where: { $0.source == .manualEntry }))
     }
 
+    @Test("Export de tiempo serializa metadata y fuentes")
+    func timeTransferExportSerializesProjectMetadataAndSources() throws {
+        let container = try factory.makeContainer()
+        let project = Project(name: "Export")
+        container.mainContext.insert(project)
+
+        let now = Date()
+        let automatic = TrackingSession(
+            startDate: now.addingTimeInterval(-7200),
+            endDate: now.addingTimeInterval(-6900),
+            appName: "Xcode",
+            bundleIdentifier: "com.apple.dt.Xcode",
+            domain: nil,
+            filePath: nil,
+            source: .automatic,
+            project: project,
+        )
+        let manualEntry = TrackingSession(
+            startDate: now.addingTimeInterval(-6800),
+            endDate: now.addingTimeInterval(-6400),
+            appName: "Entrada manual",
+            bundleIdentifier: nil,
+            domain: nil,
+            filePath: nil,
+            source: .manualEntry,
+            project: project,
+        )
+        container.mainContext.insert(automatic)
+        container.mainContext.insert(manualEntry)
+
+        let service = MomentumTimeTransferService(modelContext: container.mainContext)
+        let data = try service.export(project: project)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let payload = try decoder.decode(MomentumTimeExportV1.self, from: data)
+
+        #expect(payload.schemaVersion == 1)
+        #expect(payload.app == "Momentum")
+        #expect(payload.project.name == project.name)
+        #expect(payload.records.count == 2)
+        #expect(payload.records.first?.source == TrackingSessionSource.automatic.rawValue)
+        #expect(payload.records.last?.source == TrackingSessionSource.manualEntry.rawValue)
+    }
+
     @Test("Pausa temporal para entrada manual reanuda manual en vivo")
     func trackerSuspensionForManualEntryRestoresManualLiveState() throws {
         let container = try factory.makeContainer()

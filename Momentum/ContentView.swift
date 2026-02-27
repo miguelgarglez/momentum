@@ -10,6 +10,7 @@ import SwiftData
 import SwiftUI
 #if os(macOS)
     import AppKit
+    import UniformTypeIdentifiers
 #endif
 
 struct ContentView: View {
@@ -48,6 +49,9 @@ struct ContentView: View {
     @State private var hasPresentedWelcome = false
     @State private var onboardingTrackingStarter = OnboardingTrackingStarter()
     @State private var manualEntrySuspensionInfo: ActivityTracker.TrackingSuspensionInfo?
+    #if os(macOS)
+        @State private var activeOpenPanel: NSOpenPanel?
+    #endif
 
     fileprivate enum Layout {
         static let actionPanelWidth: CGFloat = 84
@@ -128,6 +132,20 @@ struct ContentView: View {
     }
 
     var body: some View {
+        #if os(macOS)
+            applyDialogAndTransferModifiers(
+                to: applyRuntimeEventModifiers(
+                    to: applyMacOSStatusItemModifiers(to: contentBase)
+                )
+            )
+        #else
+            applyDialogAndTransferModifiers(
+                to: applyRuntimeEventModifiers(to: contentBase)
+            )
+        #endif
+    }
+
+    private var contentBase: some View {
         ZStack(alignment: .bottom) {
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 HStack(spacing: 0) {
@@ -181,41 +199,49 @@ struct ContentView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-            .animation(Layout.toastAnimation, value: toast)
-            .frame(minHeight: Layout.windowMinHeight)
-        #if os(macOS)
-            .background(
-                MainWindowVisibilityObserver(
-                    shouldSuppressInitialWindow: $shouldSuppressInitialWindow,
-                ),
-            )
-            .background(
-                WindowCloseAccessoryHandler(),
-            )
-            .onReceive(NotificationCenter.default.publisher(for: .statusItemShowApp)) { _ in
-                showMainWindowFromStatusItem()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .statusItemOpenProject)) { notification in
-                guard let identifier = notification.userInfo?[StatusItemUserInfoKey.projectID] as? PersistentIdentifier else { return }
-                selectedProjectID = identifier
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .statusItemStartManualTracking)) { _ in
-                manualTrackingSheetInitialMode = .automatic
-                showManualTrackingSheet = true
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .raycastShowConflicts)) { _ in
-                showMainWindowFromStatusItem()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    showConflictSheet = true
+        .animation(Layout.toastAnimation, value: toast)
+        .frame(minHeight: Layout.windowMinHeight)
+    }
+
+    #if os(macOS)
+        private func applyMacOSStatusItemModifiers<V: View>(to view: V) -> some View {
+            view
+                .background(
+                    MainWindowVisibilityObserver(
+                        shouldSuppressInitialWindow: $shouldSuppressInitialWindow,
+                    ),
+                )
+                .background(
+                    WindowCloseAccessoryHandler(),
+                )
+                .onReceive(NotificationCenter.default.publisher(for: .statusItemShowApp)) { _ in
+                    showMainWindowFromStatusItem()
                 }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .raycastStartManualTracking)) { notification in
-                handleRaycastStartManualTracking(notification)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .statusItemShowSettings)) { _ in
-                MomentumDeepLink.openSettings(section: nil)
-            }
-        #endif
+                .onReceive(NotificationCenter.default.publisher(for: .statusItemOpenProject)) { notification in
+                    guard let identifier = notification.userInfo?[StatusItemUserInfoKey.projectID] as? PersistentIdentifier else { return }
+                    selectedProjectID = identifier
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .statusItemStartManualTracking)) { _ in
+                    manualTrackingSheetInitialMode = .automatic
+                    showManualTrackingSheet = true
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .raycastShowConflicts)) { _ in
+                    showMainWindowFromStatusItem()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        showConflictSheet = true
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .raycastStartManualTracking)) { notification in
+                    handleRaycastStartManualTracking(notification)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .statusItemShowSettings)) { _ in
+                    MomentumDeepLink.openSettings(section: nil)
+                }
+        }
+    #endif
+
+    private func applyRuntimeEventModifiers<V: View>(to view: V) -> some View {
+        view
             .onReceive(tracker.$manualStopEvent.compactMap(\.self)) { event in
                 showManualStopToast(event.reason)
             }
@@ -268,6 +294,10 @@ struct ContentView: View {
                 await refreshProjectStatsIfNeeded(force: true)
                 await refreshProjectStatsLoop()
             }
+    }
+
+    private func applyDialogAndTransferModifiers<V: View>(to view: V) -> some View {
+        view
             .alert(item: $pendingProjectAction) { action in
                 Alert(
                     title: Text(action.title),
@@ -293,6 +323,13 @@ struct ContentView: View {
                     } label: {
                         Label("Añadir tiempo manual", systemImage: "plus.circle")
                     }
+
+                    Button {
+                        exportTime(for: project)
+                        quickTimeActionProjectID = nil
+                    } label: {
+                        Label("Exportar registros", systemImage: "square.and.arrow.up")
+                    }
                 }
                 Button("Cancelar", role: .cancel) {
                     quickTimeActionProjectID = nil
@@ -309,6 +346,7 @@ struct ContentView: View {
                 onEdit: { activeProjectSheet = .edit($0) },
                 onDelete: { deleteProject($0) },
                 onClearActivity: { clearActivity(for: $0) },
+                onExportTime: { exportTime(for: $0) },
                 onStartManualLive: { startTracking(for: $0) },
                 onAddManualTime: { presentManualTimeEntry(for: $0) },
                 onDeleteManualEntry: { deleteManualEntry($0) },
@@ -398,6 +436,12 @@ struct ContentView: View {
                                     presentManualTimeEntry(for: project)
                                 } label: {
                                     Label("Añadir tiempo manual", systemImage: "plus.circle")
+                                }
+
+                                Button {
+                                    exportTime(for: project)
+                                } label: {
+                                    Label("Exportar registros", systemImage: "square.and.arrow.up")
                                 }
 
                                 Divider()
@@ -690,10 +734,108 @@ struct ContentView: View {
         ProjectIcon.allCases.randomElement()?.systemName ?? ProjectIcon.spark.systemName
     }
 
+    private func exportTime(for project: Project) {
+        let service = MomentumTimeTransferService(modelContext: modelContext)
+        do {
+            let data = try service.export(project: project)
+            let filename = "\(sanitizedExportFilename(project.name))-momentum-time"
+            #if os(macOS)
+                showToast(String(localized: "Exportar registros"), style: .info)
+                DispatchQueue.main.async {
+                    presentExportSavePanel(data: data, defaultFilename: filename)
+                }
+            #else
+                showToast(String(localized: "La exportación no está disponible en esta plataforma."), style: .error)
+            #endif
+        } catch {
+            showToast(
+                error.localizedDescription.isEmpty
+                    ? String(localized: "No pudimos exportar los registros.")
+                    : error.localizedDescription,
+                style: .error
+            )
+        }
+    }
+
+    #if os(macOS)
+        private func presentExportSavePanel(data: Data, defaultFilename: String) {
+            // Use NSOpenPanel (directory picker) for export destination because
+            // this environment reliably presents open panels while save panels are flaky.
+            let panel = NSOpenPanel()
+            activeOpenPanel = panel
+            panel.title = String(localized: "Exportar registros")
+            panel.prompt = String(localized: "Exportar")
+            panel.canChooseFiles = false
+            panel.canChooseDirectories = true
+            panel.canCreateDirectories = true
+            panel.allowsMultipleSelection = false
+            panel.resolvesAliases = true
+
+            let completion: (NSApplication.ModalResponse) -> Void = { response in
+                if activeOpenPanel === panel {
+                    activeOpenPanel = nil
+                }
+                guard response == .OK, let selectedDirectoryURL = panel.url else { return }
+                let hasSecurityScopedAccess = selectedDirectoryURL.startAccessingSecurityScopedResource()
+                defer {
+                    if hasSecurityScopedAccess {
+                        selectedDirectoryURL.stopAccessingSecurityScopedResource()
+                    }
+                }
+                do {
+                    let outputURL = exportOutputURL(
+                        in: selectedDirectoryURL,
+                        defaultFilename: defaultFilename
+                    )
+                    try data.write(to: outputURL, options: [.atomic])
+                    showToast(String(localized: "Exportación completada"), style: .success)
+                } catch {
+                    showToast(
+                        error.localizedDescription.isEmpty
+                            ? String(localized: "No pudimos exportar los registros.")
+                            : error.localizedDescription,
+                        style: .error
+                    )
+                }
+            }
+
+            if let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: \.isVisible) {
+                panel.beginSheetModal(for: window, completionHandler: completion)
+            } else {
+                panel.begin(completionHandler: completion)
+            }
+        }
+
+        private func exportOutputURL(in directoryURL: URL, defaultFilename: String) -> URL {
+            let fileManager = FileManager.default
+            var candidateURL = directoryURL.appendingPathComponent("\(defaultFilename).json")
+            var suffix = 1
+            while fileManager.fileExists(atPath: candidateURL.path) {
+                candidateURL = directoryURL.appendingPathComponent("\(defaultFilename)-\(suffix).json")
+                suffix += 1
+            }
+            return candidateURL
+        }
+    #endif
+
+    private func sanitizedExportFilename(_ rawName: String) -> String {
+        let trimmed = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallback = String(localized: "proyecto")
+        let base = trimmed.isEmpty ? fallback : trimmed
+        let invalid = CharacterSet(charactersIn: "/\\:?%*|\"<>")
+        let safeScalars = base.unicodeScalars.map { invalid.contains($0) ? "-" : Character($0) }
+        let candidate = String(safeScalars).trimmingCharacters(in: .whitespacesAndNewlines)
+        return candidate.isEmpty ? fallback : candidate
+    }
+
     private func clearActivity(for project: Project) {
         let sessions = project.sessions
+        let summaries = project.dailySummaries
         for session in sessions {
             modelContext.delete(session)
+        }
+        for summary in summaries {
+            modelContext.delete(summary)
         }
         project.markStatsDirty()
         do {
