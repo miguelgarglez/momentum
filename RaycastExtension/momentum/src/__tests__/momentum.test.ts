@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { copy } from "../copy";
 import { showToast } from "./raycast-api.stub";
 
 const execFileMock = vi.fn();
@@ -14,9 +15,26 @@ function jsonResponse(status: number, payload: unknown) {
   });
 }
 
+function mockMissingMomentumInstall() {
+  execFileMock.mockImplementation(
+    (file: string, _args: string[], cb: (error: Error | null, stdout?: string) => void) => {
+      if (file === "/usr/bin/osascript") {
+        cb(null, "");
+        return;
+      }
+      cb(new Error("not installed"), "");
+    },
+  );
+}
+
 describe("momentum transport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    execFileMock.mockImplementation(
+      (_file: string, _args: string[], cb: (error: Error | null, stdout?: string) => void) => {
+        cb(new Error("exec not mocked"), "");
+      },
+    );
   });
 
   afterEach(() => {
@@ -71,13 +89,45 @@ describe("momentum transport", () => {
     expect(result.payload.error).toBe("Unauthorized");
   });
 
-  it("throws a transport error when all command attempts fail", async () => {
-    const fetchMock = vi.fn().mockRejectedValue(new Error("offline"));
+  it("retries commands after integration recovers", async () => {
+    let commandCalls = 0;
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/v1/commands")) {
+        commandCalls += 1;
+        if (commandCalls <= 2) {
+          return Promise.reject(new Error("offline"));
+        }
+        return Promise.resolve(jsonResponse(200, { ok: true, data: { recovered: true } }));
+      }
+
+      if (url.includes("/health")) {
+        return Promise.resolve(jsonResponse(200, { ok: true, data: { apiVersion: 1 } }));
+      }
+
+      return Promise.resolve(jsonResponse(503, { ok: false }));
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const { postMomentumCommand } = await import("../momentum");
+    const result = await postMomentumCommand<{ recovered: boolean }>("token-4", {
+      action: "projects.list",
+      apiVersion: 1,
+    });
 
-    await expect(postMomentumCommand("token-4", { action: "manual.start", apiVersion: 1 })).rejects.toThrow("offline");
+    expect(result.payload.data?.recovered).toBe(true);
+    expect(commandCalls).toBe(3);
+  });
+
+  it("throws a prerequisite error when Momentum is not installed", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("offline"));
+    vi.stubGlobal("fetch", fetchMock);
+    mockMissingMomentumInstall();
+
+    const { postMomentumCommand } = await import("../momentum");
+
+    await expect(postMomentumCommand("token-5", { action: "manual.start", apiVersion: 1 })).rejects.toThrow(
+      copy.momentumNotInstalledMessage,
+    );
   });
 
   it("openMomentumApp does not launch process when app endpoint already succeeds", async () => {
@@ -91,23 +141,21 @@ describe("momentum transport", () => {
     expect(showToast).not.toHaveBeenCalled();
   });
 
-  it("openMomentumApp shows failure toast when process launch fails", async () => {
+  it("openMomentumApp shows prerequisite toast when app is missing", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse(503, { ok: false }))
       .mockResolvedValueOnce(jsonResponse(503, { ok: false }));
     vi.stubGlobal("fetch", fetchMock);
-
-    execFileMock.mockImplementation((_file: string, _args: string[], cb: (error: Error | null) => void) => {
-      cb(new Error("launch failed"));
-    });
+    mockMissingMomentumInstall();
 
     const { openMomentumApp } = await import("../momentum");
     await openMomentumApp();
 
     expect(showToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Couldn't open Momentum",
+        title: copy.momentumRequiredTitle,
+        message: copy.momentumNotInstalledMessage,
       }),
     );
   });
@@ -197,5 +245,14 @@ describe("momentum transport", () => {
 
     const { confirmPairing } = await import("../momentum");
     await expect(confirmPairing("0000")).rejects.toThrow("Invalid or expired code.");
+  });
+
+  it("confirmPairing reports prerequisite when app is missing", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("offline"));
+    vi.stubGlobal("fetch", fetchMock);
+    mockMissingMomentumInstall();
+
+    const { confirmPairing } = await import("../momentum");
+    await expect(confirmPairing("1234")).rejects.toThrow(copy.momentumNotInstalledMessage);
   });
 });

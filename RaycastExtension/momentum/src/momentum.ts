@@ -41,8 +41,31 @@ type MomentumCapabilities = {
   requiresPairing: boolean;
 };
 
+type LaunchOutcome = "launched" | "not-installed" | "launch-failed";
+
+type ServerRecoveryOutcome = "ready" | "not-installed" | "unreachable";
+
+type CommandAttemptResult<T> = {
+  success: CommandEnvelope<T> | null;
+  fallbackUnauthorized: CommandEnvelope<T> | null;
+  fallbackUnsupported: CommandEnvelope<T> | null;
+  lastFailure: Error | null;
+  hadResponse: boolean;
+};
+
+type PairingAttemptResult = {
+  token: string | null;
+  lastMessage: string | null;
+  lastFailure: Error | null;
+  hadResponse: boolean;
+};
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function asError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(copy.cannotReachMomentum);
 }
 
 async function requestOpenSettings(): Promise<boolean> {
@@ -113,6 +136,32 @@ async function isBundleRunning(bundleId: string): Promise<boolean> {
   }
 }
 
+async function isBundleInstalled(bundleId: string): Promise<boolean> {
+  if (process.platform !== "darwin") {
+    return false;
+  }
+
+  try {
+    const { stdout } = await execFileAsync("/usr/bin/osascript", [
+      "-e",
+      `set appId to "${bundleId}"`,
+      "-e",
+      "try",
+      "-e",
+      "id of application id appId",
+      "-e",
+      "on error",
+      "-e",
+      'return ""',
+      "-e",
+      "end try",
+    ]);
+    return stdout.trim() === bundleId;
+  } catch {
+    return false;
+  }
+}
+
 async function resolveLaunchBundleOrder(): Promise<string[]> {
   const runningBundleIds: string[] = [];
   for (const bundleId of MOMENTUM_BUNDLE_IDS_BY_PRIORITY) {
@@ -131,13 +180,20 @@ async function resolveLaunchBundleOrder(): Promise<string[]> {
   ];
 }
 
-async function launchMomentum(): Promise<boolean> {
+async function launchMomentum(): Promise<LaunchOutcome> {
   const bundleIds = await resolveLaunchBundleOrder();
+  let installedBundleDetected = false;
 
   for (const bundleId of bundleIds) {
+    const isInstalled = await isBundleInstalled(bundleId);
+    if (!isInstalled) {
+      continue;
+    }
+
+    installedBundleDetected = true;
     try {
       await execFileAsync("/usr/bin/open", ["-b", bundleId]);
-      return true;
+      return "launched";
     } catch {
       // Try next bundle id.
     }
@@ -145,9 +201,9 @@ async function launchMomentum(): Promise<boolean> {
 
   try {
     await execFileAsync("/usr/bin/open", ["-a", "Momentum"]);
-    return true;
+    return "launched";
   } catch {
-    return false;
+    return installedBundleDetected ? "launch-failed" : "not-installed";
   }
 }
 
@@ -161,30 +217,88 @@ async function waitForServerReady(): Promise<boolean> {
   return false;
 }
 
-export async function confirmPairing(code: string): Promise<string> {
-  const trimmed = code.trim();
+async function recoverServerReachability(): Promise<ServerRecoveryOutcome> {
+  if (await pingServer()) {
+    return "ready";
+  }
+
+  const launchOutcome = await launchMomentum();
+  if (launchOutcome === "not-installed") {
+    return "not-installed";
+  }
+
+  if (await waitForServerReady()) {
+    return "ready";
+  }
+
+  return "unreachable";
+}
+
+async function attemptConfirmPairing(code: string): Promise<PairingAttemptResult> {
   let lastMessage: string | null = null;
+  let lastFailure: Error | null = null;
+  let hadResponse = false;
 
   for (const baseURL of API_BASE_CANDIDATES) {
     try {
       const response = await fetch(`${baseURL}/v1/pairing/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: trimmed, clientName: "Raycast", apiVersion: 1 }),
+        body: JSON.stringify({ code, clientName: "Raycast", apiVersion: 1 }),
       });
 
       const payload = (await response.json()) as Envelope<{ token: string }>;
+      hadResponse = true;
       if (response.ok && payload.ok && payload.data?.token) {
-        return payload.data.token;
+        return { token: payload.data.token, lastMessage, lastFailure, hadResponse };
       }
 
       lastMessage = payload.message ?? "Invalid or expired code.";
-    } catch {
-      // Try next port.
+    } catch (error) {
+      lastFailure = asError(error);
     }
   }
 
-  throw new Error(lastMessage ?? copy.cannotReachMomentum);
+  return {
+    token: null,
+    lastMessage,
+    lastFailure,
+    hadResponse,
+  };
+}
+
+export async function confirmPairing(code: string): Promise<string> {
+  const trimmed = code.trim();
+  const firstAttempt = await attemptConfirmPairing(trimmed);
+  if (firstAttempt.token) {
+    return firstAttempt.token;
+  }
+
+  if (firstAttempt.lastMessage) {
+    throw new Error(firstAttempt.lastMessage);
+  }
+
+  if (!firstAttempt.hadResponse) {
+    const recovery = await recoverServerReachability();
+    if (recovery === "not-installed") {
+      throw new Error(copy.momentumNotInstalledMessage);
+    }
+    if (recovery === "unreachable") {
+      throw new Error(copy.momentumApiUnavailableMessage);
+    }
+
+    const secondAttempt = await attemptConfirmPairing(trimmed);
+    if (secondAttempt.token) {
+      return secondAttempt.token;
+    }
+    if (secondAttempt.lastMessage) {
+      throw new Error(secondAttempt.lastMessage);
+    }
+
+    throw secondAttempt.lastFailure ?? new Error(copy.cannotReachMomentum);
+  }
+
+  throw firstAttempt.lastFailure ?? new Error(copy.cannotReachMomentum);
 }
 
 export async function openMomentumSettings(): Promise<void> {
@@ -197,12 +311,12 @@ export async function openMomentumSettings(): Promise<void> {
       return;
     }
 
-    const launched = await launchMomentum();
-    if (!launched) {
+    const launchOutcome = await launchMomentum();
+    if (launchOutcome === "not-installed") {
       await showToast({
         style: Toast.Style.Failure,
-        title: "Couldn't open Momentum",
-        message: "Open the app manually and try again.",
+        title: copy.momentumRequiredTitle,
+        message: copy.momentumNotInstalledMessage,
       });
       return;
     }
@@ -213,10 +327,19 @@ export async function openMomentumSettings(): Promise<void> {
       }
     }
 
+    if (launchOutcome === "launch-failed") {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Couldn't open Momentum",
+        message: copy.openMomentumManuallyMessage,
+      });
+      return;
+    }
+
     await showToast({
       style: Toast.Style.Failure,
-      title: "Couldn't open Settings",
-      message: "Open Momentum manually to continue.",
+      title: copy.momentumApiUnavailableTitle,
+      message: copy.momentumApiUnavailableMessage,
     });
   } finally {
     openSettingsInFlight = false;
@@ -233,12 +356,21 @@ export async function openMomentumApp(): Promise<void> {
       return;
     }
 
-    const launched = await launchMomentum();
-    if (!launched) {
+    const launchOutcome = await launchMomentum();
+    if (launchOutcome === "not-installed") {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: copy.momentumRequiredTitle,
+        message: copy.momentumNotInstalledMessage,
+      });
+      return;
+    }
+
+    if (launchOutcome === "launch-failed") {
       await showToast({
         style: Toast.Style.Failure,
         title: "Couldn't open Momentum",
-        message: "Open the app manually and try again.",
+        message: copy.openMomentumManuallyMessage,
       });
       return;
     }
@@ -249,22 +381,22 @@ export async function openMomentumApp(): Promise<void> {
       }
     }
 
-    // At this point Momentum was launched successfully, but the local API
-    // might be disabled/unavailable (e.g. integration off or older build).
-    // Treat it as success to avoid a false failure toast.
+    // Momentum was launched successfully. If the API is unavailable,
+    // avoid false failures: opening the app itself is the main intent.
     return;
   } finally {
     openAppInFlight = false;
   }
 }
 
-export async function postMomentumCommand<T>(
+async function attemptPostMomentumCommand<T>(
   activeToken: string,
   body: Record<string, unknown>,
-): Promise<CommandEnvelope<T>> {
+): Promise<CommandAttemptResult<T>> {
   let fallbackUnauthorized: CommandEnvelope<T> | null = null;
   let fallbackUnsupported: CommandEnvelope<T> | null = null;
   let lastFailure: Error | null = null;
+  let hadResponse = false;
 
   for (const baseURL of COMMAND_BASE_CANDIDATES) {
     try {
@@ -278,6 +410,7 @@ export async function postMomentumCommand<T>(
       });
       const payload = (await response.json()) as Envelope<T>;
       const attempt = { response, payload };
+      hadResponse = true;
 
       if (response.status === 401) {
         fallbackUnauthorized = attempt;
@@ -287,19 +420,67 @@ export async function postMomentumCommand<T>(
         fallbackUnsupported = attempt;
         continue;
       }
-      return attempt;
+      return {
+        success: attempt,
+        fallbackUnauthorized,
+        fallbackUnsupported,
+        lastFailure,
+        hadResponse,
+      };
     } catch (error) {
-      lastFailure = error instanceof Error ? error : new Error(copy.cannotReachMomentum);
+      lastFailure = asError(error);
     }
   }
 
-  if (fallbackUnauthorized) {
-    return fallbackUnauthorized;
+  return {
+    success: null,
+    fallbackUnauthorized,
+    fallbackUnsupported,
+    lastFailure,
+    hadResponse,
+  };
+}
+
+export async function postMomentumCommand<T>(
+  activeToken: string,
+  body: Record<string, unknown>,
+): Promise<CommandEnvelope<T>> {
+  const firstAttempt = await attemptPostMomentumCommand<T>(activeToken, body);
+
+  if (firstAttempt.success) {
+    return firstAttempt.success;
   }
-  if (fallbackUnsupported) {
-    return fallbackUnsupported;
+  if (firstAttempt.fallbackUnauthorized) {
+    return firstAttempt.fallbackUnauthorized;
   }
-  throw lastFailure ?? new Error(copy.cannotReachMomentum);
+  if (firstAttempt.fallbackUnsupported) {
+    return firstAttempt.fallbackUnsupported;
+  }
+
+  if (!firstAttempt.hadResponse) {
+    const recovery = await recoverServerReachability();
+    if (recovery === "not-installed") {
+      throw new Error(copy.momentumNotInstalledMessage);
+    }
+    if (recovery === "unreachable") {
+      throw new Error(copy.momentumApiUnavailableMessage);
+    }
+
+    const secondAttempt = await attemptPostMomentumCommand<T>(activeToken, body);
+    if (secondAttempt.success) {
+      return secondAttempt.success;
+    }
+    if (secondAttempt.fallbackUnauthorized) {
+      return secondAttempt.fallbackUnauthorized;
+    }
+    if (secondAttempt.fallbackUnsupported) {
+      return secondAttempt.fallbackUnsupported;
+    }
+
+    throw secondAttempt.lastFailure ?? new Error(copy.cannotReachMomentum);
+  }
+
+  throw firstAttempt.lastFailure ?? new Error(copy.cannotReachMomentum);
 }
 
 export async function getMomentumCapabilities(options?: { force?: boolean }): Promise<MomentumCapabilities | null> {

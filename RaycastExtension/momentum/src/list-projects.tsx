@@ -13,7 +13,7 @@ import {
 import { useEffect, useState } from "react";
 import { copy } from "./copy";
 import { PairingForm } from "./components/PairingForm";
-import { isCommandSupported, openMomentumApp, postMomentumCommand } from "./momentum";
+import { isCommandSupported, openMomentumApp, openMomentumSettings, postMomentumCommand } from "./momentum";
 
 const TOKEN_KEY = "momentum.token";
 
@@ -62,7 +62,7 @@ export default function Command() {
           await LocalStorage.removeItem(TOKEN_KEY);
           setToken(null);
           setNeedsPairing(true);
-          setError("Invalid token. Pair again.");
+          setError(copy.pairAgainFromListProjects);
           return;
         }
         throw new Error(payload.message ?? "Couldn't read projects.");
@@ -87,6 +87,11 @@ export default function Command() {
   async function openMomentumFromAction() {
     await closeMainWindow();
     await openMomentumApp();
+  }
+
+  async function openMomentumSettingsFromAction() {
+    await closeMainWindow();
+    await openMomentumSettings();
   }
 
   async function openProjectFromAction(project: Project) {
@@ -153,19 +158,12 @@ export default function Command() {
   if (error && !isLoading && projects.length === 0) {
     return (
       <Detail
-        markdown={[
-          "## Couldn't connect to Momentum",
-          error,
-          "",
-          "Make sure Momentum is running and Raycast integration is enabled.",
-        ].join("\n")}
+        markdown={["## Couldn't connect to Momentum", error, "", copy.installOrOpenMomentumHint].join("\n")}
         actions={
           <ActionPanel>
             <Action title="Retry" onAction={() => token && fetchProjects(token)} />
-            <Action.OpenInBrowser
-              title="Open Documentation"
-              url="https://developers.raycast.com/basics/create-your-first-extension"
-            />
+            <Action title="Open Momentum" onAction={openMomentumFromAction} icon={Icon.AppWindow} />
+            <Action title="Open Momentum Settings" onAction={openMomentumSettingsFromAction} icon={Icon.Gear} />
           </ActionPanel>
         }
       />

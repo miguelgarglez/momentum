@@ -3,6 +3,6 @@ import { openMomentumSettings } from "./momentum";
 
 export default async function Command() {
   await closeMainWindow();
-  await showToast({ style: Toast.Style.Animated, title: "Opening Settings..." });
+  await showToast({ style: Toast.Style.Animated, title: "Opening Momentum Settings..." });
   await openMomentumSettings();
 }
