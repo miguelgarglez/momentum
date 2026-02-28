@@ -2,8 +2,14 @@ name: Release build
 
 on:
   release:
-    types: [published]
+    types: [published, released]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to package and upload (example: v1.8.0)"
+        required: true
+        type: string
+  workflow_call:
     inputs:
       release_tag:
         description: "Release tag to package and upload (example: v1.8.0)"

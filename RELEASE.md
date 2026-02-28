@@ -25,6 +25,7 @@ Steps:
 Triggers:
 - Automatic on GitHub Release `published`.
 - Manual via `workflow_dispatch` with `release_tag` input when backfilling assets for an existing release.
+- Automatic from `release-please` when a new release is created (via reusable workflow call with the generated tag).
 
 Core scripts:
 - `scripts/release/build_and_package_macos.sh`
