@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/miguelgarglez/momentum/compare/v1.8.0...v1.8.1) (2026-02-28)
+
+
+### CI
+
+* **release:** support published and manual runs ([b78cb54](https://github.com/miguelgarglez/momentum/commit/b78cb545ea50a72c15e79726ad9250798c53e7c4))
+
 ## [1.8.0](https://github.com/miguelgarglez/momentum/compare/v1.7.0...v1.8.0) (2026-02-28)
 
 
