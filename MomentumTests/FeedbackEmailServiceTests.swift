@@ -32,9 +32,12 @@ struct FeedbackEmailServiceTests {
         let subject = components?.queryItems?.first(where: { $0.name == "subject" })?.value
         #expect(subject == "[Momentum] Feedback")
         let body = components?.queryItems?.first(where: { $0.name == "body" })?.value
-        #expect(body?.contains("Tipo: Bug | Mejora | Feedback") == true)
-        #expect(body?.contains("- Estado tracking: Tracking activo") == true)
-        #expect(body?.contains("- Dominio: example.com") == true)
+        let typeLine = String(localized: "Tipo: Bug | Mejora | Feedback")
+        let trackingLine = String.localizedStringWithFormat(String(localized: "- Estado tracking: %@"), "Tracking activo")
+        let domainLine = String.localizedStringWithFormat(String(localized: "- Dominio: %@"), "example.com")
+        #expect(body?.contains(typeLine) == true)
+        #expect(body?.contains(trackingLine) == true)
+        #expect(body?.contains(domainLine) == true)
     }
 
     @Test("Body usa N/A cuando faltan campos")
@@ -51,9 +54,12 @@ struct FeedbackEmailServiceTests {
         guard let url else { return }
         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         let body = components?.queryItems?.first(where: { $0.name == "body" })?.value
-        #expect(body?.contains("- Versión app: N/A") == true)
-        #expect(body?.contains("- macOS: N/A") == true)
-        #expect(body?.contains("- Archivo: N/A") == true)
+        let appVersionFallback = String.localizedStringWithFormat(String(localized: "- Versión app: %@"), "N/A")
+        let osFallback = String.localizedStringWithFormat(String(localized: "- macOS: %@"), "N/A")
+        let fileFallback = String.localizedStringWithFormat(String(localized: "- Archivo: %@"), "N/A")
+        #expect(body?.contains(appVersionFallback) == true)
+        #expect(body?.contains(osFallback) == true)
+        #expect(body?.contains(fileFallback) == true)
     }
 
     @Test("sendFeedbackEmail delega apertura de URL")
