@@ -13,7 +13,7 @@ The release workflow uploads artifacts directly to the published tag release, so
 
 ## CI release pipeline
 
-Workflow: `.github/workflows/release-build.yml` (trigger: `release.published`)
+Workflow: `.github/workflows/release-build.yml`
 
 Steps:
 1. Lint + unit tests on macOS runner.
@@ -23,7 +23,8 @@ Steps:
 5. Upload release assets with `gh release upload --clobber`.
 
 Triggers:
-- Automatic on `push` of version tags (`v*`), including tags created by `release-please`.
+- Automatic via `workflow_call` from `.github/workflows/release-please.yml` when `release-please` actually creates a release tag.
+- Automatic on `push` of version tags (`v*`) for external/manual tag creation flows.
 - Manual via `workflow_dispatch` with `release_tag` input when backfilling assets for an existing release.
 
 Core scripts:
