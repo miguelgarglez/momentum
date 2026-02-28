@@ -1,5 +1,64 @@
 # Changelog
 
+## [1.8.0](https://github.com/miguelgarglez/momentum/compare/v1.7.0...v1.8.0) (2026-02-28)
+
+
+### Features
+
+* add project icon picker and emoji support ([67a18e3](https://github.com/miguelgarglez/momentum/commit/67a18e3fcd2d68c6660acdbd3c4514a58b782a37))
+* animate empty state symbols ([4079177](https://github.com/miguelgarglez/momentum/commit/407917711d2e3d80d0aa78f49e0d86fd1affd068))
+* **feedback:** add email-only feedback flow ([cf14fea](https://github.com/miguelgarglez/momentum/commit/cf14feaab3e1edfe68ad35e250d8abc7429a67b4))
+* **i18n:** add bilingual app localization ([7e9aa7d](https://github.com/miguelgarglez/momentum/commit/7e9aa7d3094d3a08d9a1c4efc0bb07c63f3850c1))
+* **projects:** keep export-only transfer ([3a8324d](https://github.com/miguelgarglez/momentum/commit/3a8324d5feb24f29800af280bed27fedefe42618))
+* **raycast-ext:** add base momentum extension ([123701f](https://github.com/miguelgarglez/momentum/commit/123701f6298772c09465501f61e4b678447c9532))
+* **raycast-ext:** add manual control commands ([15a2e63](https://github.com/miguelgarglez/momentum/commit/15a2e63fe1ff45281f99d66d344f891cccf07e0d))
+* **raycast-ext:** gate commands by capability ([b2653ca](https://github.com/miguelgarglez/momentum/commit/b2653ca62d1fd050b654039dadfb2f9e0d042f94))
+* **raycast:** add local API and settings flow ([19b3f8c](https://github.com/miguelgarglez/momentum/commit/19b3f8c06ef9495af2f26687e8dda26514119859))
+* **raycast:** add manual and project commands ([3f015a9](https://github.com/miguelgarglez/momentum/commit/3f015a9eaabb44c812e3a61b1210e839fd0f4cc1))
+* **raycast:** expose api capabilities ([a0afb4a](https://github.com/miguelgarglez/momentum/commit/a0afb4afd4257471ad1ba4bf80c6df4cfb0d1110))
+* **raycast:** harden app availability handling ([04e5f3c](https://github.com/miguelgarglez/momentum/commit/04e5f3ce22d6c55e8ac11febbbe1ea8788865476))
+* **rules:** add short expiration presets ([e455b3c](https://github.com/miguelgarglez/momentum/commit/e455b3cdc7c9fb5f8c90520929723ad8c1192ffc))
+* **tracking:** add manual time workflows ([9db9b7a](https://github.com/miguelgarglez/momentum/commit/9db9b7a4cfd5ca0187fba9abb5c025058dd834f5))
+
+
+### Bug Fixes
+
+* **raycast:** stabilize release pairing ([f213d8e](https://github.com/miguelgarglez/momentum/commit/f213d8ecc9fcfcd7619162ae88bc6e2f007e725e))
+* **services:** align main actor isolation ([32243bc](https://github.com/miguelgarglez/momentum/commit/32243bc2af02da092fc176bb18ed19fcfdfd8d08))
+* **status-item:** pulse and open conflicts ([fcc73fe](https://github.com/miguelgarglez/momentum/commit/fcc73fe8179169e917af5184bc5a51be87e701ec))
+* **status-item:** restore manual pulse animation ([673bb6d](https://github.com/miguelgarglez/momentum/commit/673bb6d98b09c5c652f901075f4a1c0acdb636a4))
+* **status-item:** use square length ([fbaa247](https://github.com/miguelgarglez/momentum/commit/fbaa2474f8f3b4ac45705655b53a55066a6e706d))
+* **tracking:** align picker icon spacing ([340fc6b](https://github.com/miguelgarglez/momentum/commit/340fc6b594b01313f123694dcb0b041b7f01920a))
+* **ui:** decouple action panel metrics ([7477240](https://github.com/miguelgarglez/momentum/commit/747724064d278d320d6b266d510fa46c80a4bfaf))
+* **ui:** Stabilize action panel overlay ([9ba8ece](https://github.com/miguelgarglez/momentum/commit/9ba8ece0b9257454a22851ebfe7ef8e808907422))
+
+
+### Documentation
+
+* **agents:** add Raycast simulation flow ([8882de9](https://github.com/miguelgarglez/momentum/commit/8882de9eea9191d2fce2c05187b72a2f943b3afc))
+* **agents:** update i18n workflow guidance ([d1bfd3f](https://github.com/miguelgarglez/momentum/commit/d1bfd3f686eb956bbb9228ac08582c4b2c3e21c1))
+* **raycast:** add release readiness docs ([867e076](https://github.com/miguelgarglez/momentum/commit/867e076a3448b0b82b72e4f92fc38b10e010c1e0))
+* **raycast:** document integration workflow ([39b2cba](https://github.com/miguelgarglez/momentum/commit/39b2cba4795b680322de0767ac1d934d610f8508))
+
+
+### Tests
+
+* **raycast-ext:** add vitest regression suite ([6f0c29b](https://github.com/miguelgarglez/momentum/commit/6f0c29b8b7e1641f2db63c53728a279d32202729))
+
+
+### CI
+
+* **raycast-ext:** add extension ci workflow ([ff7e858](https://github.com/miguelgarglez/momentum/commit/ff7e858d685ed45c0a455edc74497ddc65b6651b))
+* **workflows:** require xcode 26 in mac builds ([c928635](https://github.com/miguelgarglez/momentum/commit/c928635faf0046a784649fa6afa51d2d98a2fb10))
+* **workflows:** run mac builds on macos 26 ([ce34adf](https://github.com/miguelgarglez/momentum/commit/ce34adfa203ad3ecfcb2f9de55b9c7d660343625))
+
+
+### Chores
+
+* **localization:** remove unused transfer keys ([12dd749](https://github.com/miguelgarglez/momentum/commit/12dd7493c4c83f27d328384190ba1180190c6910))
+* **raycast:** add missing-app simulation tooling ([011da26](https://github.com/miguelgarglez/momentum/commit/011da263a64658b4530804cd32aa6f5dfb6c2b2e))
+* update agents guidelines ([b93c984](https://github.com/miguelgarglez/momentum/commit/b93c9846680b4102cf47aa81f9261d43bfad7d4a))
+
 ## [1.7.0](https://github.com/miguelgarglez/momentum/compare/v1.6.0...v1.7.0) (2026-02-01)
 
 
