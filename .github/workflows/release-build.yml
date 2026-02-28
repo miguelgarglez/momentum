@@ -1,15 +1,10 @@
 name: Release build
 
 on:
-  release:
-    types: [published, released]
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
-    inputs:
-      release_tag:
-        description: "Release tag to package and upload (example: v1.8.0)"
-        required: true
-        type: string
-  workflow_call:
     inputs:
       release_tag:
         description: "Release tag to package and upload (example: v1.8.0)"
@@ -99,7 +94,7 @@ jobs:
 
       - name: Package release artifacts
         env:
-          RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
           OUTPUT_DIR: ${{ github.workspace }}/release-artifacts
           DERIVED_DATA: ${{ runner.temp }}/DerivedDataRelease
         run: |
@@ -109,7 +104,7 @@ jobs:
       - name: Upload assets to GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
           OUTPUT_DIR: ${{ github.workspace }}/release-artifacts
         run: |
           set -euo pipefail
@@ -119,5 +114,5 @@ jobs:
       - name: Upload artifacts as workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-release-assets-${{ github.event.release.tag_name }}
+          name: macos-release-assets-${{ inputs.release_tag || github.ref_name }}
           path: release-artifacts

@@ -23,9 +23,8 @@ Steps:
 5. Upload release assets with `gh release upload --clobber`.
 
 Triggers:
-- Automatic on GitHub Release `published`.
+- Automatic on `push` of version tags (`v*`), including tags created by `release-please`.
 - Manual via `workflow_dispatch` with `release_tag` input when backfilling assets for an existing release.
-- Automatic from `release-please` when a new release is created (via reusable workflow call with the generated tag).
 
 Core scripts:
 - `scripts/release/build_and_package_macos.sh`
