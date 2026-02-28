@@ -4,6 +4,9 @@ on:
   release:
     types: [created]
 
+permissions:
+  contents: write
+
 jobs:
   build-and-test:
     runs-on: macos-26
@@ -81,3 +84,28 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             test \
             -only-testing:MomentumTests
+
+      - name: Package release artifacts
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          OUTPUT_DIR: ${{ github.workspace }}/release-artifacts
+          DERIVED_DATA: ${{ runner.temp }}/DerivedDataRelease
+        run: |
+          set -euo pipefail
+          bash scripts/release/build_and_package_macos.sh
+
+      - name: Upload assets to GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          OUTPUT_DIR: ${{ github.workspace }}/release-artifacts
+        run: |
+          set -euo pipefail
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+          bash scripts/release/upload_release_assets.sh
+
+      - name: Upload artifacts as workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release-assets-${{ github.event.release.tag_name }}
+          path: release-artifacts
