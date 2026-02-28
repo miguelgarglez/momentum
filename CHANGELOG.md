@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.2](https://github.com/miguelgarglez/momentum/compare/v1.8.1...v1.8.2) (2026-02-28)
+
+
+### CI
+
+* **release:** auto-run packaging after release ([d1ab0f7](https://github.com/miguelgarglez/momentum/commit/d1ab0f745599863ba658c2fb6f8e4b75b0febf7f))
+* **release:** chain packaging from release-please ([425c97c](https://github.com/miguelgarglez/momentum/commit/425c97cab9ecf029446c2747bcb0153ed00ac293))
+* **release:** trigger packaging on tag push ([2665f79](https://github.com/miguelgarglez/momentum/commit/2665f79f531559d7747c319e62220c868befda80))
+
 ## [1.8.1](https://github.com/miguelgarglez/momentum/compare/v1.8.0...v1.8.1) (2026-02-28)
 
 
