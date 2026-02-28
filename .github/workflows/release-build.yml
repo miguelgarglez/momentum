@@ -2,7 +2,13 @@ name: Release build
 
 on:
   release:
-    types: [created]
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to package and upload (example: v1.8.0)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -87,7 +93,7 @@ jobs:
 
       - name: Package release artifacts
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
           OUTPUT_DIR: ${{ github.workspace }}/release-artifacts
           DERIVED_DATA: ${{ runner.temp }}/DerivedDataRelease
         run: |
@@ -97,7 +103,7 @@ jobs:
       - name: Upload assets to GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
           OUTPUT_DIR: ${{ github.workspace }}/release-artifacts
         run: |
           set -euo pipefail

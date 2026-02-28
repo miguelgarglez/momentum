@@ -14,8 +14,15 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 
-mapfile -t dmg_files < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.dmg' | sort)
-mapfile -t zip_files < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.zip' | sort)
+dmg_files=()
+while IFS= read -r file; do
+  dmg_files+=("$file")
+done < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.dmg' | sort)
+
+zip_files=()
+while IFS= read -r file; do
+  zip_files+=("$file")
+done < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.zip' | sort)
 
 checksums_file="$OUTPUT_DIR/checksums.txt"
 metadata_file="$OUTPUT_DIR/release-metadata.txt"
