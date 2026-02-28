@@ -46,6 +46,10 @@ import SwiftData
             var bundleIdentifier: String?
             var projectName: String?
             var projectID: PersistentIdentifier?
+
+            var isTrackingExistingProject: Bool {
+                (state == .tracking || state == .trackingManual) && projectID != nil
+            }
         }
 
         enum ManualStopReason: String, Equatable {

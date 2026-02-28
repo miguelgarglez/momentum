@@ -552,6 +552,36 @@ struct MomentumTests {
         #expect(scenario.tracker.statusSummary.state == .tracking)
     }
 
+    @Test("StatusSummary detecta tracking con proyecto existente")
+    func statusSummaryRecognizesTrackingExistingProject() throws {
+        let container = try factory.makeContainer()
+        let project = Project(name: "Tracking")
+        container.mainContext.insert(project)
+        let projectID = project.persistentModelID
+
+        let trackingWithProject = ActivityTracker.StatusSummary(state: .tracking, projectID: projectID)
+        #expect(trackingWithProject.isTrackingExistingProject)
+
+        let manualWithProject = ActivityTracker.StatusSummary(state: .trackingManual, projectID: projectID)
+        #expect(manualWithProject.isTrackingExistingProject)
+
+        let trackingWithoutProject = ActivityTracker.StatusSummary(state: .tracking, projectID: nil)
+        #expect(!trackingWithoutProject.isTrackingExistingProject)
+
+        let pending = ActivityTracker.StatusSummary(state: .pendingResolution, projectID: projectID)
+        #expect(!pending.isTrackingExistingProject)
+        let pausedManual = ActivityTracker.StatusSummary(state: .pausedManual, projectID: projectID)
+        #expect(!pausedManual.isTrackingExistingProject)
+        let pausedIdle = ActivityTracker.StatusSummary(state: .pausedIdle, projectID: projectID)
+        #expect(!pausedIdle.isTrackingExistingProject)
+        let pausedScreenLocked = ActivityTracker.StatusSummary(state: .pausedScreenLocked, projectID: projectID)
+        #expect(!pausedScreenLocked.isTrackingExistingProject)
+        let pausedExcluded = ActivityTracker.StatusSummary(state: .pausedExcluded, projectID: projectID)
+        #expect(!pausedExcluded.isTrackingExistingProject)
+        let inactive = ActivityTracker.StatusSummary(state: .inactive, projectID: projectID)
+        #expect(!inactive.isTrackingExistingProject)
+    }
+
     @Test("Cambios rápidos de apps generan sesiones sin solape")
     func activityTrackerHandlesRapidAppSwitches() throws {
         let scenario = try factory.makeTrackerScenario()

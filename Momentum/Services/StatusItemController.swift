@@ -32,8 +32,8 @@
             latestSummary = tracker.statusSummary
             pendingConflictCount = tracker.pendingConflictCount
             isManualTrackingActive = tracker.isManualTrackingActive
-            isConflictActive = pendingConflictCount > 0 && !isManualTrackingActive
-            symbolViewModel.isManualTrackingActive = isManualTrackingActive
+            isConflictActive = pendingConflictCount > 0 && !latestSummary.isTrackingExistingProject
+            symbolViewModel.isProjectTrackingActive = latestSummary.isTrackingExistingProject
             super.init()
             configureButton()
             updateClockLabel()
@@ -43,6 +43,7 @@
                 .sink { [weak self] summary in
                     guard let self else { return }
                     self.latestSummary = summary
+                    self.updateSymbolView()
                     self.rebuildMenu()
                 }
                 .store(in: &cancellables)
@@ -109,7 +110,8 @@
 
         @MainActor
         private func updateSymbolView() {
-            let hasConflict = pendingConflictCount > 0 && !isManualTrackingActive
+            let isProjectTrackingActive = latestSummary.isTrackingExistingProject
+            let hasConflict = pendingConflictCount > 0 && !isProjectTrackingActive
             if hasConflict != isConflictActive {
                 isConflictActive = hasConflict
                 symbolViewModel.isConflicting = hasConflict
@@ -117,7 +119,7 @@
             } else {
                 symbolViewModel.isConflicting = hasConflict
             }
-            symbolViewModel.isManualTrackingActive = isManualTrackingActive
+            symbolViewModel.isProjectTrackingActive = isProjectTrackingActive
         }
 
         @MainActor
@@ -180,7 +182,7 @@
 
             if pendingConflictCount > 0, !tracker.isManualTrackingActive {
                 let conflictTitle = localizedFormat("Resolver conflictos (%lld)", pendingConflictCount)
-                let conflictItem = NSMenuItem(title: conflictTitle, action: #selector(handleShowApp), keyEquivalent: "")
+                let conflictItem = NSMenuItem(title: conflictTitle, action: #selector(handleShowConflicts), keyEquivalent: "")
                 conflictItem.target = self
                 menu.addItem(conflictItem)
             }
@@ -322,6 +324,10 @@
 
         @objc private func handleShowApp(_: Any?) {
             NotificationCenter.default.post(name: .statusItemShowApp, object: nil)
+        }
+
+        @objc private func handleShowConflicts(_: Any?) {
+            NotificationCenter.default.post(name: .raycastShowConflicts, object: nil)
         }
 
         @objc private func handleOpenActiveProject(_ sender: Any?) {
