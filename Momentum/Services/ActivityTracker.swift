@@ -12,6 +12,7 @@ import SwiftData
 
 #if os(macOS)
     @preconcurrency import AppKit
+    import ApplicationServices
     import IOKit
 
     /// Central coordinator for activity tracking in Momentum.
@@ -74,6 +75,20 @@ import SwiftData
             let manualProjectID: PersistentIdentifier?
         }
 
+        private struct CrashSnapshotFingerprint: Equatable {
+            let hasContext: Bool
+            let appName: String?
+            let bundleIdentifier: String?
+            let domain: String?
+            let filePath: String?
+            let projectID: PersistentIdentifier?
+            let projectName: String?
+            let isExcluded: Bool
+            let isPendingAssignment: Bool
+            let isManualTrackingActive: Bool
+            let manualProjectID: PersistentIdentifier?
+        }
+
         @Published private(set) var isTrackingEnabled = true
         @Published private(set) var statusSummary = StatusSummary(state: .inactive)
         @Published private(set) var pendingConflictCount: Int = 0
@@ -85,6 +100,7 @@ import SwiftData
         private let crashRecovery: CrashRecoveryHandling
         private let performanceMonitor: PerformanceBudgetMonitoring
         private let assignmentResolver: ProjectAssignmentResolving
+        private let isCrashRecoveryDisabled: Bool
         private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Momentum", category: "ActivityTracker")
         private let domainResolver = BrowserDomainResolver()
         private let fileResolver = FileDocumentResolver()
@@ -104,6 +120,10 @@ import SwiftData
         private let saveMaxInterval: TimeInterval = 10
         /// Safety floor for timer intervals to avoid hot loops.
         private let minimumTimerInterval: TimeInterval = 1
+        /// Coalesce non-critical status summary updates to avoid UI churn.
+        private let statusSummaryDebounceInterval: TimeInterval = 0.12
+        /// Refresh crash recovery snapshot periodically even when context fingerprint is stable.
+        private let crashRecoverySnapshotMaxInterval: TimeInterval = 30
 
         private var currentContext: AppSessionContext?
         private var observer: NSObjectProtocol?
@@ -128,6 +148,9 @@ import SwiftData
         private var pendingSwiftDataSaveSince: Date?
         private var lastSwiftDataSaveRequestAt: Date?
         private var swiftDataSaveTask: Task<Void, Never>?
+        private var statusSummaryRefreshTask: Task<Void, Never>?
+        private var lastCrashSnapshotFingerprint: CrashSnapshotFingerprint?
+        private var lastCrashSnapshotPersistedAt: Date = .distantPast
         private var diagnosticsReporter: DiagnosticsReporter?
         private var cancellables: Set<AnyCancellable> = []
 
@@ -143,6 +166,7 @@ import SwiftData
             self.crashRecovery = crashRecovery ?? CrashRecoveryManager()
             self.performanceMonitor = performanceMonitor ?? PerformanceBudgetMonitor()
             self.assignmentResolver = assignmentResolver ?? ProjectAssignmentResolver(modelContainer: modelContainer, settings: settings)
+            isCrashRecoveryDisabled = RuntimeFlags.isDisabled(.disableCrashRecovery)
             observer = NSWorkspace.shared.notificationCenter.addObserver(
                 forName: NSWorkspace.didActivateApplicationNotification,
                 object: nil,
@@ -176,7 +200,7 @@ import SwiftData
         }
 
         private func recoverLastSessionIfNeeded() {
-            guard !RuntimeFlags.isDisabled(.disableCrashRecovery) else { return }
+            guard !isCrashRecoveryDisabled else { return }
             Diagnostics.record(.crashRecoveryRun) {
                 guard let snapshot = crashRecovery.consumePendingSnapshot() else { return }
                 if snapshot.isManualTrackingActive ?? false {
@@ -1058,6 +1082,8 @@ import SwiftData
             if let observer {
                 NSWorkspace.shared.notificationCenter.removeObserver(observer)
             }
+            statusSummaryRefreshTask?.cancel()
+            statusSummaryRefreshTask = nil
             stopScreenLockMonitoring()
             pauseTimers()
             rulesCleanupTimer?.invalidate()
@@ -1215,25 +1241,43 @@ import SwiftData
             return TimeInterval(idleNanoseconds) / 1_000_000_000
         }
 
-        private func refreshStatusSummary() {
-            if !isTrackingEnabled {
-                statusSummary = StatusSummary(state: .pausedManual)
+        private func refreshStatusSummary(immediate: Bool = true) {
+            if immediate {
+                statusSummaryRefreshTask?.cancel()
+                statusSummaryRefreshTask = nil
+                applyStatusSummaryIfNeeded(computeStatusSummary())
                 return
+            }
+
+            guard statusSummaryRefreshTask == nil else { return }
+            statusSummaryRefreshTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                defer { self.statusSummaryRefreshTask = nil }
+                do {
+                    try await Task.sleep(for: .seconds(self.statusSummaryDebounceInterval))
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled else { return }
+                self.applyStatusSummaryIfNeeded(self.computeStatusSummary())
+            }
+        }
+
+        private func computeStatusSummary() -> StatusSummary {
+            if !isTrackingEnabled {
+                return StatusSummary(state: .pausedManual)
             }
             if isScreenLocked {
-                statusSummary = StatusSummary(state: .pausedScreenLocked)
-                return
+                return StatusSummary(state: .pausedScreenLocked)
             }
             if isUserIdle {
-                statusSummary = StatusSummary(state: .pausedIdle)
-                return
+                return StatusSummary(state: .pausedIdle)
             }
             guard let context = currentContext else {
-                statusSummary = StatusSummary(state: .inactive)
-                return
+                return StatusSummary(state: .inactive)
             }
             if isManualTrackingActive {
-                statusSummary = StatusSummary(
+                return StatusSummary(
                     state: .trackingManual,
                     appName: context.appName,
                     domain: context.domain,
@@ -1242,10 +1286,9 @@ import SwiftData
                     projectName: context.projectName,
                     projectID: context.projectID,
                 )
-                return
             }
             if context.isExcluded {
-                statusSummary = StatusSummary(
+                return StatusSummary(
                     state: .pausedExcluded,
                     appName: context.appName,
                     domain: context.domain,
@@ -1254,10 +1297,9 @@ import SwiftData
                     projectName: nil,
                     projectID: nil,
                 )
-                return
             }
             if context.isPendingAssignment {
-                statusSummary = StatusSummary(
+                return StatusSummary(
                     state: .pendingResolution,
                     appName: context.appName,
                     domain: context.domain,
@@ -1266,9 +1308,8 @@ import SwiftData
                     projectName: nil,
                     projectID: nil,
                 )
-                return
             }
-            statusSummary = StatusSummary(
+            return StatusSummary(
                 state: .tracking,
                 appName: context.appName,
                 domain: context.domain,
@@ -1279,19 +1320,52 @@ import SwiftData
             )
         }
 
+        private func applyStatusSummaryIfNeeded(_ summary: StatusSummary) {
+            guard statusSummary != summary else { return }
+            statusSummary = summary
+        }
+
+        private func crashSnapshotFingerprint(for context: AppSessionContext?) -> CrashSnapshotFingerprint {
+            CrashSnapshotFingerprint(
+                hasContext: context != nil,
+                appName: context?.appName,
+                bundleIdentifier: context?.bundleIdentifier,
+                domain: context?.domain,
+                filePath: context?.filePath,
+                projectID: context?.projectID,
+                projectName: context?.projectName,
+                isExcluded: context?.isExcluded ?? false,
+                isPendingAssignment: context?.isPendingAssignment ?? false,
+                isManualTrackingActive: isManualTrackingActive,
+                manualProjectID: manualProjectID,
+            )
+        }
+
+        private func persistCrashSnapshotIfNeeded(context: AppSessionContext?) {
+            guard !isCrashRecoveryDisabled else { return }
+
+            let now = Date()
+            let fingerprint = crashSnapshotFingerprint(for: context)
+            let fingerprintChanged = fingerprint != lastCrashSnapshotFingerprint
+            let elapsed = now.timeIntervalSince(lastCrashSnapshotPersistedAt)
+            guard fingerprintChanged || elapsed >= crashRecoverySnapshotMaxInterval else { return }
+
+            crashRecovery.persist(snapshot: context.map {
+                SessionSnapshot(
+                    context: $0,
+                    isManualTrackingActive: isManualTrackingActive,
+                    manualProjectID: manualProjectID,
+                    manualStartDate: manualStartDate,
+                )
+            })
+            lastCrashSnapshotFingerprint = fingerprint
+            lastCrashSnapshotPersistedAt = now
+        }
+
         private func setCurrentContext(_ context: AppSessionContext?) {
             currentContext = context
-            if !RuntimeFlags.isDisabled(.disableCrashRecovery) {
-                crashRecovery.persist(snapshot: context.map {
-                    SessionSnapshot(
-                        context: $0,
-                        isManualTrackingActive: isManualTrackingActive,
-                        manualProjectID: manualProjectID,
-                        manualStartDate: manualStartDate,
-                    )
-                })
-            }
-            refreshStatusSummary()
+            persistCrashSnapshotIfNeeded(context: context)
+            refreshStatusSummary(immediate: false)
         }
 
         private func updateProjectAssociation(for context: inout AppSessionContext) {
@@ -1740,6 +1814,7 @@ import SwiftData
                     updateProjectAssociation(for: &context)
                 }
                 setCurrentContext(context)
+                refreshStatusSummary()
             }
 
             func testing_forceIdleState(_ idle: Bool) {
@@ -1765,6 +1840,9 @@ import SwiftData
     @MainActor
     private final class BrowserDomainResolver {
         private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Momentum", category: "BrowserDomainResolver")
+        private let deniedPermissionRetryInterval: TimeInterval = 60
+        private var nextPermissionRetryAt: [String: Date] = [:]
+        private var grantedPermissionTargets: Set<String> = []
 
         func supports(bundleIdentifier: String?) -> Bool {
             guard let bundleIdentifier else { return false }
@@ -1777,6 +1855,11 @@ import SwiftData
             else {
                 return nil
             }
+            guard canAttemptAutomation(for: identifier),
+                  hasAutomationPermission(for: identifier)
+            else {
+                return nil
+            }
 
             let script: String = switch browser {
             case let .safari(bundleIdentifier):
@@ -1786,6 +1869,38 @@ import SwiftData
             }
 
             return await BrowserScriptRunner.run(script: script, identifier: browser.identifier, logger: logger)
+        }
+
+        private func canAttemptAutomation(for bundleIdentifier: String) -> Bool {
+            guard let retryAt = nextPermissionRetryAt[bundleIdentifier] else { return true }
+            return retryAt <= Date()
+        }
+
+        private func hasAutomationPermission(for bundleIdentifier: String) -> Bool {
+            if grantedPermissionTargets.contains(bundleIdentifier) {
+                return true
+            }
+            let status = Self.automationPermissionStatus(for: bundleIdentifier, prompt: false)
+            guard status == noErr else {
+                nextPermissionRetryAt[bundleIdentifier] = Date().addingTimeInterval(deniedPermissionRetryInterval)
+                logger.debug(
+                    "Automation unavailable for \(bundleIdentifier, privacy: .public). Retrying after cooldown. status=\(Int(status), privacy: .public)"
+                )
+                return false
+            }
+            grantedPermissionTargets.insert(bundleIdentifier)
+            nextPermissionRetryAt.removeValue(forKey: bundleIdentifier)
+            return true
+        }
+
+        private static func automationPermissionStatus(for bundleIdentifier: String, prompt: Bool) -> OSStatus {
+            let target = NSAppleEventDescriptor(bundleIdentifier: bundleIdentifier)
+            return AEDeterminePermissionToAutomateTarget(
+                target.aeDesc,
+                AEEventClass(kAECoreSuite),
+                AEEventID(kAEGetData),
+                prompt,
+            )
         }
 
         private enum BrowserFamily {

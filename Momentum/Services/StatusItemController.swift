@@ -1,13 +1,29 @@
 #if os(macOS)
     import AppKit
     import Combine
+    import SwiftData
     import SwiftUI
 
     @MainActor
     final class StatusItemController: NSObject {
+        private struct MenuFingerprint: Equatable {
+            let currentTimeString: String
+            let state: ActivityTracker.StatusSummary.State
+            let appName: String?
+            let domain: String?
+            let filePath: String?
+            let bundleIdentifier: String?
+            let projectName: String?
+            let projectID: PersistentIdentifier?
+            let pendingConflictCount: Int
+            let isManualTrackingActive: Bool
+            let isTrackingEnabled: Bool
+        }
+
         private let tracker: ActivityTracker
         private let feedbackEmailService = FeedbackEmailService()
         private let statusItem: NSStatusItem
+        private let statusMenu: NSMenu
         private var cancellables: Set<AnyCancellable> = []
         private var clockTimer: Timer?
         private var currentTimeString: String = ""
@@ -17,6 +33,9 @@
         private let symbolViewModel = StatusItemSymbolViewModel()
         private weak var symbolHostingView: NSHostingView<StatusItemSymbolView>?
         private var isConflictActive: Bool = false
+        private var isMenuOpen = false
+        private var menuNeedsRebuild = true
+        private var lastMenuFingerprint: MenuFingerprint?
 
         private lazy var timeFormatter: DateFormatter = {
             let formatter = DateFormatter()
@@ -29,22 +48,25 @@
         init(tracker: ActivityTracker) {
             self.tracker = tracker
             statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+            statusMenu = NSMenu()
             latestSummary = tracker.statusSummary
             pendingConflictCount = tracker.pendingConflictCount
             isManualTrackingActive = tracker.isManualTrackingActive
             isConflictActive = pendingConflictCount > 0 && !latestSummary.isTrackingExistingProject
             symbolViewModel.isProjectTrackingActive = latestSummary.isTrackingExistingProject
             super.init()
+            statusMenu.delegate = self
+            statusItem.menu = statusMenu
             configureButton()
             updateClockLabel()
-            rebuildMenu()
+            rebuildMenuIfNeeded(force: true)
             tracker.$statusSummary
                 .receive(on: RunLoop.main)
                 .sink { [weak self] summary in
                     guard let self else { return }
                     self.latestSummary = summary
                     self.updateSymbolView()
-                    self.rebuildMenu()
+                    self.markMenuDirty()
                 }
                 .store(in: &cancellables)
             tracker.$pendingConflictCount
@@ -54,7 +76,7 @@
                     self.pendingConflictCount = count
                     self.updateButtonBadge()
                     self.updateSymbolView()
-                    self.rebuildMenu()
+                    self.markMenuDirty()
                 }
                 .store(in: &cancellables)
             tracker.$isManualTrackingActive
@@ -64,7 +86,7 @@
                     self.isManualTrackingActive = isActive
                     self.updateButtonBadge()
                     self.updateSymbolView()
-                    self.rebuildMenu()
+                    self.markMenuDirty()
                 }
                 .store(in: &cancellables)
             startClockTimer()
@@ -129,7 +151,7 @@
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     self.updateClockLabel()
-                    self.rebuildMenu()
+                    self.markMenuDirty()
                 }
             }
         }
@@ -139,8 +161,39 @@
             currentTimeString = timeFormatter.string(from: Date())
         }
 
-        private func rebuildMenu() {
-            let menu = NSMenu()
+        private func currentMenuFingerprint() -> MenuFingerprint {
+            MenuFingerprint(
+                currentTimeString: currentTimeString,
+                state: latestSummary.state,
+                appName: latestSummary.appName,
+                domain: latestSummary.domain,
+                filePath: latestSummary.filePath,
+                bundleIdentifier: latestSummary.bundleIdentifier,
+                projectName: latestSummary.projectName,
+                projectID: latestSummary.projectID,
+                pendingConflictCount: pendingConflictCount,
+                isManualTrackingActive: isManualTrackingActive,
+                isTrackingEnabled: tracker.isTrackingEnabled,
+            )
+        }
+
+        private func markMenuDirty() {
+            let fingerprint = currentMenuFingerprint()
+            guard fingerprint != lastMenuFingerprint else { return }
+            menuNeedsRebuild = true
+            if isMenuOpen {
+                rebuildMenuIfNeeded(force: true)
+            }
+        }
+
+        private func rebuildMenuIfNeeded(force: Bool = false) {
+            let fingerprint = currentMenuFingerprint()
+            guard force || menuNeedsRebuild || fingerprint != lastMenuFingerprint else { return }
+            menuNeedsRebuild = false
+            lastMenuFingerprint = fingerprint
+
+            statusMenu.removeAllItems()
+            let menu = statusMenu
             let header = disabledItem(localizedFormat("Momentum — %@", currentTimeString))
             menu.addItem(header)
 
@@ -217,8 +270,6 @@
             quitItem.target = self
             quitItem.keyEquivalentModifierMask = [.command]
             menu.addItem(quitItem)
-
-            statusItem.menu = menu
         }
 
         private func appendContextDetails(to menu: NSMenu, summary: ActivityTracker.StatusSummary) {
@@ -369,5 +420,20 @@
 
     enum StatusItemUserInfoKey {
         static let projectID = "StatusItemProjectID"
+    }
+
+    extension StatusItemController: NSMenuDelegate {
+        func menuWillOpen(_ menu: NSMenu) {
+            guard menu === statusMenu else { return }
+            isMenuOpen = true
+            updateClockLabel()
+            menuNeedsRebuild = true
+            rebuildMenuIfNeeded(force: true)
+        }
+
+        func menuDidClose(_ menu: NSMenu) {
+            guard menu === statusMenu else { return }
+            isMenuOpen = false
+        }
     }
 #endif

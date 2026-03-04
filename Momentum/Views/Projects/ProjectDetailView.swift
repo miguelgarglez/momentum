@@ -24,6 +24,7 @@ struct ProjectDetailView: View {
     @State private var showsRefreshIndicator = false
     @State private var refreshIndicatorToken = UUID()
     @State private var refreshCounter = 0
+    @State private var manualEntrySessionsCache: [TrackingSession] = []
 
     enum MetricLayout {
         static let minHeight: CGFloat = 110
@@ -171,11 +172,15 @@ struct ProjectDetailView: View {
             }
         }
         .task(id: project.persistentModelID) {
+            refreshManualEntrySessionsCache()
             await refreshIfNeeded(force: true)
             await refreshLoop()
         }
         .task(id: usageWindow) {
             await refreshUsageSummaries()
+        }
+        .onChange(of: manualEntriesSignature) { _, _ in
+            refreshManualEntrySessionsCache()
         }
     }
 
@@ -351,12 +356,12 @@ struct ProjectDetailView: View {
             Text("Entradas manuales")
                 .font(.headline)
 
-            if manualEntrySessions.isEmpty {
+            if manualEntrySessionsCache.isEmpty {
                 Text("Aún no hay entradas manuales en este proyecto.")
                     .foregroundStyle(.secondary)
             } else {
                 VStack(spacing: 8) {
-                    ForEach(manualEntrySessions, id: \.persistentModelID) { session in
+                    ForEach(manualEntrySessionsCache, id: \.persistentModelID) { session in
                         ManualEntryRow(session: session) {
                             pendingManualEntryDeletion = session
                         }
@@ -371,8 +376,22 @@ struct ProjectDetailView: View {
         )
     }
 
-    private var manualEntrySessions: [TrackingSession] {
-        project.sessions
+    private var manualEntriesSignature: String {
+        var count = 0
+        var latestEnd: TimeInterval = 0
+        var checksum: TimeInterval = 0
+
+        for session in project.sessions where session.source == .manualEntry {
+            count += 1
+            let end = session.endDate.timeIntervalSinceReferenceDate
+            latestEnd = max(latestEnd, end)
+            checksum += end + session.startDate.timeIntervalSinceReferenceDate
+        }
+        return "\(count)|\(latestEnd)|\(checksum)"
+    }
+
+    private func refreshManualEntrySessionsCache() {
+        manualEntrySessionsCache = project.sessions
             .filter { $0.source == .manualEntry }
             .sorted { $0.endDate > $1.endDate }
             .prefix(8)
@@ -478,6 +497,7 @@ struct ProjectDetailView: View {
         lastUsedSnapshot = project.sessions.max(by: { $0.endDate < $1.endDate }).map {
             LastUsedSessionSnapshot(session: $0)
         }
+        refreshManualEntrySessionsCache()
         lastRefreshDate = now
         refreshCounter += 1
 

@@ -6,6 +6,9 @@
     @MainActor
     final class FileDocumentResolver {
         private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Momentum", category: "FileDocumentResolver")
+        private let deniedPermissionRetryInterval: TimeInterval = 60
+        private var nextPermissionRetryAt: [String: Date] = [:]
+        private var grantedPermissionTargets: Set<String> = []
 
         func supports(bundleIdentifier: String?) -> Bool {
             guard let bundleIdentifier else { return false }
@@ -19,21 +22,46 @@
                 return nil
             }
 
-            _ = FileDocumentResolver.requestAutomationPermission(for: identifier)
+            guard canAttemptAutomation(for: identifier),
+                  hasAutomationPermission(for: identifier)
+            else {
+                return nil
+            }
             let script = app.script
 
             return await DocumentAppleScriptRunner.run(script: script, identifier: identifier, logger: logger)
         }
 
-        private static func requestAutomationPermission(for bundleIdentifier: String) -> Bool {
+        private func canAttemptAutomation(for bundleIdentifier: String) -> Bool {
+            guard let retryAt = nextPermissionRetryAt[bundleIdentifier] else { return true }
+            return retryAt <= Date()
+        }
+
+        private func hasAutomationPermission(for bundleIdentifier: String) -> Bool {
+            if grantedPermissionTargets.contains(bundleIdentifier) {
+                return true
+            }
+            let status = Self.automationPermissionStatus(for: bundleIdentifier, prompt: false)
+            guard status == noErr else {
+                nextPermissionRetryAt[bundleIdentifier] = Date().addingTimeInterval(deniedPermissionRetryInterval)
+                logger.debug(
+                    "Automation unavailable for \(bundleIdentifier, privacy: .public). Retrying after cooldown. status=\(Int(status), privacy: .public)"
+                )
+                return false
+            }
+            grantedPermissionTargets.insert(bundleIdentifier)
+            nextPermissionRetryAt.removeValue(forKey: bundleIdentifier)
+            return true
+        }
+
+        private static func automationPermissionStatus(for bundleIdentifier: String, prompt: Bool) -> OSStatus {
             let target = NSAppleEventDescriptor(bundleIdentifier: bundleIdentifier)
-            let status = AEDeterminePermissionToAutomateTarget(
+            return AEDeterminePermissionToAutomateTarget(
                 target.aeDesc,
                 AEEventClass(kAECoreSuite),
                 AEEventID(kAEGetData),
-                true,
+                prompt,
             )
-            return status == noErr
         }
 
         private enum DocumentApp {
