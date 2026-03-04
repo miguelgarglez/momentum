@@ -242,6 +242,11 @@ private extension MomentumApp {
             || ProcessInfo.processInfo.environment["MOMENTUM_SKIP_DEBUG_SEED"] == "1"
     }
 
+    static var shouldSeedPortfolioScreenshots: Bool {
+        CommandLine.arguments.contains("--seed-portfolio-screenshots")
+            || ProcessInfo.processInfo.environment["MOMENTUM_SEED_PORTFOLIO_SCREENSHOTS"] == "1"
+    }
+
     static func makeStoreURL(in directory: URL) -> URL {
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -362,8 +367,12 @@ final class AppEnvironment: ObservableObject {
             return
         }
         #if DEBUG
-            if !isUITest, !MomentumApp.shouldSkipDebugSeed {
-                SeedData.seedDebugDataIfNeeded(in: container)
+            if !isUITest {
+                if MomentumApp.shouldSeedPortfolioScreenshots {
+                    SeedData.seedPortfolioScreenshotDataIfNeeded(in: container)
+                } else if !MomentumApp.shouldSkipDebugSeed {
+                    SeedData.seedDebugDataIfNeeded(in: container)
+                }
             }
         #endif
         if isUITest, MomentumApp.shouldSeedConflicts {

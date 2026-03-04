@@ -1,4 +1,4 @@
-.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint check-localization run-dev run-dev-lang run-dev-system-lang run-dev-onboarding run-release run-release-lang run reset-dev-data run-dev-reset-permissions run-release-reset-permissions archive-release install-release dmg clean clean-release diag-cpu-release diag-cpu-release-focus
+.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint check-localization run-dev run-dev-lang run-dev-system-lang run-dev-portfolio run-dev-onboarding run-release run-release-lang run reset-dev-data run-dev-reset-permissions run-release-reset-permissions archive-release install-release dmg clean clean-release diag-cpu-release diag-cpu-release-focus
 
 PROJECT := Momentum.xcodeproj
 SCHEME := Momentum
@@ -47,6 +47,7 @@ help:
 	@echo "  run-dev           Build and launch the dev app (quits running dev app first)"
 	@echo "  run-dev-lang      Build and launch dev app in specific language (APP_LANGUAGE=en|es, APP_LOCALE optional)"
 	@echo "  run-dev-system-lang Clear dev language overrides and launch with system language"
+	@echo "  run-dev-portfolio Build and launch deterministic English portfolio seed for screenshots"
 	@echo "  run-dev-onboarding Run dev app with fresh store, no debug seed, and clean onboarding"
 	@echo "  run-release       Build and launch the release app (quits running release app first)"
 	@echo "  run-release-lang  Build and launch release app in specific language (APP_LANGUAGE=en|es, APP_LOCALE optional)"
@@ -187,6 +188,20 @@ run-dev-system-lang:
 	defaults delete "$(DEV_BUNDLE_ID)" AppleLocale >/dev/null 2>&1 || true; \
 	echo "Launching $(DEV_BUNDLE_ID) with system language settings"; \
 	$(MAKE) run-dev RUN_ARGS="$(RUN_ARGS)"
+
+run-dev-portfolio:
+	@set -euo pipefail; \
+	osascript -e 'tell application id "$(DEV_BUNDLE_ID)" to quit' 2>/dev/null || true; \
+	defaults write "$(DEV_BUNDLE_ID)" AppleLanguages -array "en"; \
+	defaults write "$(DEV_BUNDLE_ID)" AppleLocale "en_US"; \
+	defaults delete "$(DEV_BUNDLE_ID)" Momentum.DebugSeeded >/dev/null 2>&1 || true; \
+	defaults delete "$(DEV_BUNDLE_ID)" Onboarding.hasSeenWelcome >/dev/null 2>&1 || true; \
+	defaults delete "$(DEV_BUNDLE_ID)" Onboarding.hasCreatedProject >/dev/null 2>&1 || true; \
+	defaults delete "$(DEV_BUNDLE_ID)" Onboarding.hasAccessibilityPermissionPrompted >/dev/null 2>&1 || true; \
+	defaults delete "$(DEV_BUNDLE_ID)" Onboarding.hasDocumentAutomationPermissionPrompted >/dev/null 2>&1 || true; \
+	rm -rf "$(DEV_STORE_DIR)" "$(LEGACY_DEV_STORE_DIR)"; \
+	echo "Launching $(DEV_BUNDLE_ID) with deterministic portfolio seed (English)"; \
+	$(MAKE) run-dev RUN_ARGS="--skip-debug-seed --skip-onboarding --seed-portfolio-screenshots"
 
 run-release:
 	@$(MAKE) run CONFIGURATION=Release RUN_BUNDLE_ID="$(RELEASE_BUNDLE_ID)"
