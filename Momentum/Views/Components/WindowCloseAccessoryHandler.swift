@@ -21,29 +21,53 @@
             }
         }
 
-        @MainActor
         final class Coordinator: NSObject, NSWindowDelegate {
             private weak var window: NSWindow?
+            private var observers: [NSObjectProtocol] = []
 
             func attach(to window: NSWindow?) {
                 guard self.window !== window else { return }
-                self.window?.delegate = nil
+                detachIfNeeded()
                 self.window = window
-                window?.delegate = self
+                guard let window else { return }
+                let center = NotificationCenter.default
+                observers = [
+                    center.addObserver(
+                        forName: NSWindow.didBecomeKeyNotification,
+                        object: window,
+                        queue: .main,
+                    ) { [weak self] _ in
+                        Task { @MainActor in
+                            self?.notifyVisibilityChange()
+                        }
+                    },
+                    center.addObserver(
+                        forName: NSWindow.didDeminiaturizeNotification,
+                        object: window,
+                        queue: .main,
+                    ) { [weak self] _ in
+                        Task { @MainActor in
+                            self?.notifyVisibilityChange()
+                        }
+                    },
+                    center.addObserver(
+                        forName: NSWindow.willCloseNotification,
+                        object: window,
+                        queue: .main,
+                    ) { [weak self] _ in
+                        Task { @MainActor in
+                            self?.notifyVisibilityChange()
+                        }
+                    },
+                ]
             }
 
-            func windowShouldClose(_ sender: NSWindow) -> Bool {
-                sender.orderOut(nil)
-                notifyVisibilityChange()
-                return false
-            }
-
-            func windowDidBecomeKey(_: Notification) {
-                notifyVisibilityChange()
-            }
-
-            func windowDidDeminiaturize(_: Notification) {
-                notifyVisibilityChange()
+            private func detachIfNeeded() {
+                let center = NotificationCenter.default
+                for observer in observers {
+                    center.removeObserver(observer)
+                }
+                observers.removeAll()
             }
 
             private func notifyVisibilityChange() {

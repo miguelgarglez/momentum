@@ -36,11 +36,12 @@ struct ContentView: View {
     @State private var manualTimeEntryProjectID: PersistentIdentifier?
     @State private var showAutomationPrompt = false
     @State private var toast: ToastMessage?
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var pendingProjectAction: PendingProjectAction?
     @State private var quickTimeActionProjectID: PersistentIdentifier?
     @State private var projectStatsCache: [PersistentIdentifier: ProjectRowView.ProjectRowStats] = [:]
     @State private var dashboardMetrics = DashboardMetricsDisplay.loading
+    @State private var pendingConflictsCache: [PendingConflict] = []
     @State private var lastStatsRefreshDate: Date?
     #if os(macOS)
         @Environment(\.openWindow) private var openWindow
@@ -162,8 +163,9 @@ struct ContentView: View {
                 .background(.regularMaterial)
             } detail: {
                 detailContent
-                    .padding(.leading, columnVisibility == .detailOnly ? Layout.collapsedDetailLeadingPadding : 0)
+                    .padding(.leading, isSidebarCollapsed ? Layout.collapsedDetailLeadingPadding : 0)
             }
+            .navigationSplitViewStyle(.prominentDetail)
             .navigationTitle("Momentum")
             .onAppear {
                 selectedProjectID = projects.first?.persistentModelID
@@ -285,6 +287,12 @@ struct ContentView: View {
                 }
                 startPendingOnboardingTrackingIfNeeded()
             }
+            .onChange(of: pendingSessionsConflictSignature) { _, _ in
+                refreshPendingConflictsCache()
+            }
+            .onChange(of: projectsConflictSignature) { _, _ in
+                refreshPendingConflictsCache()
+            }
             .onReceive(tracker.$statusSummary) { summary in
                 trackingSessionManager.updateTrackingState(isActive: summary.state == .tracking || summary.state == .trackingManual)
                 trackingSessionManager.ingest(summary: summary)
@@ -294,6 +302,7 @@ struct ContentView: View {
                 showWelcomeWindowIfNeeded()
             }
             .task {
+                refreshPendingConflictsCache()
                 await refreshProjectStatsIfNeeded(force: true)
                 await refreshProjectStatsLoop()
             }
@@ -387,21 +396,26 @@ struct ContentView: View {
     private var actionPanelOverlay: some View {
         actionPanel
             .background {
-                if columnVisibility == .detailOnly {
-                    RoundedRectangle(cornerRadius: Layout.sidebarCornerRadius, style: .continuous)
-                        .fill(.regularMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Layout.sidebarCornerRadius, style: .continuous)
-                                .stroke(Color.primary.opacity(Layout.sidebarBorderOpacity), lineWidth: 1)
-                        )
-                        .padding(.leading, Layout.sidebarInset)
-                        // Negative trailing padding aligns the chrome edge with the window border in collapsed mode.
-                        // This offsets the extra material inset introduced by the split view + overlay composition.
-                        .padding(.trailing, -4)
-                        .padding(.vertical, Layout.sidebarInset)
-                        .ignoresSafeArea(.container, edges: .top)
-                }
+                RoundedRectangle(cornerRadius: Layout.sidebarCornerRadius, style: .continuous)
+                    .fill(.regularMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Layout.sidebarCornerRadius, style: .continuous)
+                            .stroke(Color.primary.opacity(Layout.sidebarBorderOpacity), lineWidth: 1)
+                    )
+                    .padding(.leading, Layout.sidebarInset)
+                    // Negative trailing padding aligns the chrome edge with the window border in collapsed mode.
+                    // This offsets the extra material inset introduced by the split view + overlay composition.
+                    .padding(.trailing, -4)
+                    .padding(.vertical, Layout.sidebarInset)
+                    .ignoresSafeArea(.container, edges: .top)
+                    .opacity(isSidebarCollapsed ? 1 : 0)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
+    }
+
+    private var isSidebarCollapsed: Bool {
+        columnVisibility == .detailOnly
     }
 
     private var sidebarList: some View {
@@ -942,7 +956,35 @@ struct ContentView: View {
     }
 
     private var pendingConflicts: [PendingConflict] {
-        PendingConflict.grouped(from: pendingSessions, projects: projects)
+        pendingConflictsCache
+    }
+
+    private var pendingSessionsConflictSignature: [String] {
+        pendingSessions.map { session in
+            [
+                String(describing: session.persistentModelID),
+                session.contextType,
+                session.contextValue,
+                session.bundleIdentifier ?? "",
+                String(session.startDate.timeIntervalSinceReferenceDate),
+                String(session.endDate.timeIntervalSinceReferenceDate),
+            ].joined(separator: "|")
+        }
+    }
+
+    private var projectsConflictSignature: [String] {
+        projects.map { project in
+            [
+                String(describing: project.persistentModelID),
+                project.assignedAppsRaw,
+                project.assignedDomainsRaw,
+                project.assignedFilesRaw,
+            ].joined(separator: "|")
+        }
+    }
+
+    private func refreshPendingConflictsCache() {
+        pendingConflictsCache = PendingConflict.grouped(from: pendingSessions, projects: projects)
     }
 
     private func startTracking(for project: Project) {

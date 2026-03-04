@@ -28,6 +28,7 @@ struct MomentumApp: App {
     @State private var didSeedDiagnostics = false
 
     init() {
+        Self.migrateLegacyWindowPersistenceIfNeeded()
         let settings = TrackerSettings()
         _trackerSettings = StateObject(wrappedValue: settings)
         _environment = StateObject(wrappedValue: AppEnvironment(trackerSettings: settings))
@@ -35,7 +36,7 @@ struct MomentumApp: App {
 
     var body: some Scene {
         let effectiveThemePreference = themePreview.previewPreference ?? trackerSettings.themePreference
-        WindowGroup {
+        WindowGroup(id: "main") {
             Group {
                 if let container = environment.container,
                    let tracker = environment.tracker
@@ -204,6 +205,25 @@ private struct StoreConfiguration {
 }
 
 private extension MomentumApp {
+    static func migrateLegacyWindowPersistenceIfNeeded() {
+        #if os(macOS)
+            let defaults = UserDefaults.standard
+            let migrationKey = "ui.windowStateMigration.v1"
+            guard !defaults.bool(forKey: migrationKey) else { return }
+            defer { defaults.set(true, forKey: migrationKey) }
+
+            let legacyPrefixes = [
+                "NSSplitView Subview Frames SwiftUI.ModifiedContent<",
+                "NSWindow Frame SwiftUI.ModifiedContent<",
+            ]
+
+            for key in defaults.dictionaryRepresentation().keys {
+                guard legacyPrefixes.contains(where: { key.hasPrefix($0) }) else { continue }
+                defaults.removeObject(forKey: key)
+            }
+        #endif
+    }
+
     static func storeConfiguration() -> StoreConfiguration {
         let directory = resolveStoreDirectory()
         let shouldReset = CommandLine.arguments.contains("--uitests-reset")
