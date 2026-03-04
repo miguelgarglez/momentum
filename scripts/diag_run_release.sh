@@ -14,6 +14,61 @@ DIAG_PRESEED="${DIAG_PRESEED:-1}"
 DIAG_UI="${DIAG_UI:-1}"
 DIAG_UI_INTERVAL_S="${DIAG_UI_INTERVAL_S:-6}"
 
+read_pref_or_missing() {
+  local key="$1"
+  local value
+  value="$(defaults read "${BUNDLE_ID}" "${key}" 2>/dev/null || true)"
+  if [[ -z "${value}" ]]; then
+    echo "__MISSING__"
+  else
+    echo "${value}"
+  fi
+}
+
+restore_float_pref() {
+  local key="$1"
+  local value="$2"
+  if [[ "${value}" == "__MISSING__" ]]; then
+    defaults delete "${BUNDLE_ID}" "${key}" >/dev/null 2>&1 || true
+    return
+  fi
+  defaults write "${BUNDLE_ID}" "${key}" -float "${value}" >/dev/null 2>&1 || true
+}
+
+restore_bool_pref() {
+  local key="$1"
+  local value="$2"
+  if [[ "${value}" == "__MISSING__" ]]; then
+    defaults delete "${BUNDLE_ID}" "${key}" >/dev/null 2>&1 || true
+    return
+  fi
+  case "${value}" in
+    1|true|TRUE|yes|YES|on|ON)
+      defaults write "${BUNDLE_ID}" "${key}" -bool true >/dev/null 2>&1 || true
+      ;;
+    *)
+      defaults write "${BUNDLE_ID}" "${key}" -bool false >/dev/null 2>&1 || true
+      ;;
+  esac
+}
+
+ORIGINAL_DETECTION_INTERVAL="$(read_pref_or_missing "tracker.detectionInterval")"
+ORIGINAL_IDLE_THRESHOLD="$(read_pref_or_missing "tracker.idleThreshold")"
+ORIGINAL_TRACK_DOMAINS="$(read_pref_or_missing "tracker.trackDomains")"
+ORIGINAL_TRACK_FILES="$(read_pref_or_missing "tracker.trackFiles")"
+TRACKER_DEFAULTS_RESTORED=0
+
+restore_tracker_defaults() {
+  if [[ "${TRACKER_DEFAULTS_RESTORED}" == "1" ]]; then
+    return
+  fi
+  TRACKER_DEFAULTS_RESTORED=1
+  restore_float_pref "tracker.detectionInterval" "${ORIGINAL_DETECTION_INTERVAL}"
+  restore_float_pref "tracker.idleThreshold" "${ORIGINAL_IDLE_THRESHOLD}"
+  restore_bool_pref "tracker.trackDomains" "${ORIGINAL_TRACK_DOMAINS}"
+  restore_bool_pref "tracker.trackFiles" "${ORIGINAL_TRACK_FILES}"
+}
+
 TIMESTAMP="$(date +"%Y%m%d-%H%M%S")"
 RUN_ROOT="${ROOT_DIR}/diagnostics/runs/${TIMESTAMP}"
 mkdir -p "${RUN_ROOT}"
@@ -146,6 +201,7 @@ cleanup_after_signal() {
 }
 
 trap cleanup_after_signal INT TERM
+trap restore_tracker_defaults EXIT
 
 run_scenario() {
   local name="$1"
