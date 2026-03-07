@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.9.0](https://github.com/miguelgarglez/momentum/compare/v1.8.2...v1.9.0) (2026-03-07)
+
+
+### Features
+
+* **dev:** add portfolio screenshot seed ([23d1358](https://github.com/miguelgarglez/momentum/commit/23d135816e3fc1c862d462e39facb1b39592e985))
+* **release:** sync landing changelog ([fd42e5b](https://github.com/miguelgarglez/momentum/commit/fd42e5b42f2f59862bb9957de4f3a433d3a9626e))
+
+
+### Bug Fixes
+
+* **ui:** stabilize macos sidebar behavior ([626a73a](https://github.com/miguelgarglez/momentum/commit/626a73a4d76ab96e92562aa7603e4041ae02a026))
+
+
+### Documentation
+
+* **readme:** add public project overview ([35f184a](https://github.com/miguelgarglez/momentum/commit/35f184a55e5cbaa2fd1e796c63f6b3fcdc853394))
+
+
+### Chores
+
+* **diag:** restore tracker prefs on exit ([79453b5](https://github.com/miguelgarglez/momentum/commit/79453b5eafbafe13b87edb20bd29bd066a9a7296))
+
+
+### Performance
+
+* **tracker:** reduce update churn ([6155e1b](https://github.com/miguelgarglez/momentum/commit/6155e1bf0c014df8871308d1f391adb54f112fd5))
+
+
+### Style
+
+* **forms:** unify macOS sheet UI ([277a7ba](https://github.com/miguelgarglez/momentum/commit/277a7ba3bcf722a5b9462b83a5bad7a7543ed6f3))
+
 ## [1.8.2](https://github.com/miguelgarglez/momentum/compare/v1.8.1...v1.8.2) (2026-02-28)
 
 
