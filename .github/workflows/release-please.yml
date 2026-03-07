@@ -45,3 +45,11 @@ jobs:
     with:
       release_tag: ${{ needs.release-please.outputs.tag_name }}
     secrets: inherit
+
+  sync-landing-changelog:
+    if: needs.release-please.outputs.release_created == 'true'
+    needs: release-please
+    uses: ./.github/workflows/sync-landing-changelog.yml
+    with:
+      release_tag: ${{ needs.release-please.outputs.tag_name }}
+    secrets: inherit
