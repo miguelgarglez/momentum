@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/miguelgarglez/momentum/compare/v1.9.0...v1.9.1) (2026-03-07)
+
+
+### Bug Fixes
+
+* **ci:** chain landing sync from release ([266e361](https://github.com/miguelgarglez/momentum/commit/266e3614371f8b5183aaec473526dc9669258c57))
+
 ## [1.9.0](https://github.com/miguelgarglez/momentum/compare/v1.8.2...v1.9.0) (2026-03-07)
 
 
