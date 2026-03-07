@@ -31,7 +31,9 @@ struct ProjectFormView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 18) {
+                    headerCard
+
                     ProjectFormSection(title: "Identidad") {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Nombre del proyecto")
@@ -67,6 +69,7 @@ struct ProjectFormView: View {
 
                                 Spacer()
                             }
+                            .formCardStyle(prominence: .inset, padding: 16, cornerRadius: 18)
 
                             HStack(alignment: .top, spacing: 24) {
                                 VStack(alignment: .leading, spacing: 6) {
@@ -97,6 +100,7 @@ struct ProjectFormView: View {
                                 )
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             }
+                            .formCardStyle(prominence: .inset, padding: 16, cornerRadius: 18)
                         }
                     }
 
@@ -216,11 +220,11 @@ struct ProjectFormView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .padding(20)
+                .padding(FormSheetMetrics.contentPadding)
             }
-            .background(Color(nsColor: .windowBackgroundColor))
+            .formSheetBackgroundStyle()
             .navigationTitle(mode == .create ? String(localized: "Nuevo proyecto") : String(localized: "Editar proyecto"))
-            .frame(minWidth: 540, maxWidth: 640)
+            .frame(width: FormSheetMetrics.standardWidth, height: FormSheetMetrics.standardHeight)
             .onChange(of: isAppSelectorPresented) { _, isPresented in
                 if isPresented {
                     appCatalog.refreshIfStale()
@@ -241,6 +245,7 @@ struct ProjectFormView: View {
                         #endif
                         dismiss()
                     }
+                    .keyboardShortcut(.cancelAction)
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
@@ -251,10 +256,42 @@ struct ProjectFormView: View {
                         #endif
                         dismiss()
                     }
+                    .keyboardShortcut(.defaultAction)
                     .disabled(draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
+    }
+
+    private var headerCard: some View {
+        HStack(alignment: .center, spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color(hex: draft.colorHex) ?? .accentColor)
+                    .frame(width: 52, height: 52)
+                ProjectIconGlyph(
+                    name: draft.iconName,
+                    size: 20,
+                    weight: .semibold,
+                    symbolStyle: AnyShapeStyle(.white)
+                )
+            }
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(mode == .create ? String(localized: "Da identidad al proyecto") : String(localized: "Ajusta cómo reconoce Momentum este proyecto"))
+                    .font(.title3.weight(.semibold))
+
+                Text(mode == .create
+                    ? String(localized: "Nombre, icono, color y señales de tracking en un mismo flujo, con bloques claros y sin ruido.")
+                    : String(localized: "Mantén nombre, icono y reglas de seguimiento alineados para que el proyecto siga siendo fácil de detectar.")
+                )
+                .formSupportCopyStyle()
+            }
+
+            Spacer()
+        }
+        .formCardStyle(prominence: .emphasized, padding: 20, cornerRadius: 24)
     }
 
     @ViewBuilder
@@ -276,12 +313,19 @@ struct ProjectFormView: View {
                             .frame(width: swatchSize, height: swatchSize)
                             .overlay {
                                 if hex == draft.colorHex {
+                                    Circle()
+                                        .stroke(Color.white.opacity(0.9), lineWidth: 2)
+                                        .padding(3)
                                     Image(systemName: "checkmark")
                                         .font(.headline)
                                         .foregroundStyle(.white)
                                 }
                             }
-                            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                            .overlay {
+                                Circle()
+                                    .stroke(Color.primary.opacity(hex == draft.colorHex ? 0.22 : 0.08), lineWidth: 1)
+                            }
+                            .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 3)
                             .onTapGesture {
                                 draft.colorHex = hex
                             }
@@ -412,14 +456,7 @@ struct ProjectTitleField: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .frame(minHeight: 60, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.secondary.opacity(0.05)),
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.secondary.opacity(0.15)),
-            )
+            .formCardStyle(prominence: .inset, padding: 0, cornerRadius: 16)
         #else
             TextField(
                 "Ej. \"Construir Momentum\"",
@@ -434,14 +471,7 @@ struct ProjectTitleField: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .frame(minHeight: 60, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.secondary.opacity(0.05)),
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.secondary.opacity(0.15)),
-            )
+            .formCardStyle(prominence: .inset, padding: 0, cornerRadius: 16)
         #endif
     }
 }
@@ -640,10 +670,10 @@ private struct ProjectFormSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(NSLocalizedString(title, comment: ""))
-                .font(.headline)
+                .formSectionHeaderStyle()
             content()
         }
-        .detailCardStyle()
+        .formCardStyle()
     }
 }
 
@@ -674,10 +704,13 @@ struct AppSelectionRow: View {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(isSelected ? .accentColor : .secondary)
             }
-            .padding(8)
+            .padding(10)
             .contentShape(Rectangle())
-            .background(Color.secondary.opacity(isSelected ? 0.2 : 0.05))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .formCardStyle(
+                prominence: isSelected ? .regular : .inset,
+                padding: 0,
+                cornerRadius: 14
+            )
         }
         .buttonStyle(.plain)
     }
