@@ -1,0 +1,53 @@
+name: Sync landing changelog
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to sync (example: v1.8.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sync-changelog:
+    if: github.event_name != 'release' || github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.release_tag || github.event.release.tag_name || github.ref_name }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run changelog export tests
+        run: |
+          set -euo pipefail
+          python3 -m unittest scripts.tests.test_export_web_changelog
+
+      - name: Sync landing changelog PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.MOMENTUM_LANDING_SYNC_TOKEN }}
+          LANDING_SYNC_TOKEN: ${{ secrets.MOMENTUM_LANDING_SYNC_TOKEN }}
+          LANDING_REPO: miguelgarglez/momentum-landing
+          LANDING_BASE_BRANCH: main
+          RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name || github.ref_name }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${LANDING_SYNC_TOKEN:-}" ]; then
+            echo "Missing MOMENTUM_LANDING_SYNC_TOKEN secret. Set it to a token with push and PR access to momentum-landing." >&2
+            exit 1
+          fi
+          bash scripts/release/sync_landing_changelog.sh

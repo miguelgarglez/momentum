@@ -1,4 +1,4 @@
-.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint check-localization run-dev run-dev-lang run-dev-system-lang run-dev-portfolio run-dev-onboarding run-release run-release-lang run reset-dev-data run-dev-reset-permissions run-release-reset-permissions archive-release install-release dmg clean clean-release diag-cpu-release diag-cpu-release-focus
+.PHONY: help build build-for-testing test test-unit test-ui test-only lint format format-lint check-localization export-web-changelog run-dev run-dev-lang run-dev-system-lang run-dev-portfolio run-dev-onboarding run-release run-release-lang run reset-dev-data run-dev-reset-permissions run-release-reset-permissions archive-release install-release dmg clean clean-release diag-cpu-release diag-cpu-release-focus
 
 PROJECT := Momentum.xcodeproj
 SCHEME := Momentum
@@ -44,6 +44,7 @@ help:
 	@echo "  format            Format Swift files with SwiftFormat"
 	@echo "  format-lint       Verify SwiftFormat formatting without changes"
 	@echo "  check-localization Validate app string catalog + Raycast English copy"
+	@echo "  export-web-changelog Generate changelog.generated.json for the landing site"
 	@echo "  run-dev           Build and launch the dev app (quits running dev app first)"
 	@echo "  run-dev-lang      Build and launch dev app in specific language (APP_LANGUAGE=en|es, APP_LOCALE optional)"
 	@echo "  run-dev-system-lang Clear dev language overrides and launch with system language"
@@ -159,6 +160,10 @@ check-localization:
 	@set -euo pipefail; \
 	python3 scripts/check_localization_catalog.py; \
 	python3 scripts/check_raycast_english.py
+
+export-web-changelog:
+	@set -euo pipefail; \
+	python3 scripts/export_web_changelog.py --output changelog.generated.json
 
 run-dev:
 	@$(MAKE) run CONFIGURATION=Debug RUN_BUNDLE_ID="$(DEV_BUNDLE_ID)"

@@ -1,0 +1,73 @@
+{
+  "1.8.2": {
+    "hidden": true
+  },
+  "1.8.1": {
+    "hidden": true
+  },
+  "1.8.0": {
+    "highlights": [
+      "Customize projects with icons and emoji for faster visual scanning.",
+      "Momentum is now available in English and Spanish across the app.",
+      "Use Momentum from Raycast with faster project actions and more reliable manual tracking controls.",
+      "Manual tracking flows are easier to start, stop, and manage from Momentum."
+    ],
+    "fixes": [
+      "Menu bar controls are more reliable and do a better job surfacing active tracking state.",
+      "Project action panels and overlays behave more consistently throughout the app.",
+      "Tracking and conflict resolution flows feel more consistent during everyday use."
+    ]
+  },
+  "1.7.0": {
+    "highlights": [
+      "The first-launch experience is smoother with a more polished welcome flow.",
+      "Menu bar controls now reflect manual tracking status more clearly.",
+      "Conflict resolution visuals are easier to scan during review."
+    ],
+    "fixes": [
+      "Tracking is more reliable thanks to improved timer guardrails and conflict handling.",
+      "Momentum uses less CPU during long-running sessions.",
+      "Small UI issues in onboarding and the menu bar were resolved."
+    ]
+  },
+  "1.6.0": {
+    "highlights": [
+      "Project domain management is more flexible and easier to maintain."
+    ]
+  },
+  "1.5.0": {
+    "highlights": [
+      "Settings are easier to navigate with a clearer split-view layout and improved section flows."
+    ],
+    "fixes": [
+      "Settings navigation, sizing, and accessibility issues were resolved for a smoother setup flow."
+    ]
+  },
+  "1.4.2": {
+    "hidden": true
+  },
+  "1.4.1": {
+    "hidden": true
+  },
+  "1.4.0": {
+    "highlights": [
+      "Projects can now use custom colors for quicker recognition across the app.",
+      "Project detail screens now surface clearer summaries and easier navigation through tracked work."
+    ],
+    "fixes": [
+      "Project color selection is more stable and closes cleanly after each edit."
+    ]
+  },
+  "1.0.2": {
+    "hidden": true
+  },
+  "1.0.1": {
+    "highlights": [
+      "Momentum launched with richer context tracking, project summaries, and cleaner project management workflows.",
+      "Settings and project configuration became more practical for day-to-day use."
+    ],
+    "fixes": [
+      "The menu bar tracker now initializes more reliably after launch."
+    ]
+  }
+}

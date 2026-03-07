@@ -1,0 +1,10 @@
+{
+  "1.0.0": {
+    "highlights": [
+      "A curated override replaced the automatic highlights."
+    ],
+    "fixes": [
+      "A curated override replaced the automatic fixes."
+    ]
+  }
+}
