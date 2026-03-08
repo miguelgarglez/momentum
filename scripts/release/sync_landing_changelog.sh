@@ -7,7 +7,7 @@ LANDING_SYNC_TOKEN="${LANDING_SYNC_TOKEN:?LANDING_SYNC_TOKEN is required}"
 LANDING_REPO="${LANDING_REPO:-miguelgarglez/momentum-landing}"
 LANDING_BASE_BRANCH="${LANDING_BASE_BRANCH:-main}"
 LANDING_DATA_PATH="${LANDING_DATA_PATH:-src/data/changelog.generated.json}"
-LANDING_BRANCH="${LANDING_BRANCH:-codex/changelog-${RELEASE_TAG#v}}"
+LANDING_BRANCH="${LANDING_BRANCH:-release/changelog-${RELEASE_TAG#v}}"
 SOURCE_REPOSITORY="${SOURCE_REPOSITORY:-${GITHUB_REPOSITORY:-miguelgarglez/momentum}}"
 
 TEMP_DIR="$(mktemp -d)"
