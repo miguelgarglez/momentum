@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.9.1](https://github.com/miguelgarglez/momentum/compare/v1.9.0...v1.9.1) (2026-03-08)
+
+
+### Bug Fixes
+
+* **ci:** chain landing sync from release ([266e361](https://github.com/miguelgarglez/momentum/commit/266e3614371f8b5183aaec473526dc9669258c57))
+
+
+### Chores
+
+* **deps-dev:** bump minimatch from 3.1.2 to 3.1.5 in /RaycastExtension/momentum ([e7b576d](https://github.com/miguelgarglez/momentum/commit/e7b576d4c97c1162b2a1d681ca6b773ab75cc5bc))
+* **deps-dev:** bump minimatch in /RaycastExtension/momentum ([4b6f6bd](https://github.com/miguelgarglez/momentum/commit/4b6f6bde1690b1a55802b8702ddb0663fd4c2cca))
+* **deps:** bump rollup from 4.57.1 to 4.59.0 in /RaycastExtension/momentum ([fb8381f](https://github.com/miguelgarglez/momentum/commit/fb8381fb94911c9c8616b3570f0e542169ef1b15))
+* **deps:** bump rollup in /RaycastExtension/momentum ([5d431b0](https://github.com/miguelgarglez/momentum/commit/5d431b0fc4837005c122eb90afe58fab48d50051))
+* **security:** harden releases ([90b9e78](https://github.com/miguelgarglez/momentum/commit/90b9e78b76d1665f9599b3cb7089f2e44f36151d))
+
 ## [1.9.0](https://github.com/miguelgarglez/momentum/compare/v1.8.2...v1.9.0) (2026-03-07)
 
 
