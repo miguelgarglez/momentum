@@ -1,9 +1,6 @@
 name: Release build
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_call:
     inputs:
       release_tag:

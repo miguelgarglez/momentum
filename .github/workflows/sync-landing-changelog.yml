@@ -7,9 +7,6 @@ on:
         description: "Release tag to sync (example: v1.8.0)"
         required: true
         type: string
-  release:
-    types:
-      - published
   workflow_dispatch:
     inputs:
       release_tag:
@@ -22,7 +19,6 @@ permissions:
 
 jobs:
   sync-changelog:
-    if: github.event_name != 'release' || github.event.release.prerelease == false
     runs-on: ubuntu-latest
 
     steps:
