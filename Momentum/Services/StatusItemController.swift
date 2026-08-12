@@ -1,439 +1,183 @@
 #if os(macOS)
-    import AppKit
-    import Combine
-    import SwiftData
-    import SwiftUI
+import AppKit
+import SwiftData
 
-    @MainActor
-    final class StatusItemController: NSObject {
-        private struct MenuFingerprint: Equatable {
-            let currentTimeString: String
-            let state: ActivityTracker.StatusSummary.State
-            let appName: String?
-            let domain: String?
-            let filePath: String?
-            let bundleIdentifier: String?
-            let projectName: String?
-            let projectID: PersistentIdentifier?
-            let pendingConflictCount: Int
-            let isManualTrackingActive: Bool
-            let isTrackingEnabled: Bool
+@MainActor
+final class StatusItemController: NSObject, NSMenuDelegate {
+    private let statusItem: NSStatusItem
+    private let controller: FocusSessionController
+    private var refreshTimer: Timer?
+    private let menu = NSMenu()
+
+    init(controller: FocusSessionController) {
+        self.controller = controller
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        super.init()
+
+        if let button = statusItem.button {
+            button.image = NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "Momentum")
+            button.imagePosition = .imageLeading
+            button.image?.isTemplate = true
         }
 
-        private let tracker: ActivityTracker
-        private let feedbackEmailService = FeedbackEmailService()
-        private let statusItem: NSStatusItem
-        private let statusMenu: NSMenu
-        private var cancellables: Set<AnyCancellable> = []
-        private var clockTimer: Timer?
-        private var currentTimeString: String = ""
-        private var latestSummary: ActivityTracker.StatusSummary
-        private var pendingConflictCount: Int
-        private var isManualTrackingActive: Bool
-        private let symbolViewModel = StatusItemSymbolViewModel()
-        private weak var symbolHostingView: NSHostingView<StatusItemSymbolView>?
-        private var isConflictActive: Bool = false
-        private var isMenuOpen = false
-        private var menuNeedsRebuild = true
-        private var lastMenuFingerprint: MenuFingerprint?
+        menu.delegate = self
+        menu.autoenablesItems = false
+        statusItem.menu = menu
+        startRefresh()
+        updateButton()
+    }
 
-        private lazy var timeFormatter: DateFormatter = {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .none
-            formatter.timeStyle = .short
-            return formatter
-        }()
+    func invalidate() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+    }
 
-        @MainActor
-        init(tracker: ActivityTracker) {
-            self.tracker = tracker
-            statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-            statusMenu = NSMenu()
-            latestSummary = tracker.statusSummary
-            pendingConflictCount = tracker.pendingConflictCount
-            isManualTrackingActive = tracker.isManualTrackingActive
-            isConflictActive = pendingConflictCount > 0 && !latestSummary.isTrackingExistingProject
-            symbolViewModel.isProjectTrackingActive = latestSummary.isTrackingExistingProject
-            super.init()
-            statusMenu.delegate = self
-            statusItem.menu = statusMenu
-            configureButton()
-            updateClockLabel()
-            rebuildMenuIfNeeded(force: true)
-            tracker.$statusSummary
-                .receive(on: RunLoop.main)
-                .sink { [weak self] summary in
-                    guard let self else { return }
-                    self.latestSummary = summary
-                    self.updateSymbolView()
-                    self.markMenuDirty()
-                }
-                .store(in: &cancellables)
-            tracker.$pendingConflictCount
-                .receive(on: RunLoop.main)
-                .sink { [weak self] count in
-                    guard let self else { return }
-                    self.pendingConflictCount = count
-                    self.updateButtonBadge()
-                    self.updateSymbolView()
-                    self.markMenuDirty()
-                }
-                .store(in: &cancellables)
-            tracker.$isManualTrackingActive
-                .receive(on: RunLoop.main)
-                .sink { [weak self] isActive in
-                    guard let self else { return }
-                    self.isManualTrackingActive = isActive
-                    self.updateButtonBadge()
-                    self.updateSymbolView()
-                    self.markMenuDirty()
-                }
-                .store(in: &cancellables)
-            startClockTimer()
-        }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        rebuildMenu(into: menu)
+    }
 
-        @MainActor
-        private func configureButton() {
-            installSymbolViewIfNeeded()
-            statusItem.button?.imagePosition = .imageOnly
-            statusItem.button?.appearsDisabled = false
-            updateSymbolView()
-            updateButtonBadge()
-        }
-
-        @MainActor
-        private func updateButtonBadge() {
-            guard let button = statusItem.button else { return }
-            button.title = ""
-            button.attributedTitle = NSAttributedString(string: "")
-        }
-
-        @MainActor
-        private func installSymbolViewIfNeeded() {
-            guard let button = statusItem.button else { return }
-            button.image = nil
-            button.title = ""
-            button.attributedTitle = NSAttributedString(string: "")
-
-            if symbolHostingView == nil {
-                let hostingView = NSHostingView(
-                    rootView: StatusItemSymbolView(model: symbolViewModel))
-                hostingView.translatesAutoresizingMaskIntoConstraints = false
-                button.addSubview(hostingView)
-                NSLayoutConstraint.activate([
-                    hostingView.centerXAnchor.constraint(equalTo: button.centerXAnchor),
-                    hostingView.centerYAnchor.constraint(equalTo: button.centerYAnchor),
-                    hostingView.widthAnchor.constraint(equalToConstant: 16),
-                    hostingView.heightAnchor.constraint(equalToConstant: 16),
-                ])
-                symbolHostingView = hostingView
+    private func startRefresh() {
+        refreshTimer?.invalidate()
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateButton()
             }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        refreshTimer = timer
+    }
 
-        @MainActor
-        private func updateSymbolView() {
-            let isProjectTrackingActive = latestSummary.isTrackingExistingProject
-            let hasConflict = pendingConflictCount > 0 && !isProjectTrackingActive
-            if hasConflict != isConflictActive {
-                isConflictActive = hasConflict
-                symbolViewModel.isConflicting = hasConflict
-                symbolViewModel.conflictChangeToken += 1
+    private func updateButton() {
+        guard let button = statusItem.button else { return }
+        if controller.isFocusing {
+            button.title = " \(DurationFormat.chronometer(controller.displayedElapsed))"
+            if controller.phase == .pausedIdle {
+                button.toolTip = "En pausa (inactividad)"
             } else {
-                symbolViewModel.isConflicting = hasConflict
+                button.toolTip = controller.activeProject.map { "Enfocando: \($0.name)" } ?? "Enfocando"
             }
-            symbolViewModel.isProjectTrackingActive = isProjectTrackingActive
+        } else {
+            button.title = ""
+            button.toolTip = "Momentum"
         }
+    }
 
-        @MainActor
-        private func startClockTimer() {
-            clockTimer?.invalidate()
-            clockTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    self.updateClockLabel()
-                    self.markMenuDirty()
-                }
-            }
-        }
+    private func rebuildMenu(into menu: NSMenu) {
+        menu.removeAllItems()
 
-        @MainActor
-        private func updateClockLabel() {
-            currentTimeString = timeFormatter.string(from: Date())
-        }
-
-        private func currentMenuFingerprint() -> MenuFingerprint {
-            MenuFingerprint(
-                currentTimeString: currentTimeString,
-                state: latestSummary.state,
-                appName: latestSummary.appName,
-                domain: latestSummary.domain,
-                filePath: latestSummary.filePath,
-                bundleIdentifier: latestSummary.bundleIdentifier,
-                projectName: latestSummary.projectName,
-                projectID: latestSummary.projectID,
-                pendingConflictCount: pendingConflictCount,
-                isManualTrackingActive: isManualTrackingActive,
-                isTrackingEnabled: tracker.isTrackingEnabled,
+        if controller.isFocusing {
+            let projectName = controller.activeProject?.name ?? "Proyecto"
+            let status = controller.phase == .pausedIdle ? "Pausado" : "En curso"
+            let header = NSMenuItem(
+                title: "\(status): \(projectName) · \(DurationFormat.chronometer(controller.displayedElapsed))",
+                action: nil,
+                keyEquivalent: ""
             )
-        }
-
-        private func markMenuDirty() {
-            let fingerprint = currentMenuFingerprint()
-            guard fingerprint != lastMenuFingerprint else { return }
-            menuNeedsRebuild = true
-            if isMenuOpen {
-                rebuildMenuIfNeeded(force: true)
-            }
-        }
-
-        private func rebuildMenuIfNeeded(force: Bool = false) {
-            let fingerprint = currentMenuFingerprint()
-            guard force || menuNeedsRebuild || fingerprint != lastMenuFingerprint else { return }
-            menuNeedsRebuild = false
-            lastMenuFingerprint = fingerprint
-
-            statusMenu.removeAllItems()
-            let menu = statusMenu
-            let header = disabledItem(localizedFormat("Momentum — %@", currentTimeString))
+            header.isEnabled = false
             menu.addItem(header)
+            menu.addItem(.separator())
 
-            let stateItem = disabledItem(stateDescription(for: latestSummary))
-            menu.addItem(stateItem)
-            appendContextDetails(to: menu, summary: latestSummary)
-            menu.addItem(NSMenuItem.separator())
+            let stop = NSMenuItem(title: "Detener sesión", action: #selector(stopSession), keyEquivalent: "")
+            stop.target = self
+            menu.addItem(stop)
+            menu.addItem(.separator())
+        } else {
+            let today = DurationFormat.summary(controller.todaySecondsTotal())
+            let header = NSMenuItem(title: "Hoy · \(today)", action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            menu.addItem(header)
+            menu.addItem(.separator())
 
-            let showAppItem = NSMenuItem(
-                title: localized("Abrir Momentum"),
-                action: #selector(handleShowApp),
-                keyEquivalent: ""
-            )
-            showAppItem.target = self
-            menu.addItem(showAppItem)
-
-            let toggleTitle = tracker.isTrackingEnabled ? localized("Pausar tracking") : localized("Reanudar tracking")
-            let toggleItem = NSMenuItem(title: toggleTitle, action: #selector(handleToggleTracking), keyEquivalent: "")
-            toggleItem.target = self
-            menu.addItem(toggleItem)
-
-            if tracker.isManualTrackingActive {
-                let stopManualItem = NSMenuItem(
-                    title: localized("Detener tracking manual"),
-                    action: #selector(handleStopManualTracking),
+            if let last = controller.mostRecentlyUsedProject() {
+                let resume = NSMenuItem(
+                    title: "Continuar \(last.name)",
+                    action: #selector(continueLast),
                     keyEquivalent: ""
                 )
-                stopManualItem.target = self
-                menu.addItem(stopManualItem)
-            } else {
-                let startManualItem = NSMenuItem(
-                    title: localized("Iniciar tracking manual"),
-                    action: #selector(handleStartManualTracking),
+                resume.target = self
+                menu.addItem(resume)
+                menu.addItem(.separator())
+            }
+        }
+
+        let projects = controller.allProjects()
+        if projects.isEmpty {
+            let create = NSMenuItem(title: "Crear proyecto…", action: #selector(createProject), keyEquivalent: "")
+            create.target = self
+            menu.addItem(create)
+        } else if !controller.isFocusing {
+            let submenu = NSMenu()
+            for project in projects.prefix(12) {
+                let item = NSMenuItem(
+                    title: project.name,
+                    action: #selector(startProject(_:)),
                     keyEquivalent: ""
                 )
-                startManualItem.target = self
-                menu.addItem(startManualItem)
+                item.target = self
+                item.representedObject = project.persistentModelID
+                submenu.addItem(item)
             }
+            let start = NSMenuItem(title: "Empezar en…", action: nil, keyEquivalent: "")
+            start.submenu = submenu
+            menu.addItem(start)
 
-            if pendingConflictCount > 0, !tracker.isManualTrackingActive {
-                let conflictTitle = localizedFormat("Resolver conflictos (%lld)", pendingConflictCount)
-                let conflictItem = NSMenuItem(title: conflictTitle, action: #selector(handleShowConflicts), keyEquivalent: "")
-                conflictItem.target = self
-                menu.addItem(conflictItem)
-            }
-
-            if let projectName = latestSummary.projectName,
-               latestSummary.projectID != nil
-            {
-                let projectItem = NSMenuItem(
-                    title: localizedFormat("Ir a %@", projectName),
-                    action: #selector(handleOpenActiveProject),
-                    keyEquivalent: ""
-                )
-                projectItem.target = self
-                menu.addItem(projectItem)
-            }
-
-            let feedbackItem = NSMenuItem(
-                title: localized("Enviar feedback…"),
-                action: #selector(handleSendFeedback),
-                keyEquivalent: ""
-            )
-            feedbackItem.target = self
-            menu.addItem(feedbackItem)
-
-            let settingsItem = NSMenuItem(title: localized("Ajustes…"), action: #selector(handleShowSettings), keyEquivalent: ",")
-            settingsItem.target = self
-            menu.addItem(settingsItem)
-
-            menu.addItem(NSMenuItem.separator())
-
-            let quitItem = NSMenuItem(title: localized("Salir"), action: #selector(handleQuit), keyEquivalent: "q")
-            quitItem.target = self
-            quitItem.keyEquivalentModifierMask = [.command]
-            menu.addItem(quitItem)
+            let create = NSMenuItem(title: "Crear proyecto…", action: #selector(createProject), keyEquivalent: "")
+            create.target = self
+            menu.addItem(create)
         }
 
-        private func appendContextDetails(to menu: NSMenu, summary: ActivityTracker.StatusSummary) {
-            switch summary.state {
-            case .tracking:
-                if let contextLine = contextLine(for: summary) {
-                    menu.addItem(disabledItem(contextLine))
-                } else {
-                    menu.addItem(disabledItem(localized("Registrando actividad")))
-                }
-                let projectLabel = summary.projectName ?? localized("Sin proyecto asignado")
-                menu.addItem(disabledItem(localizedFormat("Proyecto: %@", projectLabel)))
-            case .trackingManual:
-                if let contextLine = contextLine(for: summary) {
-                    menu.addItem(disabledItem(contextLine))
-                } else {
-                    menu.addItem(disabledItem(localized("Tracking manual activo")))
-                }
-                let projectLabel = summary.projectName ?? localized("Sin proyecto asignado")
-                menu.addItem(disabledItem(localizedFormat("Proyecto manual: %@", projectLabel)))
-            case .pendingResolution:
-                if let contextLine = contextLine(for: summary) {
-                    menu.addItem(disabledItem(contextLine))
-                } else {
-                    menu.addItem(disabledItem(localized("Pendiente de asignación")))
-                }
-                menu.addItem(disabledItem(localized("Proyecto: pendiente de asignación")))
-            case .pausedManual:
-                menu.addItem(disabledItem(localized("Tracking pausado manualmente")))
-            case .pausedIdle:
-                menu.addItem(disabledItem(localized("Tracking pausado por inactividad")))
-            case .pausedScreenLocked:
-                menu.addItem(disabledItem(localized("Tracking pausado por bloqueo de pantalla")))
-            case .pausedExcluded:
-                if let contextLine = contextLine(for: summary) {
-                    menu.addItem(disabledItem(localizedFormat("%@ (excluido)", contextLine)))
-                } else {
-                    menu.addItem(disabledItem(localized("Tracking desactivado por exclusión")))
-                }
-            case .inactive:
-                menu.addItem(disabledItem(localized("Esperando actividad...")))
-            }
-        }
+        menu.addItem(.separator())
 
-        private func contextLine(for summary: ActivityTracker.StatusSummary) -> String? {
-            guard let appName = summary.appName else { return nil }
-            if let filePath = summary.filePath {
-                return "\(appName) • \(filePath.filePathDisplayName)"
-            }
-            if let domain = summary.domain {
-                return "\(appName) • \(domain)"
-            }
-            return appName
-        }
+        let open = NSMenuItem(title: "Abrir Momentum", action: #selector(openApp), keyEquivalent: "")
+        open.target = self
+        menu.addItem(open)
 
-        private func stateDescription(for summary: ActivityTracker.StatusSummary) -> String {
-            switch summary.state {
-            case .tracking:
-                localized("Tracking activo")
-            case .trackingManual:
-                localized("Tracking manual activo")
-            case .pendingResolution:
-                localized("Pendiente de asignación")
-            case .pausedManual:
-                localized("Tracking pausado")
-            case .pausedIdle:
-                localized("Tracking pausado (idle)")
-            case .pausedScreenLocked:
-                localized("Tracking pausado (bloqueo)")
-            case .pausedExcluded:
-                localized("Actividad excluida")
-            case .inactive:
-                localized("Sin tracking")
-            }
-        }
+        let settings = NSMenuItem(title: "Ajustes…", action: #selector(openSettings), keyEquivalent: ",")
+        settings.target = self
+        menu.addItem(settings)
 
-        private func localized(_ key: String) -> String {
-            NSLocalizedString(key, comment: "")
-        }
+        menu.addItem(.separator())
+        let quit = NSMenuItem(title: "Salir de Momentum", action: #selector(quitApp), keyEquivalent: "q")
+        quit.target = self
+        menu.addItem(quit)
 
-        private func localizedFormat(_ format: String, _ args: CVarArg...) -> String {
-            String(format: NSLocalizedString(format, comment: ""), locale: Locale.current, arguments: args)
-        }
-
-        private func disabledItem(_ title: String) -> NSMenuItem {
-            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-            item.isEnabled = false
-            return item
-        }
-
-        @objc private func handleToggleTracking(_: Any?) {
-            tracker.toggleTracking()
-        }
-
-        @objc private func handleStartManualTracking(_ sender: Any?) {
-            handleShowApp(sender)
-            NotificationCenter.default.post(name: .statusItemStartManualTracking, object: nil)
-        }
-
-        @objc private func handleStopManualTracking(_: Any?) {
-            tracker.stopManualTracking(reason: .manual)
-        }
-
-        @objc private func handleShowApp(_: Any?) {
-            NotificationCenter.default.post(name: .statusItemShowApp, object: nil)
-        }
-
-        @objc private func handleShowConflicts(_: Any?) {
-            NotificationCenter.default.post(name: .raycastShowConflicts, object: nil)
-        }
-
-        @objc private func handleOpenActiveProject(_ sender: Any?) {
-            guard let identifier = latestSummary.projectID else {
-                handleShowApp(sender)
-                return
-            }
-            handleShowApp(sender)
-            NotificationCenter.default.post(name: .statusItemOpenProject, object: nil, userInfo: [
-                StatusItemUserInfoKey.projectID: identifier,
-            ])
-        }
-
-        @objc private func handleQuit(_: Any?) {
-            NSApplication.shared.terminate(nil)
-        }
-
-        @objc private func handleShowSettings(_: Any?) {
-            SettingsWindowPresenter.open(section: nil)
-        }
-
-        @objc private func handleSendFeedback(_: Any?) {
-            let opened = feedbackEmailService.sendFeedbackEmail(statusSummary: tracker.statusSummary)
-            if !opened {
-                NotificationCenter.default.post(name: .statusItemFeedbackEmailFailed, object: nil)
-            }
-        }
+        let hotkeyHint = NSMenuItem(title: "Atajo: ⌃⌥⌘M", action: nil, keyEquivalent: "")
+        hotkeyHint.isEnabled = false
+        menu.addItem(hotkeyHint)
     }
 
-    extension Notification.Name {
-        static let statusItemOpenProject = Notification.Name("StatusItemOpenProject")
-        static let statusItemStartManualTracking = Notification.Name("StatusItemStartManualTracking")
-        static let statusItemShowApp = Notification.Name("StatusItemShowApp")
-        static let statusItemShowSettings = Notification.Name("StatusItemShowSettings")
-        static let statusItemFeedbackEmailFailed = Notification.Name("StatusItemFeedbackEmailFailed")
-        static let raycastShowConflicts = Notification.Name("RaycastShowConflicts")
-        static let raycastStartManualTracking = Notification.Name("RaycastStartManualTracking")
+    @objc private func continueLast() {
+        controller.toggleLastProject()
+        updateButton()
     }
 
-    enum StatusItemUserInfoKey {
-        static let projectID = "StatusItemProjectID"
+    @objc private func stopSession() {
+        controller.stop(offerNotePrompt: true)
+        updateButton()
+        NotificationCenter.default.post(name: .momentumShowMainWindow, object: nil)
     }
 
-    extension StatusItemController: NSMenuDelegate {
-        func menuWillOpen(_ menu: NSMenu) {
-            guard menu === statusMenu else { return }
-            isMenuOpen = true
-            updateClockLabel()
-            menuNeedsRebuild = true
-            rebuildMenuIfNeeded(force: true)
-        }
-
-        func menuDidClose(_ menu: NSMenu) {
-            guard menu === statusMenu else { return }
-            isMenuOpen = false
-        }
+    @objc private func startProject(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? PersistentIdentifier else { return }
+        guard let project = controller.allProjects().first(where: { $0.persistentModelID == id }) else { return }
+        controller.start(project: project)
+        updateButton()
     }
+
+    @objc private func createProject() {
+        NotificationCenter.default.post(name: .momentumShowNewProject, object: nil)
+    }
+
+    @objc private func openApp() {
+        NotificationCenter.default.post(name: .momentumShowMainWindow, object: nil)
+    }
+
+    @objc private func openSettings() {
+        NotificationCenter.default.post(name: .momentumShowSettings, object: nil)
+    }
+
+    @objc private func quitApp() {
+        NSApp.terminate(nil)
+    }
+}
 #endif

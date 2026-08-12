@@ -14,6 +14,7 @@ Docs under `PRDs/Features/`, `PRDs/Plans/`, and `PRDs/Overview.md` describe the 
 
 - Same repo, branch `rewrite/focus-v0`
 - Same branding (Momentum); no mascot
-- Focus Session (manual-first); no auto-tracking in v0
+- Focus Session chronometer (manual-first); live elapsed in menu bar
+- Spanish UI only in v0
 - Landing → monorepo (after app loop works)
 - Raycast → out of v0

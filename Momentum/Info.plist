@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDevelopmentRegion</key>
-    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <string>es</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -18,23 +18,12 @@
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
-    <key>CFBundleURLTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleURLName</key>
-            <string>momentum</string>
-            <key>CFBundleURLSchemes</key>
-            <array>
-                <string>momentum</string>
-            </array>
-        </dict>
-    </array>
     <key>LSMinimumSystemVersion</key>
     <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.productivity</string>
-    <key>NSAppleEventsUsageDescription</key>
-    <string>Momentum necesita autorización para identificar la app, el dominio o el archivo activo. No accede a contenido, teclas ni capturas de pantalla y toda la información se guarda localmente.</string>
+    <key>LSUIElement</key>
+    <false/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>
