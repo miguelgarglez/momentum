@@ -1,5 +1,9 @@
 # Momentum
 
+> **Archived (August 2026).** I stopped using this app. The source stays public as a reference. It is not maintained, and there is no product landing.
+
+Case study: [miguelgarglez.com/projects/momentum](https://miguelgarglez.com/projects/momentum/)
+
 <p align="center">
   <img src="Momentum/Assets.xcassets/AppIcon.appiconset/icon_1024x1024.png" alt="Momentum App Icon" width="128" height="128" />
 </p>
@@ -17,11 +21,9 @@
 
 ## What is Momentum?
 
-Momentum is a native macOS app that helps you understand where your time goes across personal and professional projects.
+Momentum is a native macOS app that helped track where time went across personal projects.
 
-It is built as:
-- a real product you can use every day
-- an open public repository where feedback and contributions are welcome
+It is archived. The code stays public as a reference.
 
 ## Why Momentum?
 
@@ -35,8 +37,7 @@ It is built as:
 
 ## Product Status
 
-Momentum is actively developed and already usable as a daily tool.  
-Releases are published regularly, while the repo remains open for issues, ideas, and pull requests.
+Momentum is archived. It is not an active product. The repository remains readable; do not expect releases or support.
 
 - Releases: https://github.com/miguelgarglez/momentum/releases
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
