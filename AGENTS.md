@@ -177,3 +177,10 @@ Raw `xcodebuild` commands are still valid and occasionally useful:
 - The runner uses an isolated store per scenario inside the app container and seeds deterministic data (`MOM_DIAG_SEED=1`).
 - Default driver keeps the system active (`caffeinate -u`) and the runner can disable idle checks (`DIAG_FORCE_ACTIVE=1`) for stability.
  - Known hotspots/fixes summary: `diagnostics/AGENTS.md` (2026-01-18).
+
+## Cursor Cloud specific instructions
+- Cursor Cloud runs this repo on a **Linux** VM. The `Momentum` macOS app is a native Swift/SwiftUI + Xcode target, so it **cannot be built, tested, or run here** — every `make` / `xcodebuild` target (`make build`, `make test`, `make run-dev`, `make lint`/`make format` via SwiftLint/SwiftFormat, `make check-localization` needs the app, diagnostics, etc.) requires macOS + Xcode and is out of scope on the cloud VM. Do that work on a Mac or in the macOS CI workflows (`.github/workflows/ci.yml`).
+- The only component workable on the cloud VM is the Raycast extension at `RaycastExtension/momentum/` (TypeScript/Node). Its scripts are defined in `RaycastExtension/momentum/package.json`.
+- All of these run headless on Linux from `RaycastExtension/momentum/`: `npm run lint` (`ray lint`), `npm run typecheck` (`tsc`), `npm run test` (vitest, 31 tests), and `npm run build` (`ray build`). The `ray` CLI works without the desktop Raycast app for lint/build.
+- Not runnable here: `npm run dev` (`ray develop`, needs the local macOS Raycast app) and the `simulate:no-app:*` scripts (they hunt for a real `Momentum.app` on macOS).
+- Non-obvious: vitest aliases `@raycast/api` to `src/__tests__/raycast-api.stub.ts` (see `vitest.config.ts`), so unit tests exercise the extension's client logic without the real Raycast runtime. The extension's runtime target is the Momentum local API on `http://127.0.0.1:51637` (fallback `51638`), which is only present when the macOS app is running.
